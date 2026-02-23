@@ -166,8 +166,18 @@ function renderLegacyBannerText(text) {
       const isLower = ch >= 'a' && ch <= 'z';
       const upper = isLower ? ch.toUpperCase() : ch;
       const key = LEGACY_BANNER_FONT[upper] ? upper : (LEGACY_BANNER_FONT[ch] ? ch : '?');
-      const glyphRow = LEGACY_BANNER_FONT[key][y];
-      return isLower ? glyphRow.replace(/█/g, '▓') : glyphRow;
+      const glyph = LEGACY_BANNER_FONT[key];
+      const width = Math.max(0, ...glyph.map(r => r.length));
+
+      // Lowercase: visually smaller (shifted down) and slightly lighter fill.
+      // This keeps the same overall style but makes casing obvious.
+      if (isLower) {
+        if (y < 2) return ' '.repeat(width);
+        // Use the lower half of the glyph (rows 2..5) and lighten blocks.
+        return (glyph[y] || '').padEnd(width, ' ').replace(/█/g, '░');
+      }
+
+      return glyph[y];
     }).join(' ');
     out.push(line.replace(/\s+$/g, ''));
   }
