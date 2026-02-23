@@ -980,6 +980,19 @@ const ctxMenuEl = (() => {
   menu.id = 'dial-ctx-menu';
   menu.setAttribute('aria-hidden', 'true');
 
+  const openTabBtn = document.createElement('button');
+  openTabBtn.className = 'ctx-menu-item';
+  openTabBtn.dataset.action = 'open-tab';
+  openTabBtn.textContent = 'Open in new tab';
+  openTabBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    const dials = await loadDials();
+    const dial  = dials.find(d => d.alias === alias);
+    if (dial?.url) window.open(dial.url, '_blank');
+  });
+
   const editBtn = document.createElement('button');
   editBtn.className = 'ctx-menu-item';
   editBtn.dataset.action = 'edit';
@@ -1001,6 +1014,7 @@ const ctxMenuEl = (() => {
     await removeDial(alias);
   });
 
+  menu.appendChild(openTabBtn);
   menu.appendChild(editBtn);
   menu.appendChild(removeBtn);
   document.body.appendChild(menu);
@@ -1009,8 +1023,10 @@ const ctxMenuEl = (() => {
 
 function showDialCtxMenu(x, y, alias, isDivider = false) {
   ctxMenuEl.dataset.target = alias;
-  const ctxEditBtn = ctxMenuEl.querySelector('[data-action="edit"]');
-  if (ctxEditBtn) ctxEditBtn.style.display = isDivider ? 'none' : '';
+  const ctxEditBtn    = ctxMenuEl.querySelector('[data-action="edit"]');
+  const ctxOpenTabBtn = ctxMenuEl.querySelector('[data-action="open-tab"]');
+  if (ctxEditBtn)    ctxEditBtn.style.display    = isDivider ? 'none' : '';
+  if (ctxOpenTabBtn) ctxOpenTabBtn.style.display = isDivider ? 'none' : '';
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
