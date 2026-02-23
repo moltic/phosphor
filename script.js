@@ -696,6 +696,21 @@ function isShortTextIcon(val) {
   return [...s].length <= 3;
 }
 
+/**
+ * Return the favicon/icon image URL for a dial, or null if the icon is not a
+ * URL (letter-box, emoji, short text, or 'none').
+ *
+ * If `dial._faviconUrl` has already been stamped by renderDials() this render
+ * pass the pre-computed value is returned immediately, bypassing all string
+ * checks.
+ */
+function getFaviconUrl(dial) {
+  if ('_faviconUrl' in (dial ?? {})) return dial._faviconUrl;
+  const icon = normalizeDialIcon(dial?.icon);
+  if (!icon || icon === 'none' || !isLikelyUrl(icon)) return null;
+  return icon;
+}
+
 function buildDialIconElement(dial) {
   const icon = normalizeDialIcon(dial?.icon);
   if (icon === 'none') return null;
@@ -714,11 +729,12 @@ function buildDialIconElement(dial) {
     return span;
   }
 
-  // Custom image URL (fallback to letter-box if it fails — no external requests)
-  if (isLikelyUrl(icon)) {
+  // Custom image URL — use cached URL stamped by renderDials() if available.
+  const faviconUrl = getFaviconUrl(dial);
+  if (faviconUrl) {
     const img = document.createElement('img');
     img.className = 'dial-favicon';
-    img.src = icon;
+    img.src = faviconUrl;
     img.alt = '';
     img.addEventListener('error', () => {
       const letter = buildLetterIcon(dial);
@@ -1070,6 +1086,13 @@ function _patchTileEl(tile, dial) {
  */
 async function renderDials() {
   const dials = await loadDials();
+
+  // Pre-compute and cache the resolved favicon URL on each dial object once
+  // per render pass so that getFaviconUrl() never re-runs its string checks
+  // inside _createTileEl / _patchTileEl for the lifetime of this call.
+  for (const dial of dials) {
+    dial._faviconUrl = getFaviconUrl(dial);
+  }
 
   // ── Step 1: build / patch the node for every desired entry ───────────────
   const desiredEls = dials.map(dial => {
