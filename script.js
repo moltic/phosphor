@@ -121,11 +121,36 @@ const LEGACY_BANNER_FONT = {
   ',': ['    ', '    ', '    ', '    ', '██╗ ', '╚██║'],
   '.': ['   ', '   ', '   ', '   ', '██╗', '╚═╝'],
   ':': ['   ', '██╗', '╚═╝', '██╗', '╚═╝', '   '],
-  // Lowercase variants (only where we want clearer differentiation).
-  // These are 6-row glyphs with an intentionally blank top row so they
-  // read as "lowercase" under the legacy banner style.
+  // Lowercase variants — explicit 6-row glyphs for all 26 letters.
+  // Ascender letters (b d f h i j k l t) use the full height with a visible
+  // top stroke.  X-height letters have a blank first row.  Descender letters
+  // (g p q y) extend the stroke into the last row.
   'a': ['        ', ' █████╗ ', '██╔══██╗', '███████║', '██╔══██║', '╚█████╔╝'],
+  'b': ['██╗     ', '██║     ', '██████╗ ', '██╔══██╗', '██████╔╝', '╚═════╝ '],
+  'c': ['        ', ' ██████╗', '██╔════╝', '██║     ', '╚██████╗', ' ╚═════╝'],
+  'd': ['     ██╗', '     ██║', ' ██████║', '██╔══██║', '╚██████║', ' ╚═════╝'],
   'e': ['        ', ' █████╗ ', '██╔═══╝ ', '█████╗  ', '██╔══╝  ', '╚█████╗ '],
+  'f': [' ████╗  ', '██╔══╝  ', '███████╗', '██╔════╝', '██║     ', '╚═╝     '],
+  'g': ['        ', ' █████╗ ', '██╔══██╗', '██║  ██║', '╚██████║', ' ╚═════╝'],
+  'h': ['██╗     ', '██║     ', '███████╗', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'i': ['██╗', '╚═╝', '██╗', '██║', '██║', '╚═╝'],
+  'j': ['  ██╗', '  ╚═╝', '  ██╗', '  ██║', '██╔╝ ', '╚═╝  '],
+  'k': ['██╗  ██╗', '██║ ██╔╝', '█████╔╝ ', '██╔═██╗ ', '██║  ██╗', '╚═╝  ╚═╝'],
+  'l': ['███╗ ', '╚██║ ', ' ██║ ', ' ██║ ', '████╗', '╚═══╝'],
+  'm': ['          ', '██╗██╗██╗ ', '████████╔╝', '██╔══██╔╝ ', '██║  ██║  ', '╚═╝  ╚═╝  '],
+  'n': ['        ', '███╗ ██╗', '██╔╝ ██║', '██║  ██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'o': ['        ', ' █████╗ ', '██╔══██╗', '██║  ██║', '╚█████╔╝', ' ╚════╝ '],
+  'p': ['        ', '██████╗ ', '██╔══██╗', '██████╔╝', '██╔════╝', '██║     '],
+  'q': ['        ', ' █████╗ ', '██╔══██╗', '██║  ██╗', '╚█████╔╝', '     ██╗'],
+  'r': ['      ', '████╗ ', '██╔═╝ ', '██║   ', '██║   ', '╚═╝   '],
+  's': ['        ', ' ██████╗', '██╔════╝', '╚█████╗ ', ' ╚═══██╗', '██████╔╝'],
+  't': ['   ██╗  ', '███████╗', '╚══╝██║ ', '   ██║  ', '   ████╗', '   ╚═══╝'],
+  'u': ['         ', '██╗   ██╗', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'v': ['        ', '██╗  ██╗', '██║  ██║', '╚██╗██╔╝', ' ╚███╔╝ ', '  ╚══╝  '],
+  'w': ['          ', '██╗   ██╗ ', '██║ █╗ ██║', '╚██╗███╔╝ ', ' ╚████╔╝  ', '  ╚══╝    '],
+  'x': ['        ', '██╗  ██╗', '╚██╗██╔╝', ' ╚███╔╝ ', ' ██╔██╗ ', '╚═╝  ╚═╝'],
+  'y': ['        ', '██╗  ██╗', '╚██╗██╔╝', ' ╚████╔╝', '  ╚██╔╝ ', '   ██║  '],
+  'z': ['        ', '███████╗', '╚══███╔╝', '  ███╔╝ ', '███████╗', '╚══════╝'],
   '0': [' ██████╗', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
   '1': [' ██╗', '███║', '╚██║', ' ██║', ' ██║', ' ╚═╝'],
   '2': ['██████╗ ', '╚════██╗', ' █████╔╝', '██╔═══╝ ', '███████╗', '╚══════╝'],
@@ -172,9 +197,11 @@ function renderLegacyBannerText(text) {
   const rows = 6;
   const out = [];
 
-  // Ascenders keep the top row so they read as tall letters.
-  // Exclude h/l so those lowercase letters don't look identical to H/L.
-  const LOWER_ASCENDERS = new Set(['b', 'd', 'f', 'k', 't']);
+  // All a–z have explicit glyphs in LEGACY_BANNER_FONT.  The heuristic below
+  // is a safety fallback for any other Unicode lowercase characters that may
+  // appear.  For those, ascender letters keep the top row so they read tall;
+  // the rest get a blank first row to suggest x-height.
+  const LOWER_ASCENDERS = new Set(['b', 'd', 'f', 'h', 'i', 'j', 'k', 'l', 't']);
 
   function glyphRowsForChar(ch) {
     const isLower = ch >= 'a' && ch <= 'z';
@@ -185,7 +212,7 @@ function renderLegacyBannerText(text) {
     const glyph = LEGACY_BANNER_FONT[key];
     const width = Math.max(0, ...glyph.map(r => r.length));
 
-    // Lowercase with explicit glyphs: use as-is (already designed to be shorter).
+    // Explicit lowercase glyph — use as designed.
     if (isLower && key === ch) {
       return glyph.map(r => String(r || '').padEnd(width, ' '));
     }
@@ -194,9 +221,8 @@ function renderLegacyBannerText(text) {
       return glyph.map(r => String(r || '').padEnd(width, ' '));
     }
 
-    // Lowercase: keep the same block fill for readability, but make it shorter
-    // by dropping the top row. Preserve ascenders for letters that should have
-    // them (b/d/f/h/k/l/t).
+    // Fallback for lowercase chars without explicit glyphs: derive from the
+    // uppercase by blanking the top row (x-height) or keeping it (ascenders).
     const keepAscender = LOWER_ASCENDERS.has(ch);
     const row0 = keepAscender
       ? String(glyph[0] || '').padEnd(width, ' ')
