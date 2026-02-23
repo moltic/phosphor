@@ -2609,6 +2609,36 @@ const commands = {
     },
   },
 
+  // ── cow — cowsay-style ASCII speech bubble ──────────────────────
+  cow: {
+    description: 'Print text in a cowsay-style ASCII speech bubble.',
+    usage: 'cow [text ...]',
+    run(args) {
+      if (args.length === 0) {
+        printLine('Usage:   cow [text ...]', 'line-info');
+        printLine('Example: cow moo from the terminal', 'line-info');
+        return;
+      }
+
+      const msg     = args.join(' ');
+      const len     = msg.length;
+      const top     = ' ' + '_'.repeat(len + 2);
+      const bottom  = ' ' + '-'.repeat(len + 2);
+      const bubble  = '< ' + msg + ' >';
+
+      printBlank();
+      printLine(top,    'line-out');
+      printLine(bubble, 'line-out');
+      printLine(bottom, 'line-out');
+      printLine('        \\   ^__^',           'line-out');
+      printLine('         \\  (oo)\\_______',   'line-out');
+      printLine('            (__)\\       )\\/\\', 'line-out');
+      printLine('                ||----w |',    'line-out');
+      printLine('                ||     ||',    'line-out');
+      printBlank();
+    },
+  },
+
   // ── uptime — elapsed time since init() ──────────────────────────
   uptime: {
     description: 'Show elapsed time since the terminal session started.',
