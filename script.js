@@ -1966,6 +1966,44 @@ const commands = {
     },
   },
 
+  // ── theme — switch colour theme from the command line ───────────
+  theme: {
+    description: 'Switch colour theme.  theme [name]  |  theme next',
+    usage: 'theme [name | next]',
+    async run(args) {
+      const THEME_ORDER = Object.keys(THEMES); // ['amber','green','blue','white']
+      const sub = (args[0] || '').toLowerCase();
+
+      if (!sub) {
+        // No argument — print current theme and available choices.
+        const prefs = await loadPrefs();
+        printLine(`Current theme: ${prefs.theme.toUpperCase()}`, 'line-info');
+        printLine(`Available:     ${THEME_ORDER.join('  ').toUpperCase()}`, 'line-info');
+        printLine('Usage:  theme [name]   e.g. theme green', 'line-info');
+        printLine('        theme next     cycle to the next theme', 'line-info');
+        return;
+      }
+
+      const prefs = await loadPrefs();
+
+      let next;
+      if (sub === 'next') {
+        const idx = THEME_ORDER.indexOf(prefs.theme);
+        next = THEME_ORDER[(idx + 1) % THEME_ORDER.length];
+      } else if (THEME_ORDER.includes(sub)) {
+        next = sub;
+      } else {
+        printLine(`Unknown theme: "${sub}".  Available: ${THEME_ORDER.join(', ')}`, 'line-err');
+        return;
+      }
+
+      prefs.theme = next;
+      await savePrefs(prefs);
+      await applyPrefs(prefs);
+      printLine(`✓ Theme set to ${next.toUpperCase()}.`, 'line-ok');
+    },
+  },
+
   // ── settings — open the settings panel ──────────────────────────
   settings: {
     description: 'Open settings panel (theme, terminal size, dial size, banner, scanlines).',
