@@ -249,13 +249,16 @@ async function renderBanner(text) {
   return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
 }
 
-/** Render the header banner with the original glyph shapes for readability. */
+/**
+ * Render the header banner as plain terminal text (same glyphs, no per-cell
+ * neon segmentation) so custom titles stay readable in the top panel.
+ */
 function renderHeaderBanner(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
   const bannerText = normalized || DEFAULT_BANNER;
 
   const raw = renderLegacyBannerText(bannerText);
-  return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
+  return { kind: 'text', value: raw };
 }
 
 const DEFAULT_PREFS = {

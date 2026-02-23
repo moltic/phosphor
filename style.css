@@ -173,27 +173,71 @@ html, body {
 #ascii-art {
   flex: 1 1 auto;
   min-width: 0;
-  color: var(--fg-bright);
+  position: relative;
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.72rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 1;
+  line-height: 1.02;
   letter-spacing: 0;
   white-space: pre;
-  padding: 0.28rem 0.45rem 0.2rem;
-  border: none;
-  background: transparent;
+  padding: 0.36rem 0.55rem 0.28rem;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  border-left-color: rgba(255, 255, 255, 0.06);
+  border-top-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: color-mix(in srgb, var(--fg-dim) 70%, #000 30%);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.22)),
+    radial-gradient(120% 180% at 50% -30%, var(--glow-soft), transparent 55%);
   overflow-x: hidden;
   overflow-y: visible;
   max-width: 100%;
   margin-bottom: 0;
   text-shadow:
-    0 0 3px var(--glow-soft);
+    0 0 2px rgba(0, 0, 0, 0.45),
+    0 0 6px var(--glow-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.02),
+    inset 0 0 18px rgba(0, 0, 0, 0.28);
+  opacity: 0.96;
   -webkit-mask-image: none;
   mask-image: none;
   font-kerning: none;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "kern" 0;
-  text-rendering: geometricPrecision;
+  text-rendering: optimizeSpeed;
+}
+
+#ascii-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  opacity: 0.55;
+}
+
+#ascii-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.18),
+      transparent 10%,
+      transparent 90%,
+      rgba(0, 0, 0, 0.18)
+    );
+  opacity: 0.75;
 }
 
 /* ── Banner segmented neon cell styling ─────────────────────── */
@@ -913,9 +957,9 @@ html, body {
     padding: 0.12rem;
   }
   #ascii-art {
-    padding: 0.2rem 0.28rem 0.14rem;
+    padding: 0.24rem 0.34rem 0.18rem;
     font-size: 0.52rem;
-    line-height: 1;
+    line-height: 1.02;
   }
   #status-line {
     font-size: 0.72rem;
