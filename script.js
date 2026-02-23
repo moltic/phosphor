@@ -1877,6 +1877,16 @@ async function init() {
     printBlank();
   }
 
+  // Hint for new users who have no speed-dials yet
+  const dials = await loadDials();
+  if (dials.length === 0) {
+    printLine(
+      '  No speed-dials yet.  Type  dial add <alias> <url>  to add one.',
+      'line-dim',
+    );
+    printBlank();
+  }
+
   // Always focus the command input on load
   inputEl.focus();
 }
