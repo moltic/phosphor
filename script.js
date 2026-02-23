@@ -2477,6 +2477,66 @@ const commands = {
     },
   },
 
+  // ── scan — fake network port-scan ───────────────────────────────
+  scan: {
+    description: 'Animate a fake TCP/SYN port-scan across fabricated IPs. Ends with sector status.',
+    usage: 'scan',
+    run(_args) {
+      // ── generate random RFC-1918 IPs ──────────────────────────────
+      function randomIp() {
+        const prefixes = ['10', '172.16', '192.168'];
+        const pfx   = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const parts = pfx.split('.').length;
+        let ip = pfx;
+        for (let i = parts; i < 4; i++) {
+          ip += '.' + (Math.floor(Math.random() * 253) + 1);
+        }
+        return ip;
+      }
+
+      const PORTS = [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 3389, 8080, 8443];
+      const IPS   = Array.from({ length: 6 }, randomIp);
+
+      // Print the header inside the current batch (flushed synchronously).
+      printBlank();
+      printLine('INITIATING SECTOR SCAN …', 'line-head');
+      printLine(
+        `Targets: ${IPS.length} nodes  |  Ports: ${PORTS.length}  |  Protocol: TCP/SYN`,
+        'line-info'
+      );
+      printBlank();
+
+      // Schedule each probe line with accumulated jitter, just like `ping`.
+      let t = 120;   // ms from now before the first line appears
+
+      for (const ip of IPS) {
+        const ipPadded = ip.padEnd(16);
+        for (const port of PORTS) {
+          const portLabel = String(port).padStart(5);
+          const delay = Math.floor(Math.random() * 80) + 40;   // 40–120 ms jitter
+          const lineIp   = ipPadded;
+          const linePort = portLabel;
+          setTimeout(() => {
+            printLine(`  ${lineIp}  port ${linePort}  ……  CLOSED`, 'line-out');
+          }, t);
+          t += delay;
+        }
+        t += 200;   // pause between hosts
+      }
+
+      // Final status banner
+      setTimeout(() => {
+        printBlank();
+        printRule('═');
+        printLine('  ALL PORTS CLOSED — SECTOR SECURE.', 'line-ok');
+        printRule('═');
+        printBlank();
+      }, t + 120);
+
+      // Return undefined → batch flushes immediately (header visible at once).
+    },
+  },
+
   // ── typewriter — animate text output one character at a time ──────
   typewriter: {
     description: 'Print a message one character at a time (40 ms/char).',
