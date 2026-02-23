@@ -2253,6 +2253,102 @@ const commands = {
     },
   },
 
+  // ── sysinfo — browser & hardware readout ────────────────────────
+  sysinfo: {
+    description: 'Show browser version, platform, screen resolution, CPU cores, and device memory.',
+    usage: 'sysinfo',
+    run(_args) {
+      // ── Gather data ─────────────────────────────────────────────
+      const nav = navigator;
+
+      // Browser name + version — prefer User-Agent Client Hints when available
+      let browserName = 'Unknown';
+      let browserVer  = '';
+      const ua = nav.userAgent || '';
+
+      if (nav.userAgentData && nav.userAgentData.brands) {
+        // Filter out the noise entries (Chromium, Not-A.Brand, etc.)
+        const real = nav.userAgentData.brands.find(b =>
+          !/not.a.brand|chromium/i.test(b.brand)
+        ) || nav.userAgentData.brands[0];
+        if (real) { browserName = real.brand; browserVer = real.version; }
+      } else {
+        // Fallback UA string parsing
+        const pairs = [
+          [/Edg\/([0-9.]+)/, 'Edge'],
+          [/OPR\/([0-9.]+)/, 'Opera'],
+          [/Firefox\/([0-9.]+)/, 'Firefox'],
+          [/Chrome\/([0-9.]+)/, 'Chrome'],
+          [/Safari\/([0-9.]+)/, 'Safari'],
+        ];
+        for (const [re, name] of pairs) {
+          const m = ua.match(re);
+          if (m) { browserName = name; browserVer = m[1]; break; }
+        }
+      }
+      const browserStr = browserVer ? `${browserName} ${browserVer}` : browserName;
+
+      // Platform
+      let platform = 'Unknown';
+      if (nav.userAgentData && nav.userAgentData.platform) {
+        platform = nav.userAgentData.platform;
+      } else if (nav.platform) {
+        platform = nav.platform;
+      }
+      const arch = (nav.userAgentData && nav.userAgentData.architecture) || '';
+
+      // Screen
+      const resPx   = `${screen.width} × ${screen.height}`;
+      const resAvail = `${screen.availWidth} × ${screen.availHeight}  (usable)`;
+      const dpr     = window.devicePixelRatio ? `${window.devicePixelRatio}× DPR` : '';
+      const depth   = `${screen.colorDepth}-bit colour`;
+
+      // CPU / memory
+      const cores  = nav.hardwareConcurrency
+        ? `${nav.hardwareConcurrency} logical core${nav.hardwareConcurrency !== 1 ? 's' : ''}`
+        : 'Unavailable';
+      const memGB  = nav.deviceMemory
+        ? `≥ ${nav.deviceMemory} GB  (reported)`
+        : 'Unavailable';
+
+      // Online status
+      const online = nav.onLine ? 'Online' : 'Offline';
+
+      // ── Render ──────────────────────────────────────────────────
+      const INNER  = 54;
+      const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
+      const bottom = '╚' + '═'.repeat(INNER + 2) + '╝';
+      const sep    = '╠' + '═'.repeat(INNER + 2) + '╣';
+
+      function row(label, value, cls = 'line-out') {
+        const content = `  ${label.padEnd(16)}${value}`;
+        return { text: '║' + content.padEnd(INNER + 2) + '║', cls };
+      }
+
+      const rows = [
+        row('BROWSER:',    browserStr,  'line-head'),
+        row('PLATFORM:',   arch ? `${platform}  (${arch})` : platform),
+        { text: '║' + ' '.repeat(INNER + 2) + '║', cls: 'line-sep' },
+        row('RESOLUTION:',  resPx),
+        row('',             resAvail,   'line-info'),
+        row('COLOR DEPTH:', `${depth}${dpr ? '  ·  ' + dpr : ''}`),
+        { text: '║' + ' '.repeat(INNER + 2) + '║', cls: 'line-sep' },
+        row('CPU CORES:',   cores),
+        row('DEVICE RAM:',  memGB),
+        { text: '║' + ' '.repeat(INNER + 2) + '║', cls: 'line-sep' },
+        row('NETWORK:',     online,     nav.onLine ? 'line-ok' : 'line-err'),
+      ];
+
+      printBlank();
+      printLine(top, 'line-sep');
+      printLine('║  ░▒▓  SYSTEM INFORMATION  ▓▒░' + ' '.repeat(INNER - 28) + '  ║', 'line-head');
+      printLine(sep, 'line-sep');
+      rows.forEach(({ text, cls }) => printLine(text, cls));
+      printLine(bottom, 'line-sep');
+      printBlank();
+    },
+  },
+
 };
 
 // ============================================================
