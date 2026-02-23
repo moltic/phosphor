@@ -87,14 +87,14 @@ html, body {
 #ascii-art {
   color: var(--fg-bright);
   text-shadow:
-    0 0 6px  var(--glow),
-    0 0 12px var(--glow-soft);
+    0 0 8px  var(--glow),
+    0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
-  font-size: clamp(0.55rem, 1.1vw, 0.9rem);  /* scale with viewport */
-  line-height: 1.2;
-  white-space: pre;
-  overflow: hidden;
-  margin-bottom: 0.4rem;
+  font-size: clamp(3.5rem, 8vw, 6.5rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
 }
 
 #status-line {
@@ -334,28 +334,6 @@ html, body {
   flex: 1;
 }
 
-.settings-textarea {
-  flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--fg-dim);
-  color: var(--fg);
-  font-family: monospace;
-  font-size: 0.72rem;
-  padding: 0.3rem 0.5rem;
-  outline: none;
-  resize: vertical;
-  line-height: 1.25;
-  white-space: pre;
-  overflow-x: auto;
-}
-
-.settings-textarea:focus {
-  border-color: var(--fg);
-}
-
-.settings-row--top {
-  align-items: flex-start;
-}
 
 .settings-actions {
   display: flex;
@@ -514,6 +492,6 @@ html, body {
     padding: 0.5rem 0.75rem 0.5rem;
   }
   #ascii-art {
-    font-size: 0.45rem;
+    font-size: clamp(2.2rem, 6vw, 4rem);
   }
 }

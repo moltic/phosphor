@@ -91,13 +91,7 @@ const FONT_SIZES = {
   large:  '1.5rem',
 };
 
-const DEFAULT_BANNER =
-  '██████╗ ██████╗ ████████╗ █████╗ ██████╗\n' +
-  '██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗\n' +
-  '██████╔╝██████╔╝   ██║   ███████║██████╔╝\n' +
-  '██╔══██╗██╔══██╗   ██║   ██╔══██║██╔══██╗\n' +
-  '██████╔╝██████╔╝   ██║   ██║  ██║██████╔╝\n' +
-  '╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝';
+const DEFAULT_BANNER = 'BBTAB';
 
 const DEFAULT_PREFS = {
   theme:      'amber',
@@ -267,7 +261,7 @@ function applyPrefs(prefs) {
   if (statusLabel) statusLabel.textContent = 'BBTab HOME TERMINAL V0.1';
 
   const asciiArtEl = document.getElementById('ascii-art');
-  if (asciiArtEl) asciiArtEl.textContent = '\n' + (prefs.bannerText || DEFAULT_PREFS.bannerText);
+  if (asciiArtEl) asciiArtEl.textContent = prefs.bannerText || DEFAULT_BANNER;
 
   const scanlinesEl = document.getElementById('scanlines');
   if (scanlinesEl) scanlinesEl.style.display = prefs.scanlines === false ? 'none' : '';
@@ -544,13 +538,14 @@ const settingsPanelEl = (() => {
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
 
-  const bannerTextarea = document.createElement('textarea');
-  bannerTextarea.id          = 's-banner';
-  bannerTextarea.className   = 'settings-textarea';
-  bannerTextarea.rows        = 7;
-  bannerTextarea.autocomplete = 'off';
-  bannerTextarea.spellcheck  = false;
-  bannerTextarea.placeholder = 'ASCII art or plain text for the header';
+  const bannerInput = document.createElement('input');
+  bannerInput.id          = 's-banner';
+  bannerInput.className   = 'settings-input';
+  bannerInput.type        = 'text';
+  bannerInput.maxLength   = 30;
+  bannerInput.autocomplete = 'off';
+  bannerInput.spellcheck  = false;
+  bannerInput.placeholder = 'e.g. BBTAB';
 
   const scanSelect = makeSelect('s-scanlines', [
     ['on', 'ON'], ['off', 'OFF'],
@@ -572,8 +567,7 @@ const settingsPanelEl = (() => {
   actionsEl.appendChild(saveBtn);
   actionsEl.appendChild(cancelBtn);
 
-  const bannerRow = makeRow('BANNER', bannerTextarea);
-  bannerRow.classList.add('settings-row--top');
+  const bannerRow = makeRow('BANNER', bannerInput);
 
   panel.appendChild(titleEl);
   panel.appendChild(makeRow('THEME',     themeSelect));
@@ -585,7 +579,7 @@ const settingsPanelEl = (() => {
   // Keyboard shortcuts inside the panel
   panel.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
-    if (e.key === 'Enter' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+    if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
       e.preventDefault();
       commitSettings();
     }
