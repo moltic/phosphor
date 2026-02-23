@@ -2129,6 +2129,15 @@ const commands = {
     },
   },
 
+  // ── boot — replay the MOTD init sequence ─────────────────────────
+  boot: {
+    description: 'Replay the startup sequence (separator, system-ready, date, note count).',
+    usage: 'boot',
+    async run(_args) {
+      await printBootSequence();
+    },
+  },
+
   // ── motd — set / clear the message of the day ───────────────────
   motd: {
     description: 'Manage the message of the day shown on every new tab.',
@@ -2931,6 +2940,44 @@ function tickClock() {
 //  8. init — boot sequence, runs once on page load
 // ============================================================
 
+/**
+ * Print the full MOTD / startup block to the output area.
+ * Called by init() on every page load and by the `boot` command on demand.
+ */
+async function printBootSequence() {
+  const prefs = await loadPrefs();
+  const d = new Date();
+  const dateLine =
+    d.toLocaleDateString(undefined, {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    }) +
+    '  ' +
+    d.toLocaleTimeString(undefined, {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+
+  printRule('═');
+  printLine('  SYSTEM READY.', 'line-head');
+  printLine(`  ${dateLine}`, 'line-info');
+  printLine('  Type  help  for a list of commands.', 'line-info');
+  if (prefs.motd) {
+    printRule('─');
+    printLine(`  ${prefs.motd}`, 'line-info');
+  }
+  printRule('═');
+  printBlank();
+
+  const notes = await loadNotes();
+  if (notes.length > 0) {
+    const plural = notes.length === 1 ? 'note' : 'notes';
+    printLine(
+      `  ${notes.length} ${plural} stored.  Type  ls  to view.`,
+      'line-info',
+    );
+    printBlank();
+  }
+}
+
 async function init() {
   sessionStart = Date.now();
 
@@ -2958,26 +3005,7 @@ async function init() {
   clockInterval = setInterval(tickClock, 1_000);
 
   // ── MOTD / welcome banner
-  printRule('═');
-  printLine('  SYSTEM READY.', 'line-head');
-  printLine('  Type  help  for a list of commands.', 'line-info');
-  if (prefs.motd) {
-    printRule('─');
-    printLine(`  ${prefs.motd}`, 'line-info');
-  }
-  printRule('═');
-  printBlank();
-
-  // Show note count as a quick reminder
-  const notes = await loadNotes();
-  if (notes.length > 0) {
-    const plural = notes.length === 1 ? 'note' : 'notes';
-    printLine(
-      `  ${notes.length} ${plural} stored.  Type  ls  to view.`,
-      'line-info',
-    );
-    printBlank();
-  }
+  await printBootSequence();
 
   // Hint for new users who have no speed-dials yet
   const dials = await loadDials();
