@@ -3319,4 +3319,63 @@ async function init() {
   inputEl.focus();
 }
 
+// ============================================================
+//  Konami Code Easter Egg  ↑↑↓↓←→←→BA
+//  Fires once per session; prints a hidden BBS welcome message.
+// ============================================================
+(function () {
+  const SEQUENCE = [
+    'ArrowUp', 'ArrowUp',
+    'ArrowDown', 'ArrowDown',
+    'ArrowLeft', 'ArrowRight',
+    'ArrowLeft', 'ArrowRight',
+    'b', 'a',
+  ];
+  let pos       = 0;
+  let triggered = false;    // once-per-session guard
+
+  document.addEventListener('keydown', (e) => {
+    if (triggered) return;
+
+    if (e.key === SEQUENCE[pos]) {
+      pos++;
+      if (pos === SEQUENCE.length) {
+        triggered = true;
+        _showKonamiMessage();
+      }
+    } else {
+      // Reset; if this key starts the sequence, count it as step 1
+      pos = (e.key === SEQUENCE[0]) ? 1 : 0;
+    }
+  });
+
+  function _showKonamiMessage() {
+    beginBatch();
+    printRule('▄');
+    printLine('', 'line-sep');
+    printLine('  ██  ░░░  B B S   U N D E R G R O U N D   ░░░  ██', 'line-head');
+    printLine('  ██       S E C R E T   S E C T O R              ██', 'line-head');
+    printLine('', 'line-sep');
+    printRule('─');
+    printLine('  KONAMI ACCESS CODE ACCEPTED.', 'line-ok');
+    printLine('  ELITE CLEARANCE GRANTED — NODE: 31337', 'line-ok');
+    printRule('─');
+    printBlank();
+    printLine('  WELCOME BACK, TRAVELLER OF THE DIGITAL UNDERGROUND.', 'line-out');
+    printBlank();
+    printLine('  HANDLE ............: UNKNOWN OPERATOR', 'line-info');
+    printLine('  SYSOP ..............: UNREACHABLE / OFFLINE', 'line-info');
+    printLine('  ELITENESS ..........:', 'line-info');
+    printLine('    [████████████████████]  L V L  M A X', 'line-head');
+    printBlank();
+    printLine('  > "In cyberspace, no one can hear you type..."', 'line-info');
+    printBlank();
+    printLine('  +10 ELITE POINTS AWARDED.  THIS INCIDENT HAS BEEN', 'line-out');
+    printLine('  LOGGED.   (Just kidding.  Or have we?)', 'line-out');
+    printBlank();
+    printRule('▀');
+    endBatch();
+  }
+}());
+
 init();
