@@ -86,32 +86,30 @@ html, body {
 
 #ascii-art {
   color: var(--fg-bright);
-  /* Glow around the banner */
-  text-shadow:
-    0 0 8px  var(--glow),
-    0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
   font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 1.08;
+  line-height: 1.05;
   letter-spacing: 0;
   white-space: pre;
   overflow: visible;
   margin-bottom: 0.3rem;
-  /* carve a dark border around each █ block so adjacent cells don't merge */
-  -webkit-text-stroke: 1.5px var(--bg);
+  /* thin dark border around each █ cell for the outlined-block look */
+  -webkit-text-stroke: 0.8px var(--bg);
   paint-order: stroke fill;
+  text-shadow: none;
 }
 
 /* ── Banner 3-D character classes ───────────────────────────── */
 #ascii-art .b-face {
   color: var(--fg-bright);
   text-shadow:
-    0 0 6px var(--glow),
-    0 0 14px var(--glow-soft);
+    0 0 4px var(--glow),
+    0 0 10px var(--glow-soft);
 }
 
 #ascii-art .b-shade {
   color: var(--fg-dim);
+  opacity: 0.55;
   text-shadow: none;
 }
 
