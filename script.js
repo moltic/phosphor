@@ -1071,13 +1071,16 @@ function hideDialCtxMenu() {
 // ── Edit dialog ───────────────────────────────────────────────────
 
 const editDialogEl = (() => {
-  const overlay = document.createElement('div');
+  const overlay = document.createElement('dialog');
   overlay.id = 'dial-edit-dialog';
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'dial-edit-title');
 
   const inner = document.createElement('div');
   inner.className = 'dial-edit-inner';
 
   const title = document.createElement('div');
+  title.id        = 'dial-edit-title';
   title.className = 'dial-edit-title';
   title.textContent = 'EDIT DIAL';
 
@@ -1139,8 +1142,31 @@ const editDialogEl = (() => {
 
   // Keyboard shortcuts inside dialog
   inner.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  { e.preventDefault(); commitDialEdit(); }
-    if (e.key === 'Escape') { e.preventDefault(); hideDialEditDialog(); }
+    if (e.key === 'Enter') { e.preventDefault(); commitDialEdit(); }
+  });
+
+  // Focus trap — keep Tab cycling within the dialog
+  overlay.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const focusable = Array.from(
+      overlay.querySelectorAll(
+        'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(el => !el.closest('[hidden]') && el.offsetParent !== null);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // Native <dialog> fires 'cancel' on Escape — route through our cleanup function
+  overlay.addEventListener('cancel', e => {
+    e.preventDefault();
+    hideDialEditDialog();
   });
 
   document.body.appendChild(overlay);
@@ -1156,12 +1182,12 @@ async function showDialEditDialog(alias) {
   document.getElementById('dial-edit-label').value = dial.label || dial.alias;
   document.getElementById('dial-edit-url').value   = dial.url;
   document.getElementById('dial-edit-icon').value  = dial.icon || '';
-  editDialogEl.classList.add('visible');
+  editDialogEl.showModal();
   document.getElementById('dial-edit-label').focus();
 }
 
 function hideDialEditDialog() {
-  editDialogEl.classList.remove('visible');
+  editDialogEl.close();
   delete editDialogEl.dataset.target;
   document.getElementById('dial-edit-error').textContent = '';
   inputEl.focus();

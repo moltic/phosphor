@@ -433,17 +433,18 @@ html, body {
 
 /* ── Speed-dial Edit Dialog ──────────────────────────────────── */
 #dial-edit-dialog {
-  position: fixed;
-  inset: 0;
+  /* Reset UA <dialog> defaults */
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: auto;
+  overflow: visible;
+  /* z-index is handled by the top-layer; keep one here as fallback */
   z-index: 300;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.72);
 }
 
-#dial-edit-dialog.visible {
-  display: flex;
+#dial-edit-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .dial-edit-inner {
