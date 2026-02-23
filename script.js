@@ -1947,6 +1947,25 @@ const commands = {
     },
   },
 
+  // ── history — print session command history ─────────────────────
+  history: {
+    description: 'Print the current session\'s command history.',
+    usage: 'history',
+    run(_args) {
+      if (cmdHistory.length === 0) {
+        printLine('No command history yet.', 'line-info');
+        return;
+      }
+      printBlank();
+      const entries = [...cmdHistory].reverse();
+      entries.forEach((cmd, i) => {
+        const num = String(i + 1).padStart(4, ' ');
+        printLine(`${num}  ${cmd}`, 'line-out');
+      });
+      printBlank();
+    },
+  },
+
   // ── settings — open the settings panel ──────────────────────────
   settings: {
     description: 'Open settings panel (theme, terminal size, dial size, banner, scanlines).',
