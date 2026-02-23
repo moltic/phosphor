@@ -1248,12 +1248,16 @@ async function removeDial(alias) {
 const settingsPanelEl = (() => {
   const panel = document.createElement('div');
   panel.id = 'settings-panel';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.setAttribute('aria-labelledby', 'settings-panel-title');
 
   const inner = document.createElement('div');
   inner.className = 'settings-inner';
   inner.setAttribute('aria-label', 'Settings');
 
   const titleEl = document.createElement('div');
+  titleEl.id = 'settings-panel-title';
   titleEl.className = 'settings-title';
   titleEl.textContent = '[ SETTINGS ]';
 
