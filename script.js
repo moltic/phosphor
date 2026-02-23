@@ -267,6 +267,8 @@ const DEFAULT_PREFS = {
   scanlines:    true,
   bannerText:   DEFAULT_BANNER,
   motd:         '',
+  handle:       '',
+  sessionCount: 0,
 };
 
 function setAsciiArt(el, text, { asHtml = true } = {}) {
@@ -413,6 +415,9 @@ async function fitBanner(el) {
   const idealPx    = (available * BANNER_FIT_SCALE / probeW) * refPx;
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 40) + 'px';
 }
+
+// ── Session start timestamp — captured once when the page loads.
+const SESSION_START = Date.now();
 
 // ── Command-history state (session-only, not persisted)
 let cmdHistory   = [];   // [0] = most-recently-executed command
@@ -1619,6 +1624,31 @@ const FORTUNES = [
 //    3.  That's it — the dispatcher and `help` pick it up automatically.
 // ============================================================
 
+// ── BBS handle generator ────────────────────────────────────────────────────
+const _HANDLE_ADJ = [
+  'Binary',  'Chaos',   'Cipher',  'Cobalt',  'Cosmic',  'Cyber',
+  'Dark',    'Delta',   'Digital', 'Ghost',   'Hex',     'Hyper',
+  'Infra',   'Ion',     'Iron',    'Laser',   'Logic',   'Macro',
+  'Neural',  'Neon',    'Null',    'Omega',   'Phantom', 'Pixel',
+  'Quantum', 'Razor',   'Rogue',   'Shadow',  'Signal',  'Sonic',
+  'Static',  'Storm',   'Toxic',   'Turbo',   'Ultra',   'Vector',
+  'Void',    'Wired',   'Xenon',   'Zero',
+];
+const _HANDLE_NOUN = [
+  'Blade',   'Byte',    'Cobra',   'Crypt',   'Dragon',  'Eagle',
+  'Falcon',  'Gate',    'Ghost',   'Hawk',    'Lynx',    'Node',
+  'Omega',   'Phoenix', 'Pulse',   'Raven',   'Script',  'Specter',
+  'Stack',   'Synth',   'Tiger',   'Trace',   'Viper',   'Virus',
+  'Wolf',    'Wraith',  'Xero',    'Zero',    'Cobra',   'Worm',
+];
+
+function generateBBSHandle() {
+  const adj  = _HANDLE_ADJ [Math.floor(Math.random() * _HANDLE_ADJ.length)];
+  const noun = _HANDLE_NOUN[Math.floor(Math.random() * _HANDLE_NOUN.length)];
+  return `${adj}${noun}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const commands = {
 
   // ── help ────────────────────────────────────────────────────────
@@ -2176,6 +2206,53 @@ const commands = {
     },
   },
 
+  // ── whoami — user identity block ────────────────────────────────
+  whoami: {
+    description: 'Show your BBS user info: handle, session number, and login time.',
+    usage: 'whoami',
+    async run(_args) {
+      const prefs = await loadPrefs();
+
+      // Generate and persist a handle on first use
+      const isNew = !prefs.handle;
+      if (isNew) {
+        prefs.handle = generateBBSHandle();
+        await savePrefs(prefs);
+      }
+
+      const handle  = prefs.handle;
+      const session = String(prefs.sessionCount || 1).padStart(4, '0');
+      const login   = formatTimestamp(SESSION_START);
+
+      // ── box frame (58 chars wide — matches printRule default)
+      const INNER  = 54;
+      const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
+      const bottom = '╚' + '═'.repeat(INNER + 2) + '╝';
+      const sep    = '╠' + '═'.repeat(INNER + 2) + '╣';
+      const blank  = '║' + ' '.repeat(INNER + 2) + '║';
+
+      function row(label, value) {
+        const content = `  ${label.padEnd(14)}${value}`;
+        return '║' + content.padEnd(INNER + 2) + '║';
+      }
+
+      printBlank();
+      printLine(top,   'line-sep');
+      printLine('║  ░▒▓  USER IDENTIFICATION  ▓▒░' + ' '.repeat(INNER - 29) + '  ║', 'line-head');
+      printLine(sep,   'line-sep');
+      printLine(row('HANDLE:', handle),           'line-head');
+      printLine(row('SESSION:', `#${session}`),   'line-out');
+      printLine(row('LOGIN:', login),             'line-out');
+      printLine(bottom, 'line-sep');
+      printBlank();
+
+      if (isNew) {
+        printLine('  ✦ New handle assigned.  It is stored in your preferences.', 'line-ok');
+        printBlank();
+      }
+    },
+  },
+
 };
 
 // ============================================================
@@ -2447,6 +2524,11 @@ function tickClock() {
 async function init() {
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
+
+  // Bump session counter on every new page load
+  prefs.sessionCount = (prefs.sessionCount || 0) + 1;
+  await savePrefs(prefs);
+
   await applyPrefs(prefs);
 
   // Re-fit banner on window resize (debounced)
