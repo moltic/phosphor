@@ -113,6 +113,33 @@ function renderBanner(text) {
   });
 }
 
+/**
+ * Scale #ascii-art font-size so the longest line fills ~95% of its container.
+ * Uses a probe element for accurate measurement with the actual loaded font.
+ */
+async function fitBanner(el) {
+  await document.fonts.ready;
+  const lines = el.textContent.split('\n');
+  const maxLen = Math.max(...lines.map(l => l.length));
+  if (!maxLen) return;
+
+  // Measure character width at the current computed font-size
+  const probe = document.createElement('pre');
+  probe.style.cssText =
+    'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
+    'margin:0;padding:0;border:0;font:inherit';
+  probe.textContent = '#'.repeat(maxLen);
+  document.body.appendChild(probe);
+  const probeW = probe.getBoundingClientRect().width;
+  document.body.removeChild(probe);
+  if (!probeW) return;
+
+  const available  = el.parentElement.clientWidth;
+  const currentPx  = parseFloat(getComputedStyle(el).fontSize);
+  const idealPx    = (available * 0.95 / probeW) * currentPx;
+  el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 8), 36) + 'px';
+}
+
 // ── Command-history state (session-only, not persisted)
 let cmdHistory   = [];   // [0] = most-recently-executed command
 let historyIndex = -1;   // -1 means "not navigating history"
@@ -277,6 +304,7 @@ async function applyPrefs(prefs) {
   if (asciiArtEl) {
     try {
       asciiArtEl.textContent = await renderBanner(prefs.bannerText || DEFAULT_BANNER);
+      await fitBanner(asciiArtEl);
     } catch {
       asciiArtEl.textContent = prefs.bannerText || DEFAULT_BANNER;
     }
@@ -1067,6 +1095,16 @@ async function init() {
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
   await applyPrefs(prefs);
+
+  // Re-fit banner on window resize (debounced)
+  let _resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      const el = document.getElementById('ascii-art');
+      if (el) fitBanner(el);
+    }, 120);
+  });
 
   // Start the clock immediately and tick every second
   tickClock();

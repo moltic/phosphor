@@ -90,7 +90,7 @@ html, body {
     0 0 8px  var(--glow),
     0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
-  font-size: clamp(0.52rem, 1.35vw, 0.72rem);
+  font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
   line-height: 1.15;
   letter-spacing: 0;
   white-space: pre;
