@@ -250,15 +250,15 @@ async function renderBanner(text) {
 }
 
 /**
- * Render the header banner as plain terminal text (same glyphs, no per-cell
- * neon segmentation) so custom titles stay readable in the top panel.
+ * Render the header banner on the fixed 1ch cell grid so mixed Unicode glyph
+ * fallback can't shift columns. CSS flattens the visual treatment for clarity.
  */
 function renderHeaderBanner(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
   const bannerText = normalized || DEFAULT_BANNER;
 
   const raw = renderLegacyBannerText(bannerText);
-  return { kind: 'text', value: raw };
+  return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
 }
 
 const DEFAULT_PREFS = {
