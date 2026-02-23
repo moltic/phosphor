@@ -407,14 +407,17 @@ async function fitBanner(el) {
     'margin:0;padding:0;border:0;font:inherit';
   probe.textContent = '█'.repeat(fitLen);
   document.body.appendChild(probe);
-  const probeW = probe.getBoundingClientRect().width;
+  const probeW  = probe.getBoundingClientRect().width;
+  // Use the probe's own computed font-size as the reference so the result is
+  // always derived from the base/inherited size — not from el's previously
+  // scaled inline style, which would compound on every applyPrefs() call.
+  const refPx   = parseFloat(getComputedStyle(probe).fontSize);
   document.body.removeChild(probe);
-  if (!probeW) return;
+  if (!probeW || !refPx) return;
 
   // Leave a little room for the layered banner offsets so it doesn't clip.
   const available  = Math.max(0, el.parentElement.clientWidth - 18);
-  const currentPx  = parseFloat(getComputedStyle(el).fontSize);
-  const idealPx    = (available * BANNER_FIT_SCALE / probeW) * currentPx;
+  const idealPx    = (available * BANNER_FIT_SCALE / probeW) * refPx;
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 40) + 'px';
 }
 
