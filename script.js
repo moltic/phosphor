@@ -220,6 +220,9 @@ function setAsciiArt(el, text) {
 
 const BANNER_FONT_PRIMARY  = 'Banner3';
 const BANNER_FONT_FALLBACK = 'Banner3-D';
+// Visual scale for the header banner after auto-fit measurement.
+// 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
+const BANNER_FIT_SCALE = 0.75;
 
 function computeDistanceFromEmpty(lines) {
   const height = lines.length;
@@ -395,7 +398,7 @@ async function fitBanner(el) {
   // Leave a little room for the layered banner offsets so it doesn't clip.
   const available  = Math.max(0, el.parentElement.clientWidth - 18);
   const currentPx  = parseFloat(getComputedStyle(el).fontSize);
-  const idealPx    = (available * 1.00 / probeW) * currentPx;
+  const idealPx    = (available * BANNER_FIT_SCALE / probeW) * currentPx;
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 40) + 'px';
 }
 
