@@ -266,6 +266,7 @@ const DEFAULT_PREFS = {
   dialSize:     'medium',
   scanlines:    true,
   bannerText:   DEFAULT_BANNER,
+  motd:         '',
 };
 
 function setAsciiArt(el, text, { asHtml = true } = {}) {
@@ -2095,6 +2096,45 @@ const commands = {
     },
   },
 
+  // ── motd — set / clear the message of the day ───────────────────
+  motd: {
+    description: 'Manage the message of the day shown on every new tab.',
+    usage: 'motd set [text ...]  |  motd clear  |  motd',
+    async run(args) {
+      const sub = (args[0] || '').toLowerCase();
+
+      if (sub === 'set') {
+        const text = args.slice(1).join(' ').trim();
+        if (!text) {
+          printLine('Usage: motd set [text ...]', 'line-info');
+          printLine('Provide the message text after  set.', 'line-info');
+          return;
+        }
+        const prefs = await loadPrefs();
+        prefs.motd = text;
+        await savePrefs(prefs);
+        printLine(`✓ MOTD saved: "${text}"`, 'line-ok');
+        return;
+      }
+
+      if (sub === 'clear') {
+        const prefs = await loadPrefs();
+        prefs.motd = '';
+        await savePrefs(prefs);
+        printLine('✓ MOTD cleared.', 'line-ok');
+        return;
+      }
+
+      // No subcommand — show current value
+      const prefs = await loadPrefs();
+      if (prefs.motd) {
+        printLine(`Current MOTD: "${prefs.motd}"`, 'line-info');
+      } else {
+        printLine('No MOTD set.  Use  motd set [text]  to add one.', 'line-info');
+      }
+    },
+  },
+
   // ── fortune — random hacker / BBS witticism ─────────────────────
   fortune: {
     description: 'Print a random hacker / BBS / computing witticism in a decorative box.',
@@ -2427,6 +2467,10 @@ async function init() {
   printRule('═');
   printLine('  SYSTEM READY.', 'line-head');
   printLine('  Type  help  for a list of commands.', 'line-info');
+  if (prefs.motd) {
+    printRule('─');
+    printLine(`  ${prefs.motd}`, 'line-info');
+  }
   printRule('═');
   printBlank();
 
