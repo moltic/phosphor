@@ -494,6 +494,9 @@ function printBannerHtml(html) {
 
 /** Wipe the terminal output area.  Storage is untouched. */
 function clearScreen() {
+  const termEl = document.getElementById('terminal');
+  termEl.classList.add('crt-wipe');
+  setTimeout(() => termEl.classList.remove('crt-wipe'), 300);
   outputEl.innerHTML = '';
 }
 

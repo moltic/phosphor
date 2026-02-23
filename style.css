@@ -63,6 +63,23 @@ html, body {
   animation: blink 1.1s step-end infinite;
 }
 
+/* ── CRT Screen-Wipe Glitch ─────────────────────────────────── */
+@keyframes crt-wipe {
+  0%   { opacity: 1;    transform: scaleY(1)    skewX(0deg);   filter: brightness(1)   blur(0px); }
+  15%  { opacity: 0.85; transform: scaleY(0.96) skewX(-1.5deg); filter: brightness(2.2) blur(1px); }
+  30%  { opacity: 0.3;  transform: scaleY(0.05) skewX(0deg);   filter: brightness(4)   blur(2px); }
+  50%  { opacity: 0;    transform: scaleY(0)    skewX(0deg);   filter: brightness(0)   blur(0px); }
+  65%  { opacity: 0;    transform: scaleY(0)    skewX(0deg);   filter: brightness(0)   blur(0px); }
+  75%  { opacity: 0.25; transform: scaleY(0.04) skewX(1deg);   filter: brightness(3)   blur(1px); }
+  88%  { opacity: 0.7;  transform: scaleY(0.92) skewX(-0.5deg);filter: brightness(1.5) blur(0px); }
+  100% { opacity: 1;    transform: scaleY(1)    skewX(0deg);   filter: brightness(1)   blur(0px); }
+}
+
+.crt-wipe {
+  animation: crt-wipe 0.3s steps(1, end);
+  transform-origin: center center;
+}
+
 /* ── Scanlines Overlay ──────────────────────────────────────── */
 #scanlines {
   pointer-events: none;
