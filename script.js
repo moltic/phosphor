@@ -161,23 +161,40 @@ function renderLegacyBannerText(text) {
   const rows = 6;
   const out = [];
 
+  const LOWER_ASCENDERS = new Set(['b', 'd', 'f', 'h', 'k', 'l', 't']);
+
+  function glyphRowsForChar(ch) {
+    const isLower = ch >= 'a' && ch <= 'z';
+    const upper = isLower ? ch.toUpperCase() : ch;
+    const key = LEGACY_BANNER_FONT[upper]
+      ? upper
+      : (LEGACY_BANNER_FONT[ch] ? ch : '?');
+    const glyph = LEGACY_BANNER_FONT[key];
+    const width = Math.max(0, ...glyph.map(r => r.length));
+
+    if (!isLower) {
+      return glyph.map(r => String(r || '').padEnd(width, ' '));
+    }
+
+    // Lowercase: keep the same block fill for readability, but make it shorter
+    // by dropping the top row. Preserve ascenders for letters that should have
+    // them (b/d/f/h/k/l/t).
+    const keepAscender = LOWER_ASCENDERS.has(ch);
+    const row0 = keepAscender
+      ? String(glyph[0] || '').padEnd(width, ' ')
+      : ' '.repeat(width);
+
+    const body = glyph
+      .slice(1)
+      .map(r => String(r || '').padEnd(width, ' '));
+
+    return [row0, ...body].slice(0, rows);
+  }
+
   for (let y = 0; y < rows; y += 1) {
     const line = chars.map((ch) => {
-      const isLower = ch >= 'a' && ch <= 'z';
-      const upper = isLower ? ch.toUpperCase() : ch;
-      const key = LEGACY_BANNER_FONT[upper] ? upper : (LEGACY_BANNER_FONT[ch] ? ch : '?');
-      const glyph = LEGACY_BANNER_FONT[key];
-      const width = Math.max(0, ...glyph.map(r => r.length));
-
-      // Lowercase: visually smaller (shifted down) and slightly lighter fill.
-      // This keeps the same overall style but makes casing obvious.
-      if (isLower) {
-        if (y < 2) return ' '.repeat(width);
-        // Use the lower half of the glyph (rows 2..5) and lighten blocks.
-        return (glyph[y] || '').padEnd(width, ' ').replace(/█/g, '░');
-      }
-
-      return glyph[y];
+      const glyphRows = glyphRowsForChar(ch);
+      return glyphRows[y] || '';
     }).join(' ');
     out.push(line.replace(/\s+$/g, ''));
   }
