@@ -1349,6 +1349,7 @@ const commands = {
       printLine('  Keyboard shortcuts', 'line-head');
       printRule('─', 38);
       printLine('  ↑ / ↓          Navigate command history', 'line-info');
+      printLine('  Tab            Auto-complete command name', 'line-info');
       printLine('  Ctrl+L / ⌘L    Clear current input (not the screen)', 'line-info');
       printBlank();
     },
@@ -1757,6 +1758,31 @@ inputEl.addEventListener('keydown', e => {
       if (historyIndex === -1) break;
       historyIndex -= 1;
       setInput(historyIndex === -1 ? pendingInput : cmdHistory[historyIndex]);
+      break;
+    }
+
+    case 'Tab': {
+      e.preventDefault();
+      const raw   = inputEl.value;
+      const parts = raw.trimStart().split(/\s+/);
+      // Only complete when the user is still typing the first token
+      // (no trailing space, single word so far)
+      if (parts.length === 1 && !raw.endsWith(' ')) {
+        const prefix = parts[0];
+        if (prefix !== '') {
+          const keys    = Object.keys(commands);
+          const matches = keys.filter(k => k.startsWith(prefix));
+          if (matches.length === 1) {
+            // Unique match → fill in and add a trailing space
+            setInput(matches[0] + ' ');
+            historyIndex = -1;
+          } else if (matches.length > 1) {
+            // Multiple matches → show candidates, leave input unchanged
+            printBlank();
+            printLine('  ' + matches.join('   '), 'line-info');
+          }
+        }
+      }
       break;
     }
 
