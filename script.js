@@ -21,10 +21,7 @@
 //    8.  init()
 // ============================================================
 
-import figlet from './figlet.mjs';
-
-// Configure figlet to load fonts from the extension's local fonts/ directory
-figlet.defaults({ fontPath: chrome.runtime.getURL('fonts') });
+// (Banner rendering uses the in-code legacy font; FIGlet is not used.)
 
 // ── 1. DOM refs ────────────────────────────────────────────────────
 
@@ -95,11 +92,6 @@ const FONT_SIZES = {
 };
 
 const DEFAULT_BANNER = 'BBTAB';
-
-// Figlet keeps parsed fonts in-memory; in dev, the New Tab page can stay open
-// across extension reloads, so we clear the cache once to ensure updated .flf
-// files are picked up.
-let _figletCacheCleared = false;
 
 // Original BBTAB banner (verbatim). Used when bannerText is "BBTAB" so the
 // output matches the legacy header exactly.
@@ -172,7 +164,9 @@ function renderLegacyBannerText(text) {
   const rows = 6;
   const out = [];
 
-  const LOWER_ASCENDERS = new Set(['b', 'd', 'f', 'h', 'k', 'l', 't']);
+  // Ascenders keep the top row so they read as tall letters.
+  // Exclude h/l so those lowercase letters don't look identical to H/L.
+  const LOWER_ASCENDERS = new Set(['b', 'd', 'f', 'k', 't']);
 
   function glyphRowsForChar(ch) {
     const isLower = ch >= 'a' && ch <= 'z';
@@ -228,27 +222,8 @@ async function renderBanner(text) {
     return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
   }
 
-  // Prefer FIGlet so lowercase can have distinct glyphs (via Banner3-Lower.flf).
-  try {
-    if (!_figletCacheCleared && typeof figlet.clearLoadedFonts === 'function') {
-      _figletCacheCleared = true;
-      figlet.clearLoadedFonts();
-    }
-    const raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY, horizontalLayout: 'full' });
-    return { kind: 'html', value: buildBannerHtml(raw) };
-  } catch {
-    try {
-      if (!_figletCacheCleared && typeof figlet.clearLoadedFonts === 'function') {
-        _figletCacheCleared = true;
-        figlet.clearLoadedFonts();
-      }
-      const raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK, horizontalLayout: 'full' });
-      return { kind: 'html', value: buildBannerHtml(raw) };
-    } catch {
-      const raw = renderLegacyBannerText(bannerText);
-      return { kind: 'html', value: buildBannerHtml(raw) };
-    }
-  }
+  const raw = renderLegacyBannerText(bannerText);
+  return { kind: 'html', value: buildBannerHtml(raw) };
 }
 
 const DEFAULT_PREFS = {
@@ -267,8 +242,6 @@ function setAsciiArt(el, text) {
   else el.textContent = val;
 }
 
-const BANNER_FONT_PRIMARY  = 'BBTAB-Legacy';
-const BANNER_FONT_FALLBACK = 'Banner3-Lower';
 // Visual scale for the header banner after auto-fit measurement.
 // 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
 const BANNER_FIT_SCALE = 0.75;
