@@ -2515,6 +2515,40 @@ const commands = {
     },
   },
 
+  // ── beep — retro PC-speaker tone via Web Audio API ─────────────
+  beep: {
+    description: 'Play a short retro PC-speaker beep (~800 Hz square wave, ~120 ms).',
+    usage: 'beep',
+    run(_args) {
+      try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type            = 'square';
+        osc.frequency.value = 800;          // ~800 Hz
+
+        // Snap loudness down so it's a polite beep, not a blast
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        // Tiny linear ramp to silence avoids a click at the end
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.12);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.12);   // 120 ms
+
+        osc.onended = () => ctx.close();
+
+        printLine('*BEEP*', 'line-ok');
+      } catch (err) {
+        printLine('Beep failed: Web Audio API not available.', 'line-err');
+        console.error('[BBTAB beep]', err);
+      }
+    },
+  },
+
   // ── uptime — elapsed time since init() ──────────────────────────
   uptime: {
     description: 'Show elapsed time since the terminal session started.',
