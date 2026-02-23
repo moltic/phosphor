@@ -114,8 +114,8 @@ html, body {
   vertical-align: top;
   color: var(--fg-bright);
   text-shadow:
-    0 0 5px var(--glow),
-    0 0 12px var(--glow-soft);
+    0 0 3px var(--glow),
+    0 0 6px var(--glow-soft);
 }
 
 #ascii-art .b-cell.b-core {
@@ -127,8 +127,8 @@ html, body {
   color: var(--fg-bright);
   opacity: 0.94;
   text-shadow:
-    0 0 6px var(--glow),
-    0 0 14px var(--glow-soft);
+    0 0 3px var(--glow),
+    0 0 7px var(--glow-soft);
 }
 
 /* b-edge: one step inside the rim — soft near-white transitioning to theme colour */
@@ -136,26 +136,26 @@ html, body {
   color: var(--fg-bright);
   opacity: 0.97;
   text-shadow:
-    0 0 3px rgba(223, 246, 255, 0.5),
-    0 0 9px var(--glow),
-    0 0 16px var(--glow-soft);
+    0 0 2px rgba(223, 246, 255, 0.5),
+    0 0 5px var(--glow),
+    0 0 8px var(--glow-soft);
 }
 
 #ascii-art .b-cell.b-rim {
   color: #dff6ff;
   opacity: 0.98;
   text-shadow:
-    0 0 4px rgba(223, 246, 255, 0.95),
-    0 0 10px rgba(223, 246, 255, 0.8),
-    0 0 18px var(--glow);
+    0 0 2px rgba(223, 246, 255, 0.95),
+    0 0 5px rgba(223, 246, 255, 0.6),
+    0 0 9px var(--glow);
 }
 
 #ascii-art .b-cell.b-node {
   color: #ffffff;
   text-shadow:
-    0 0 5px rgba(255, 255, 255, 0.95),
-    0 0 14px rgba(255, 255, 255, 0.7),
-    0 0 18px var(--glow);
+    0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 7px rgba(255, 255, 255, 0.6),
+    0 0 9px var(--glow);
 }
 
 #ascii-art .b-cell.has-trace::before {
