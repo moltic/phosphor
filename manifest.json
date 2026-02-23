@@ -6,6 +6,11 @@
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
+  "icons": {
+    "16": "phos.png",
+    "48": "phos.png",
+    "128": "phos.png"
+  },
   "permissions": [
     "storage"
   ],

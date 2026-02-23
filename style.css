@@ -143,6 +143,14 @@ html, body {
   margin-bottom: 0.6rem;
 }
 
+#logo {
+  display: block;
+  height: 3rem;
+  width: auto;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 6px var(--glow-soft));
+}
+
 #ascii-art {
   color: var(--fg-bright);
   font-family: var(--font-stack);
