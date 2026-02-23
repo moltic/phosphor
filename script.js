@@ -638,11 +638,14 @@ async function renderDials() {
   dials.forEach(dial => {
     // ── Divider spacer ──────────────────────────────────────────
     if (dial.type === 'divider') {
+      const isCol = dial.col === true;
       const dividerEl = document.createElement('div');
-      dividerEl.className = 'dial-divider';
+      dividerEl.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
       dividerEl.dataset.alias = dial.alias;
       dividerEl.draggable = true;
-      dividerEl.title = 'Divider — drag to reorder, right-click to remove';
+      dividerEl.title = isCol
+        ? 'Column Divider — drag to reorder, right-click to remove'
+        : 'Row Divider — drag to reorder, right-click to remove';
 
       dividerEl.addEventListener('dragstart', e => {
         isDraggingDial = true;
@@ -1289,8 +1292,8 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias] | dial divider',
-    usage: 'dial add [alias] [url]  |  dial rm [alias]  |  dial divider',
+    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias] | dial divider [row|col]',
+    usage: 'dial add [alias] [url]  |  dial rm [alias]  |  dial divider [row|col]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -1338,12 +1341,22 @@ const commands = {
         await removeDial(alias);
 
       } else if (sub === 'divider') {
+        const variant = (args[1] || 'row').toLowerCase();
+        if (variant !== 'row' && variant !== 'col') {
+          printLine('Usage:   dial divider [row|col]', 'line-info');
+          printLine('  row  — forces a new row (default)', 'line-info');
+          printLine('  col  — vertical spacer between tiles', 'line-info');
+          return;
+        }
         const dials = await loadDials();
         const alias  = `__div_${Date.now()}__`;
-        dials.push({ type: 'divider', alias });
+        const entry  = { type: 'divider', alias };
+        if (variant === 'col') entry.col = true;
+        dials.push(entry);
         await saveDials(dials);
         await renderDials();
-        printLine('✓ Divider added. Drag to reorder, right-click to remove.', 'line-ok');
+        const label = variant === 'col' ? 'Column divider' : 'Row divider';
+        printLine(`✓ ${label} added. Drag to reorder, right-click to remove.`, 'line-ok');
 
       } else {
         // No subcommand: list current dials
@@ -1356,7 +1369,11 @@ const commands = {
           printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
         } else {
           dials.forEach(d => {
-            if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
+            if (d.type === 'divider') {
+              const kind = d.col ? '[col divider]' : '[row divider]';
+              printLine(`  ─── ${kind} ───`, 'line-info');
+              return;
+            }
             const labelCol = (d.label || d.alias).padEnd(14);
             printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
           });
@@ -1364,7 +1381,7 @@ const commands = {
         printBlank();
         printLine('  dial add     [alias] [url]  — add a new tile', 'line-info');
         printLine('  dial rm      [alias]        — remove a tile', 'line-info');
-        printLine('  dial divider                — add a gap/spacer', 'line-info');
+        printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
         printLine('  Right-click any tile        — Edit / Remove', 'line-info');
         printBlank();
       }
