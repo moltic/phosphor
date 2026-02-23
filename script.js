@@ -1752,14 +1752,19 @@ function formatTimestamp(ms) {
 }
 
 function tickClock() {
-  const d  = new Date();
-  const hh = String(d.getHours()  ).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  const YY = d.getFullYear();
-  const MO = String(d.getMonth() + 1).padStart(2, '0');
-  const DD = String(d.getDate()     ).padStart(2, '0');
-  timeEl.textContent = `${YY}-${MO}-${DD}  ${hh}:${mm}:${ss}`;
+  const d = new Date();
+  const datePart = d.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timePart = d.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  timeEl.textContent = `${datePart}  ${timePart}`;
 }
 
 // ============================================================
