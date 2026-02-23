@@ -3071,6 +3071,36 @@ const commands = {
     },
   },
 
+  // ── shutdown ─────────────────────────────────────────────────────
+  shutdown: {
+    description: 'Power off the terminal with a CRT shutdown animation.',
+    usage: 'shutdown',
+    run(_args) {
+      printLine('SYSTEM HALTED.', 'line-err');
+      printLine('Powering down...', 'line-out');
+
+      // Disable input immediately so the user can't type during the animation.
+      inputEl.disabled = true;
+      cursorEl.style.visibility = 'hidden';
+
+      // Brief pause so the final lines are readable before the screen dies.
+      setTimeout(() => {
+        const termEl  = document.getElementById('terminal');
+        const scanEl  = document.getElementById('scanlines');
+
+        // Kick off the CRT power-off animation on #terminal.
+        termEl.classList.add('crt-poweroff');
+
+        // Once the animation completes, paint the viewport solid black.
+        termEl.addEventListener('animationend', () => {
+          termEl.style.display = 'none';
+          if (scanEl) scanEl.style.display = 'none';
+          document.body.style.background = '#000';
+        }, { once: true });
+      }, 520);
+    },
+  },
+
 };
 
 // ============================================================
