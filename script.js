@@ -243,8 +243,9 @@ function setAsciiArt(el, text) {
 }
 
 // Visual scale for the header banner after auto-fit measurement.
-// 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
-const BANNER_FIT_SCALE = 0.75;
+// 0.94 ≈ ~25% larger than the previous 0.75 scaling, while still leaving a
+// little room so the banner doesn't clip.
+const BANNER_FIT_SCALE = 0.94;
 // Cap the auto-fit measurement length so extremely wide banners don't force the
 // entire header to shrink into illegibility. Most typical phrases still fit.
 const BANNER_FIT_MAX_CHARS = 140;
