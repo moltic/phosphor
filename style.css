@@ -116,7 +116,19 @@ html, body {
 }
 
 /* ── Banner segmented neon cell styling ─────────────────────── */
-#ascii-art .b-cell {
+/* .banner-output is the inline variant rendered by the `banner` command  */
+.banner-output {
+  font-family: var(--font-stack);
+  font-size: clamp(0.34rem, 1vw, 0.52rem);
+  line-height: 1.02;
+  letter-spacing: 0;
+  white-space: pre;
+  display: block;
+  margin: 0.3rem 0 0.5rem;
+  overflow-x: auto;
+}
+
+:is(#ascii-art, .banner-output) .b-cell {
   display: inline-block;
   position: relative;
   width: 1ch;
@@ -129,12 +141,12 @@ html, body {
     0 0 7px var(--glow-soft);
 }
 
-#ascii-art .b-cell.b-core {
+:is(#ascii-art, .banner-output) .b-cell.b-core {
   color: var(--fg);
   opacity: 0.96;
 }
 
-#ascii-art .b-cell.b-mid {
+:is(#ascii-art, .banner-output) .b-cell.b-mid {
   color: var(--fg-bright);
   opacity: 0.94;
   text-shadow:
@@ -143,7 +155,7 @@ html, body {
 }
 
 /* b-edge: one step inside the rim — soft near-white transitioning to theme colour */
-#ascii-art .b-cell.b-edge {
+:is(#ascii-art, .banner-output) .b-cell.b-edge {
   color: var(--fg-bright);
   opacity: 0.97;
   text-shadow:
@@ -151,7 +163,7 @@ html, body {
     0 0 9px var(--glow-soft);
 }
 
-#ascii-art .b-cell.b-rim {
+:is(#ascii-art, .banner-output) .b-cell.b-rim {
   color: #dff6ff;
   opacity: 0.98;
   text-shadow:
@@ -159,22 +171,22 @@ html, body {
     0 0 7px var(--glow-soft);
 }
 
-#ascii-art .b-cell.b-node {
+:is(#ascii-art, .banner-output) .b-cell.b-node {
   color: #ffffff;
   text-shadow:
     0 0 3px rgba(255, 255, 255, 0.8),
     0 0 8px var(--glow-soft);
 }
 
-#ascii-art .b-cell.has-trace::before {
+:is(#ascii-art, .banner-output) .b-cell.has-trace::before {
   display: none;
 }
 
-#ascii-art .b-cell.has-trace::after {
+:is(#ascii-art, .banner-output) .b-cell.has-trace::after {
   display: none;
 }
 
-#ascii-art .b-cell.has-trace[data-j="0"]::after {
+:is(#ascii-art, .banner-output) .b-cell.has-trace[data-j="0"]::after {
   display: none;
 }
 
