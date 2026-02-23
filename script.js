@@ -3071,6 +3071,109 @@ const commands = {
     },
   },
 
+  // ── maze — recursive-backtracking ASCII maze ────────────────────
+  maze: {
+    description: 'Generate a solvable ASCII maze (recursive backtracking).',
+    usage: 'maze [cols] [rows]',
+    run(args) {
+      // Terminal is 58 chars wide.
+      // Each cell is 4 chars wide in "+---" style; the final border adds "+1".
+      // Max cols: floor((58 - 1) / 4) = 14.
+      const MAX_COLS = 14;
+      const MAX_ROWS = 14;
+
+      let cols = Math.max(3, Math.min(parseInt(args[0], 10) || MAX_COLS, MAX_COLS));
+      let rows = Math.max(3, Math.min(parseInt(args[1], 10) || 8,         MAX_ROWS));
+
+      // ── Build grid: each cell has four boolean walls (true = wall present) ──
+      const grid = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({ n: true, s: true, e: true, w: true }))
+      );
+      const visited = Array.from({ length: rows }, () => new Array(cols).fill(false));
+
+      // ── Direction table ───────────────────────────────────────────────────
+      const DIRS = [
+        { dr: -1, dc:  0, wall: 'n', opp: 's' },
+        { dr:  1, dc:  0, wall: 's', opp: 'n' },
+        { dr:  0, dc:  1, wall: 'e', opp: 'w' },
+        { dr:  0, dc: -1, wall: 'w', opp: 'e' },
+      ];
+
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      // ── Iterative DFS (avoids call-stack overflow on large grids) ─────────
+      const stack = [{ r: 0, c: 0 }];
+      visited[0][0] = true;
+
+      while (stack.length) {
+        const { r, c } = stack[stack.length - 1];
+        const neighbors = shuffle(
+          DIRS
+            .map(({ dr, dc, wall, opp }) => ({ nr: r + dr, nc: c + dc, wall, opp }))
+            .filter(({ nr, nc }) =>
+              nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]
+            )
+        );
+        if (neighbors.length === 0) {
+          stack.pop();
+        } else {
+          const { nr, nc, wall, opp } = neighbors[0];
+          grid[r][c][wall]   = false;
+          grid[nr][nc][opp]  = false;
+          visited[nr][nc]    = true;
+          stack.push({ r: nr, c: nc });
+        }
+      }
+
+      // ── Entrance: north wall of top-left; exit: south wall of bottom-right ─
+      grid[0][0].n               = false;
+      grid[rows - 1][cols - 1].s = false;
+
+      // ── Render ────────────────────────────────────────────────────────────
+      printBlank();
+      for (let r = 0; r < rows; r++) {
+        // Top (horizontal) wall row
+        let hRow = '';
+        for (let c = 0; c < cols; c++) {
+          hRow += '+';
+          hRow += grid[r][c].n ? '---' : '   ';
+        }
+        hRow += '+';
+        printLine(hRow, 'line-out');
+
+        // Side (vertical) wall row — cell interior
+        let vRow = '';
+        for (let c = 0; c < cols; c++) {
+          vRow += grid[r][c].w ? '|' : ' ';
+          vRow += '   ';
+        }
+        vRow += grid[r][cols - 1].e ? '|' : ' ';
+        printLine(vRow, 'line-out');
+      }
+      // Final bottom wall row
+      let botRow = '';
+      for (let c = 0; c < cols; c++) {
+        botRow += '+';
+        botRow += grid[rows - 1][c].s ? '---' : '   ';
+      }
+      botRow += '+';
+      printLine(botRow, 'line-out');
+
+      printBlank();
+      printLine(
+        `  ${cols}x${rows} maze  |  enter: top-left  |  exit: bottom-right`,
+        'line-info'
+      );
+      printBlank();
+    },
+  },
+
   // ── shutdown ─────────────────────────────────────────────────────
   shutdown: {
     description: 'Power off the terminal with a CRT shutdown animation.',
