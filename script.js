@@ -223,6 +223,9 @@ const BANNER_FONT_FALLBACK = 'Banner3-D';
 // Visual scale for the header banner after auto-fit measurement.
 // 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
 const BANNER_FIT_SCALE = 0.75;
+// Cap the auto-fit measurement length so very long banners don't force the
+// entire header to shrink. Extra width will be clipped by CSS.
+const BANNER_FIT_MAX_CHARS = 12;
 
 function computeDistanceFromEmpty(lines) {
   const height = lines.length;
@@ -384,12 +387,14 @@ async function fitBanner(el) {
   const maxLen = Math.max(...lines.map(l => l.length));
   if (!maxLen) return;
 
+  const fitLen = Math.min(maxLen, BANNER_FIT_MAX_CHARS);
+
   // Measure character width at the current computed font-size
   const probe = document.createElement('pre');
   probe.style.cssText =
     'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
     'margin:0;padding:0;border:0;font:inherit';
-  probe.textContent = '█'.repeat(maxLen);
+  probe.textContent = '█'.repeat(fitLen);
   document.body.appendChild(probe);
   const probeW = probe.getBoundingClientRect().width;
   document.body.removeChild(probe);

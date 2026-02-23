@@ -92,7 +92,9 @@ html, body {
   line-height: 1.02;
   letter-spacing: 0;
   white-space: pre;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-width: 100%;
   margin-bottom: 0.3rem;
   text-shadow:
     0 0 10px var(--glow-soft),
