@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBTAB — Home Terminal</title>
+
+  <!-- VT323 retro monospaced font from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- CRT scanline overlay (purely decorative, aria-hidden) -->
+  <div id="scanlines" aria-hidden="true"></div>
+
+  <div id="terminal" role="main">
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--  ASCII-art header — rendered in a <pre> for exact  -->
+    <!--  whitespace fidelity                               -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <header id="header" aria-label="BBTAB Home Terminal">
+      <pre id="ascii-art" aria-hidden="true">
+██████╗ ██████╗ ████████╗ █████╗ ██████╗
+██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗
+██████╔╝██████╔╝   ██║   ███████║██████╔╝
+██╔══██╗██╔══██╗   ██║   ██╔══██║██╔══██╗
+██████╔╝██████╔╝   ██║   ██║  ██║██████╔╝
+╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝</pre>
+      <div id="status-line">
+        <span id="status-label">HOME TERMINAL v1.0</span>
+        <span id="status-time" aria-live="off"></span>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--  Main scrollable output area                       -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div
+      id="output"
+      role="log"
+      aria-live="polite"
+      aria-label="Terminal output"
+    ></div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--  Sticky command-line input                         -->
+    <!--                                                    -->
+    <!--  Architecture: the real <input> is invisible and   -->
+    <!--  captures all keystrokes. #input-display + #cursor -->
+    <!--  render the visible text so we can show a proper   -->
+    <!--  blinking underscore cursor.                       -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div id="input-row" aria-label="Command input">
+      <span class="prompt-glyph" aria-hidden="true">&gt;&nbsp;</span>
+      <span id="input-display" aria-hidden="true"></span>
+      <span id="cursor" class="blink" aria-hidden="true">_</span>
+      <!-- The real input; transparent but on top, handles keyboard -->
+      <input
+        id="cmd-input"
+        type="text"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="Enter command"
+      />
+    </div>
+
+  </div><!-- /#terminal -->
+
+  <script src="script.js"></script>
+</body>
+</html>

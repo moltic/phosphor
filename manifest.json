@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "BBTAB — Home Terminal",
+  "version": "1.0.0",
+  "description": "Retro BBS/terminal interface for your New Tab page.",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": [
+    "storage"
+  ]
+}
