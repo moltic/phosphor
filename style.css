@@ -334,6 +334,26 @@ html, body {
   flex: 1;
 }
 
+#s-banner {
+  font-size: clamp(2.2rem, 4.5vw, 4rem);
+  color: var(--fg-bright);
+  text-shadow:
+    0 0 8px  var(--glow),
+    0 0 20px var(--glow-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg-dim);
+  padding: 0.1rem 0;
+  line-height: 1;
+}
+
+#s-banner:focus {
+  border-bottom-color: var(--fg);
+  outline: none;
+}
+
 
 .settings-actions {
   display: flex;
