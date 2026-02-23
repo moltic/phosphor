@@ -1254,12 +1254,25 @@ const commands = {
   l: {
     description: 'Open a speed-dial alias or any URL.  e.g. l gh',
     usage: 'l [alias | url]',
-    run(args) {
+    async run(args) {
+      // Load stored dials; skip dividers and incomplete entries
+      const storedDials = (await loadDials()).filter(d => !d.type && d.alias && d.url);
+
       if (args.length === 0) {
         printLine('Usage:   l [alias | url]', 'line-info');
         printLine('Example: l gh     or     l example.com', 'line-info');
         printBlank();
-        printLine('Speed-dial aliases:', 'line-info');
+
+        if (storedDials.length > 0) {
+          printLine('Saved dials:', 'line-info');
+          storedDials.forEach(({ alias, label, url }) => {
+            const desc = label && label !== alias ? `${url}  (${label})` : url;
+            printLine(`  ${alias.padEnd(12)} →  ${desc}`, 'line-info');
+          });
+          printBlank();
+        }
+
+        printLine('Built-in aliases:', 'line-info');
         Object.entries(ALIASES).forEach(([alias, url]) => {
           printLine(`  ${alias.padEnd(12)} →  ${url}`, 'line-info');
         });
@@ -1270,21 +1283,29 @@ const commands = {
       const raw   = args[0].trim();
       const lower = raw.toLowerCase();
 
-      // 1) Known alias (case-insensitive match)
+      // 1) Stored dial alias (case-insensitive, takes priority)
+      const storedMatch = storedDials.find(d => d.alias.toLowerCase() === lower);
+      if (storedMatch) {
+        printLine(`Opening ${storedMatch.url}`, 'line-ok');
+        window.location.href = storedMatch.url;
+        return;
+      }
+
+      // 2) Known hardcoded alias (case-insensitive match)
       if (Object.prototype.hasOwnProperty.call(ALIASES, lower)) {
         printLine(`Opening ${ALIASES[lower]}`, 'line-ok');
         window.location.href = ALIASES[lower];
         return;
       }
 
-      // 2) Already has a scheme  (http://, https://, ftp://, etc.)
+      // 3) Already has a scheme  (http://, https://, ftp://, etc.)
       if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(raw)) {
         printLine(`Opening ${raw}`, 'line-ok');
         window.location.href = raw;
         return;
       }
 
-      // 3) Looks like a bare domain  (contains a dot, no whitespace)
+      // 4) Looks like a bare domain  (contains a dot, no whitespace)
       if (/^[^\s]+\.[^\s]+$/.test(raw)) {
         const url = `https://${raw}`;
         printLine(`Opening ${url}`, 'line-ok');
@@ -1292,7 +1313,7 @@ const commands = {
         return;
       }
 
-      // 4) Unrecognised
+      // 5) Unrecognised
       printLine(`Unknown alias or unrecognised URL: "${raw}"`, 'line-err');
       printLine('Type  l  with no arguments to list aliases.', 'line-info');
     },
