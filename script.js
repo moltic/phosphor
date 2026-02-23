@@ -2648,6 +2648,30 @@ const commands = {
     },
   },
 
+  // ── noise — CRT static simulation ──────────────────────────────
+  noise: {
+    description: 'Print a block of random ASCII static (CRT noise).',
+    usage: 'noise [lines]',
+    run(args) {
+      const CHARS = '█▓▒░ .:!|/\\#%&@*^~?+=-_,;\'"`<>[]{}()0O°';
+      const WIDTH = 60;
+      const requestedLines = parseInt(args[0], 10);
+      const lines = (!isNaN(requestedLines) && requestedLines > 0)
+        ? Math.min(requestedLines, 24)
+        : 8;
+
+      printBlank();
+      for (let i = 0; i < lines; i++) {
+        let row = '';
+        for (let c = 0; c < WIDTH; c++) {
+          row += CHARS[Math.floor(Math.random() * CHARS.length)];
+        }
+        printLine(row, 'line-out');
+      }
+      printBlank();
+    },
+  },
+
   // ── uptime — elapsed time since init() ──────────────────────────
   uptime: {
     description: 'Show elapsed time since the terminal session started.',
