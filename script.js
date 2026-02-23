@@ -96,6 +96,79 @@ const FONT_SIZES = {
 
 const DEFAULT_BANNER = 'BBTAB';
 
+// Original BBTAB banner (verbatim). Used when bannerText is "BBTAB" so the
+// output matches the legacy header exactly.
+const ORIGINAL_BBTAB_BANNER = [
+  '██████╗ ██████╗ ████████╗ █████╗ ██████╗',
+  '██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗',
+  '██████╔╝██████╔╝   ██║   ███████║██████╔╝',
+  '██╔══██╗██╔══██╗   ██║   ██╔══██║██╔══██╗',
+  '██████╔╝██████╔╝   ██║   ██║  ██║██████╔╝',
+  '╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝',
+].join('\n');
+
+// Legacy 6-row banner font (Unicode) inspired by the original header style.
+// Goal: keep the same look for any user-entered banner text.
+const LEGACY_BANNER_FONT = {
+  ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
+  '?': ['█████╗ ', '╚═══██╗', '  ██╔╝ ', ' ██╔╝  ', ' ██║   ', ' ╚═╝   '],
+  '-': ['      ', '      ', '█████╗', '╚════╝', '      ', '      '],
+  '.': ['   ', '   ', '   ', '   ', '██╗', '╚═╝'],
+  ':': ['   ', '██╗', '╚═╝', '██╗', '╚═╝', '   '],
+  '0': [' ██████╗', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
+  '1': [' ██╗', '███║', '╚██║', ' ██║', ' ██║', ' ╚═╝'],
+  '2': ['██████╗ ', '╚════██╗', ' █████╔╝', '██╔═══╝ ', '███████╗', '╚══════╝'],
+  '3': ['██████╗ ', '╚════██╗', ' █████╔╝', ' ╚═══██╗', '██████╔╝', '╚═════╝ '],
+  '4': ['██╗  ██╗', '██║  ██║', '███████║', '╚════██║', '     ██║', '     ╚═╝'],
+  '5': ['███████╗', '██╔════╝', '██████╗ ', '╚════██╗', '██████╔╝', '╚═════╝ '],
+  '6': [' ██████╗', '██╔════╝', '██████╗ ', '██╔══██╗', '╚██████╔╝', ' ╚═════╝ '],
+  '7': ['███████╗', '╚════██║', '    ██╔╝', '   ██╔╝ ', '   ██║  ', '   ╚═╝  '],
+  '8': [' █████╗ ', '██╔══██╗', '╚█████╔╝', '██╔══██╗', '╚█████╔╝', ' ╚════╝ '],
+  '9': [' █████╗ ', '██╔══██╗', '╚██████║', ' ╚═══██║', ' █████╔╝', ' ╚════╝ '],
+  'A': [' █████╗ ', '██╔══██╗', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'B': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██████╔╝', '╚═════╝ '],
+  'C': [' ██████╗', '██╔════╝', '██║     ', '██║     ', '╚██████╗', ' ╚═════╝'],
+  'D': ['██████╗ ', '██╔══██╗', '██║  ██║', '██║  ██║', '██████╔╝', '╚═════╝ '],
+  'E': ['███████╗', '██╔════╝', '██████╗ ', '██╔═══╝ ', '███████╗', '╚══════╝'],
+  'F': ['███████╗', '██╔════╝', '██████╗ ', '██╔═══╝ ', '██║     ', '╚═╝     '],
+  'G': [' ██████╗', '██╔════╝', '██║  ███╗', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'H': ['██╗  ██╗', '██║  ██║', '███████║', '██╔══██║', '██║  ██║', '╚═╝  ╚═╝'],
+  'I': ['██████╗', '╚══██╔╝', '   ██║ ', '   ██║ ', '██████╗', '╚═════╝'],
+  'J': ['     ██╗', '     ██║', '     ██║', '██   ██║', '╚█████╔╝', ' ╚════╝ '],
+  'K': ['██╗  ██╗', '██║ ██╔╝', '█████╔╝ ', '██╔═██╗ ', '██║  ██╗', '╚═╝  ╚═╝'],
+  'L': ['██╗     ', '██║     ', '██║     ', '██║     ', '███████╗', '╚══════╝'],
+  'M': ['███╗   ███╗', '████╗ ████║', '██╔████╔██║', '██║╚██╔╝██║', '██║ ╚═╝ ██║', '╚═╝     ╚═╝'],
+  'N': ['███╗   ██╗', '████╗  ██║', '██╔██╗ ██║', '██║╚██╗██║', '██║ ╚████║', '╚═╝  ╚═══╝'],
+  'O': [' ██████╗', '██╔═══██╗', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'P': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔═══╝ ', '██║     ', '╚═╝     '],
+  'Q': [' ██████╗', '██╔═══██╗', '██║   ██║', '██║▄▄ ██║', '╚██████╔╝', ' ╚══▀▀═╝ '],
+  'R': ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██║  ██║', '╚═╝  ╚═╝'],
+  'S': [' ██████╗', '██╔════╝', '╚█████╗ ', ' ╚═══██╗', '██████╔╝', '╚═════╝ '],
+  'T': ['████████╗', '╚══██╔══╝', '   ██║   ', '   ██║   ', '   ██║   ', '   ╚═╝   '],
+  'U': ['██╗   ██╗', '██║   ██║', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+  'V': ['██╗   ██╗', '██║   ██║', '██║   ██║', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚═══╝  '],
+  'W': ['██╗    ██╗', '██║    ██║', '██║ █╗ ██║', '██║███╗██║', '╚███╔███╔╝', ' ╚══╝╚══╝ '],
+  'X': ['██╗  ██╗', '╚██╗██╔╝', ' ╚███╔╝ ', ' ██╔██╗ ', '██╔╝ ██╗', '╚═╝  ╚═╝'],
+  'Y': ['██╗   ██╗', '╚██╗ ██╔╝', ' ╚████╔╝ ', '  ╚██╔╝  ', '   ██║   ', '   ╚═╝   '],
+  'Z': ['███████╗', '╚══███╔╝', '  ███╔╝ ', ' ███╔╝  ', '███████╗', '╚══════╝'],
+};
+
+function renderLegacyBannerText(text) {
+  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim().toUpperCase();
+  if (!normalized) return ORIGINAL_BBTAB_BANNER;
+
+  const chars = [...normalized].map(ch => (LEGACY_BANNER_FONT[ch] ? ch : '?'));
+  const rows = 6;
+  const out = [];
+
+  for (let y = 0; y < rows; y += 1) {
+    const line = chars.map(ch => LEGACY_BANNER_FONT[ch][y]).join(' ');
+    out.push(line.replace(/\s+$/g, ''));
+  }
+
+  return out.join('\n');
+}
+
 const DEFAULT_PREFS = {
   theme:      'amber',
   fontSize:   'medium',
@@ -224,34 +297,56 @@ function buildBannerHtml(raw) {
   return lineHtml.join('\n');
 }
 
-function sanitizeBannerText(input) {
-  const raw = String(input ?? '').replace(/\r/g, '').trim();
-  const banner = raw.length ? raw : DEFAULT_BANNER;
-  // Figlet fonts are ASCII-oriented; keep printable ASCII and map everything
-  // else to '?' so the banner always renders in the same style.
-  return [...banner].map(ch => {
-    const code = ch.codePointAt(0);
-    if (code == null) return '';
-    if (code >= 32 && code <= 126) return ch;
-    return '?';
-  }).join('');
+function buildBannerHtmlPreserveGlyphs(raw) {
+  const lines = String(raw || '').replace(/\r/g, '').split('\n');
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  if (!lines.length) return '';
+
+  const { grid, dist } = computeDistanceFromEmpty(lines);
+  const height = grid.length;
+  const width = Math.max(0, ...lines.map(line => line.length));
+
+  const traceMask = Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => Boolean(grid[y]?.[x]) && dist[y][x] <= 2)
+  );
+
+  const lineHtml = lines.map((line, y) => {
+    let out = '';
+    for (let x = 0; x < width; x += 1) {
+      if (!(grid[y]?.[x])) {
+        out += ' ';
+        continue;
+      }
+
+      const tn = y > 0 && traceMask[y - 1][x] ? 1 : 0;
+      const te = x + 1 < width && traceMask[y][x + 1] ? 1 : 0;
+      const ts = y + 1 < height && traceMask[y + 1][x] ? 1 : 0;
+      const tw = x > 0 && traceMask[y][x - 1] ? 1 : 0;
+      const traceCount = tn + te + ts + tw;
+      const hasTrace = traceMask[y][x] && traceCount > 0;
+      const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}${hasTrace ? ' has-trace' : ''}`;
+      const style = hasTrace
+        ? ` style="--tn:${tn};--te:${te};--ts:${ts};--tw:${tw};"`
+        : '';
+      const traceAttr = hasTrace ? ` data-j="${traceCount >= 3 ? '1' : '0'}"` : '';
+
+      const ch = line[x] || '█';
+      out += `<span class="${cls}"${style}${traceAttr}>${escapeHtmlChar(ch)}</span>`;
+    }
+    return out;
+  });
+
+  return lineHtml.join('\n');
 }
 
 /** Render text as figlet ASCII art using the Banner3(-D) font(s). Returns a Promise<string>. */
 function renderBanner(text) {
   return new Promise((resolve, reject) => {
-    const banner = sanitizeBannerText(text);
-    const finish = (result) => resolve({ kind: 'html', value: buildBannerHtml(result) });
-
-    figlet.text(banner, { font: BANNER_FONT_PRIMARY }, (err, result) => {
-      if (!err && result) return finish(result);
-
-      figlet.text(banner, { font: BANNER_FONT_FALLBACK }, (err2, result2) => {
-        if (!err2 && result2) return finish(result2);
-        // Last-resort fallback: still show *something*.
-        resolve({ kind: 'text', value: banner });
-      });
-    });
+    try {
+      resolve({ kind: 'text', value: renderLegacyBannerText(text) });
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
