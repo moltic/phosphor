@@ -538,10 +538,9 @@ function syncDisplay() {
  * Load notes array from chrome.storage.local.
  * @returns {Promise<Array<{id:string, text:string, ts:number}>>}
  */
-function loadNotes() {
-  return new Promise(resolve => {
-    chrome.storage.local.get({ notes: [] }, data => resolve(data.notes));
-  });
+async function loadNotes() {
+  const data = await chrome.storage.local.get({ notes: [] });
+  return data.notes;
 }
 
 /**
@@ -550,19 +549,16 @@ function loadNotes() {
  * @returns {Promise<void>}
  */
 function saveNotes(notes) {
-  return new Promise(resolve => {
-    chrome.storage.local.set({ notes }, resolve);
-  });
+  return chrome.storage.local.set({ notes });
 }
 
 /**
  * Load speed-dial entries from chrome.storage.local.
  * @returns {Promise<Array<{alias:string, label:string, url:string, icon?:string}>>}
  */
-function loadDials() {
-  return new Promise(resolve => {
-    chrome.storage.local.get({ dials: [] }, data => resolve(data.dials));
-  });
+async function loadDials() {
+  const data = await chrome.storage.local.get({ dials: [] });
+  return data.dials;
 }
 
 /**
@@ -571,9 +567,7 @@ function loadDials() {
  * @returns {Promise<void>}
  */
 function saveDials(dials) {
-  return new Promise(resolve => {
-    chrome.storage.local.set({ dials }, resolve);
-  });
+  return chrome.storage.local.set({ dials });
 }
 
 /**
@@ -581,20 +575,17 @@ function saveDials(dials) {
  * Falls back to DEFAULT_PREFS for any missing key.
  * @returns {Promise<{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}>}
  */
-function loadPrefs() {
-  return new Promise(resolve => {
-    chrome.storage.local.get({ prefs: {} }, data => {
-      const stored = data.prefs || {};
-      const merged = { ...DEFAULT_PREFS, ...stored };
+async function loadPrefs() {
+  const data = await chrome.storage.local.get({ prefs: {} });
+  const stored = data.prefs || {};
+  const merged = { ...DEFAULT_PREFS, ...stored };
 
-      // Legacy migration: older versions stored a single `fontSize`.
-      // If new keys are missing, derive them from the legacy value.
-      if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
-      if (!('dialSize' in stored) && ('fontSize' in stored)) merged.dialSize = stored.fontSize;
+  // Legacy migration: older versions stored a single `fontSize`.
+  // If new keys are missing, derive them from the legacy value.
+  if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+  if (!('dialSize' in stored) && ('fontSize' in stored)) merged.dialSize = stored.fontSize;
 
-      resolve(merged);
-    });
-  });
+  return merged;
 }
 
 /**
@@ -603,9 +594,7 @@ function loadPrefs() {
  * @returns {Promise<void>}
  */
 function savePrefs(prefs) {
-  return new Promise(resolve => {
-    chrome.storage.local.set({ prefs }, resolve);
-  });
+  return chrome.storage.local.set({ prefs });
 }
 
 /**
