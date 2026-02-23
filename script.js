@@ -1683,6 +1683,27 @@ const commands = {
 // ============================================================
 
 /**
+ * Compute the Levenshtein edit distance between two strings.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
  * Parse a raw input string and route it to the correct command handler.
  * @param {string} raw  – the full text string from the input field
  */
@@ -1705,7 +1726,14 @@ function dispatch(raw) {
     });
   } else {
     printLine(`Unknown command: "${cmdName}"`, 'line-err');
-    printLine('Type  help  to see available commands.', 'line-info');
+    const suggestion = Object.keys(commands).find(
+      k => levenshtein(key, k) === 1
+    );
+    if (suggestion) {
+      printLine(`Did you mean  ${suggestion}?`, 'line-info');
+    } else {
+      printLine('Type  help  to see available commands.', 'line-info');
+    }
   }
 }
 
