@@ -299,10 +299,6 @@ function buildBannerHtml(raw) {
   const height = grid.length;
   const width = Math.max(0, ...lines.map(line => line.length));
 
-  const traceMask = Array.from({ length: height }, (_, y) =>
-    Array.from({ length: width }, (_, x) => Boolean(grid[y]?.[x]) && dist[y][x] <= 2)
-  );
-
   const lineHtml = lines.map((line, y) => {
     let out = '';
     for (let x = 0; x < width; x += 1) {
@@ -311,18 +307,8 @@ function buildBannerHtml(raw) {
         continue;
       }
 
-      const tn = y > 0 && traceMask[y - 1][x] ? 1 : 0;
-      const te = x + 1 < width && traceMask[y][x + 1] ? 1 : 0;
-      const ts = y + 1 < height && traceMask[y + 1][x] ? 1 : 0;
-      const tw = x > 0 && traceMask[y][x - 1] ? 1 : 0;
-      const traceCount = tn + te + ts + tw;
-      const hasTrace = traceMask[y][x] && traceCount > 0;
-      const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}${hasTrace ? ' has-trace' : ''}`;
-      const style = hasTrace
-        ? ` style="--tn:${tn};--te:${te};--ts:${ts};--tw:${tw};"`
-        : '';
-      const traceAttr = hasTrace ? ` data-j="${traceCount >= 3 ? '1' : '0'}"` : '';
-      out += `<span class="${cls}"${style}${traceAttr}>█</span>`;
+      const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}`;
+      out += `<span class="${cls}">█</span>`;
     }
     return out;
   });
@@ -376,7 +362,8 @@ function buildBannerHtmlPreserveGlyphs(raw) {
 function renderBanner(text) {
   return new Promise((resolve, reject) => {
     try {
-      resolve({ kind: 'text', value: renderLegacyBannerText(text) });
+      const raw = renderLegacyBannerText(text);
+      resolve({ kind: 'html', value: buildBannerHtml(raw) });
     } catch (err) {
       reject(err);
     }
