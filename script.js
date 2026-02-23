@@ -792,199 +792,322 @@ function getPreviewBeforeFor(toAlias, fallbackRect, clientX) {
   return clientX < (fallbackRect.left + fallbackRect.width / 2);
 }
 
-/** (Re)render all dial tiles into #speed-dial from storage. */
-async function renderDials() {
-  const dials = await loadDials();
-  dialGridEl.innerHTML = '';
+// ── Speed-dial shared state (module-level — stable across re-renders) ────────
 
-  function arrayMove(arr, fromIndex, toIndex) {
-    const next = [...arr];
-    if (fromIndex < 0 || fromIndex >= next.length) return next;
-    const clampedTo = Math.max(0, Math.min(toIndex, next.length - 1));
-    const [item] = next.splice(fromIndex, 1);
-    next.splice(clampedTo, 0, item);
-    return next;
-  }
+/** True while any dial is being dragged; suppresses accidental click-navigation. */
+let _isDraggingDial = false;
 
-  async function moveDialAliasToIndex(alias, toIndex) {
-    const current = await loadDials();
-    const fromIndex = current.findIndex(d => d.alias === alias);
-    if (fromIndex === -1) return;
-    const next = arrayMove(current, fromIndex, toIndex);
-    await saveDials(next);
-    await renderDials();
-  }
+/**
+ * Keyed node cache: alias → DOM element.
+ * Allows renderDials() to reuse / patch existing nodes instead of rebuilding.
+ */
+const _dialNodeCache = new Map();
 
-  let isDraggingDial = false;
+/** Pure helper — returns a new array with item moved from fromIndex to toIndex. */
+function _arrayMove(arr, fromIndex, toIndex) {
+  const next = [...arr];
+  if (fromIndex < 0 || fromIndex >= next.length) return next;
+  const clampedTo = Math.max(0, Math.min(toIndex, next.length - 1));
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(clampedTo, 0, item);
+  return next;
+}
 
-  dials.forEach(dial => {
-    // ── Divider spacer ──────────────────────────────────────────
-    if (dial.type === 'divider') {
-      const isCol = dial.col === true;
-      const dividerEl = document.createElement('div');
-      dividerEl.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
-      dividerEl.dataset.alias = dial.alias;
-      dividerEl.draggable = true;
-      dividerEl.title = isCol
-        ? 'Column Divider — drag to reorder, right-click to remove'
-        : 'Row Divider — drag to reorder, right-click to remove';
+/** Persist a reorder that moves alias to toIndex (0-based). */
+async function _moveDialAliasToIndex(alias, toIndex) {
+  const current = await loadDials();
+  const fromIndex = current.findIndex(d => d.alias === alias);
+  if (fromIndex === -1) return;
+  const next = _arrayMove(current, fromIndex, toIndex);
+  await saveDials(next);
+  await renderDials();
+}
 
-      dividerEl.addEventListener('dragstart', e => {
-        isDraggingDial = true;
-        hideDropIndicator();
-        dividerEl.classList.add('is-dragging');
-        dialGridEl.classList.add('is-dragging-dial');
-        try {
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', dial.alias);
-        } catch { /* ignore */ }
-      });
+// ── Element factories ─────────────────────────────────────────────────────────
 
-      dividerEl.addEventListener('dragend', () => {
-        dividerEl.classList.remove('is-dragging');
-        dialGridEl.classList.remove('is-dragging-dial');
-        hideDropIndicator();
-        setTimeout(() => { isDraggingDial = false; }, 0);
-      });
+/** Create a brand-new divider DOM element and bind all its events. */
+function _createDividerEl(dial) {
+  const isCol = dial.col === true;
+  const dividerEl = document.createElement('div');
+  dividerEl.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
+  dividerEl.dataset.alias = dial.alias;
+  dividerEl.draggable = true;
+  dividerEl.title = isCol
+    ? 'Column Divider — drag to reorder, right-click to remove'
+    : 'Row Divider — drag to reorder, right-click to remove';
 
-      dividerEl.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        if (dividerEl.classList.contains('is-dragging')) return;
-        previewDropNearElement(dial.alias, dividerEl.getBoundingClientRect(), e.clientX);
-      });
-
-      dividerEl.addEventListener('drop', async e => {
-        e.preventDefault();
-        e.stopPropagation();
-        hideDropIndicator();
-        dialGridEl.classList.remove('is-dragging-dial');
-        const fromAlias = e.dataTransfer?.getData('text/plain');
-        const toAlias   = dial.alias;
-        if (!fromAlias || fromAlias === toAlias) return;
-        const current = await loadDials();
-        const fromIndex = current.findIndex(d => d.alias === fromAlias);
-        const toIndex   = current.findIndex(d => d.alias === toAlias);
-        if (fromIndex === -1 || toIndex === -1) return;
-        const rect   = dividerEl.getBoundingClientRect();
-        const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
-        let insertIndex = toIndex + (before ? 0 : 1);
-        if (fromIndex < insertIndex) insertIndex -= 1;
-        insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-        const next = arrayMove(current, fromIndex, insertIndex);
-        await saveDials(next);
-        await renderDials();
-      });
-
-      dividerEl.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        showDialCtxMenu(e.clientX, e.clientY, dial.alias, true);
-      });
-
-      dialGridEl.appendChild(dividerEl);
-      return;
-    }
-    // ────────────────────────────────────────────────────────────
-
-    const tile = document.createElement('a');
-    tile.className = 'dial-tile';
-    tile.dataset.alias = dial.alias;
-    tile.title = dial.url;
-    tile.href = dial.url;
-    tile.rel = 'noopener noreferrer';
-    tile.draggable = true;
-    tile.setAttribute('aria-label', `${dial.label || dial.alias}: ${dial.url}`);
-
-    const iconEl = buildDialIconElement(dial);
-
-    const labelEl = document.createElement('span');
-    labelEl.className = 'dial-label';
-    labelEl.textContent = dial.label || dial.alias;
-
-    if (iconEl) tile.appendChild(iconEl);
-    tile.appendChild(labelEl);
-
-    // Allow native link behavior (middle-click, ctrl-click, etc). We only stop
-    // propagation so the document focus handler doesn't steal focus.
-    tile.addEventListener('click', e => {
-      // Prevent accidental navigation when the user just finished dragging.
-      if (isDraggingDial) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      e.stopPropagation();
-    });
-
-    tile.addEventListener('dragstart', e => {
-      isDraggingDial = true;
-      hideDropIndicator();
-      tile.classList.add('is-dragging');
-      dialGridEl.classList.add('is-dragging-dial');
-      try {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', dial.alias);
-      } catch {
-        // Some environments may restrict dataTransfer; reordering will just no-op.
-      }
-    });
-
-    tile.addEventListener('dragend', () => {
-      tile.classList.remove('is-dragging');
-      dialGridEl.classList.remove('is-dragging-dial');
-      hideDropIndicator();
-      // Delay reset so the subsequent click (if any) can be suppressed.
-      setTimeout(() => { isDraggingDial = false; }, 0);
-    });
-
-    tile.addEventListener('dragover', e => {
-      // Required to allow dropping.
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (tile.classList.contains('is-dragging')) return;
-      previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
-    });
-
-    tile.addEventListener('drop', async e => {
-      e.preventDefault();
-      e.stopPropagation();
-      hideDropIndicator();
-      dialGridEl.classList.remove('is-dragging-dial');
-
-      const fromAlias = e.dataTransfer?.getData('text/plain');
-      const toAlias = dial.alias;
-      if (!fromAlias || fromAlias === toAlias) return;
-
-      const current = await loadDials();
-      const fromIndex = current.findIndex(d => d.alias === fromAlias);
-      const toIndex = current.findIndex(d => d.alias === toAlias);
-      if (fromIndex === -1 || toIndex === -1) return;
-
-      const rect = tile.getBoundingClientRect();
-      const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
-
-      // Compute insertion index (before/after), then adjust for removal shift.
-      let insertIndex = toIndex + (before ? 0 : 1);
-      if (fromIndex < insertIndex) insertIndex -= 1;
-      insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-
-      const next = arrayMove(current, fromIndex, insertIndex);
-      await saveDials(next);
-      await renderDials();
-    });
-
-    // Right-click → context menu
-    tile.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      showDialCtxMenu(e.clientX, e.clientY, dial.alias);
-    });
-
-    dialGridEl.appendChild(tile);
+  dividerEl.addEventListener('dragstart', e => {
+    _isDraggingDial = true;
+    hideDropIndicator();
+    dividerEl.classList.add('is-dragging');
+    dialGridEl.classList.add('is-dragging-dial');
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dial.alias);
+    } catch { /* ignore */ }
   });
 
-  // Drop on empty space in the grid → move dragged tile to the end.
+  dividerEl.addEventListener('dragend', () => {
+    dividerEl.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+  });
+
+  dividerEl.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dividerEl.classList.contains('is-dragging')) return;
+    previewDropNearElement(dial.alias, dividerEl.getBoundingClientRect(), e.clientX);
+  });
+
+  dividerEl.addEventListener('drop', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropIndicator();
+    dialGridEl.classList.remove('is-dragging-dial');
+    const fromAlias = e.dataTransfer?.getData('text/plain');
+    const toAlias   = dial.alias;
+    if (!fromAlias || fromAlias === toAlias) return;
+    const current = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === fromAlias);
+    const toIndex   = current.findIndex(d => d.alias === toAlias);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const rect   = dividerEl.getBoundingClientRect();
+    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
+    let insertIndex = toIndex + (before ? 0 : 1);
+    if (fromIndex < insertIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+    const next = _arrayMove(current, fromIndex, insertIndex);
+    await saveDials(next);
+    await renderDials();
+  });
+
+  dividerEl.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias, true);
+  });
+
+  dividerEl._dialData = { ...dial };
+  return dividerEl;
+}
+
+/**
+ * Patch a cached divider element in-place when its data changed.
+ * Only the col/row distinction is visually meaningful.
+ */
+function _patchDividerEl(dividerEl, dial) {
+  const isCol  = dial.col === true;
+  const wasCol = dividerEl.classList.contains('col-divider');
+  if (isCol !== wasCol) {
+    dividerEl.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
+    dividerEl.title = isCol
+      ? 'Column Divider — drag to reorder, right-click to remove'
+      : 'Row Divider — drag to reorder, right-click to remove';
+  }
+  dividerEl._dialData = { ...dial };
+}
+
+/** Create a brand-new tile <a> element and bind all its events. */
+function _createTileEl(dial) {
+  const tile = document.createElement('a');
+  tile.className = 'dial-tile';
+  tile.dataset.alias = dial.alias;
+  tile.title = dial.url;
+  tile.href = dial.url;
+  tile.rel = 'noopener noreferrer';
+  tile.draggable = true;
+  tile.setAttribute('aria-label', `${dial.label || dial.alias}: ${dial.url}`);
+
+  const iconEl = buildDialIconElement(dial);
+  if (iconEl) tile.appendChild(iconEl);
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'dial-label';
+  labelEl.textContent = dial.label || dial.alias;
+  tile.appendChild(labelEl);
+
+  // Allow native link behaviour (middle-click, ctrl-click, etc.). We only stop
+  // propagation so the document focus handler doesn't steal focus.
+  tile.addEventListener('click', e => {
+    // Prevent accidental navigation when the user just finished dragging.
+    if (_isDraggingDial) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    e.stopPropagation();
+  });
+
+  tile.addEventListener('dragstart', e => {
+    _isDraggingDial = true;
+    hideDropIndicator();
+    tile.classList.add('is-dragging');
+    dialGridEl.classList.add('is-dragging-dial');
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dial.alias);
+    } catch {
+      // Some environments may restrict dataTransfer; reordering will just no-op.
+    }
+  });
+
+  tile.addEventListener('dragend', () => {
+    tile.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+    // Delay reset so the subsequent click (if any) can be suppressed.
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+  });
+
+  tile.addEventListener('dragover', e => {
+    // Required to allow dropping.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (tile.classList.contains('is-dragging')) return;
+    previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
+  });
+
+  tile.addEventListener('drop', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropIndicator();
+    dialGridEl.classList.remove('is-dragging-dial');
+
+    const fromAlias = e.dataTransfer?.getData('text/plain');
+    const toAlias = dial.alias;
+    if (!fromAlias || fromAlias === toAlias) return;
+
+    const current = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === fromAlias);
+    const toIndex   = current.findIndex(d => d.alias === toAlias);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const rect   = tile.getBoundingClientRect();
+    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
+
+    // Compute insertion index (before/after), then adjust for removal shift.
+    let insertIndex = toIndex + (before ? 0 : 1);
+    if (fromIndex < insertIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+
+    const next = _arrayMove(current, fromIndex, insertIndex);
+    await saveDials(next);
+    await renderDials();
+  });
+
+  // Right-click → context menu
+  tile.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias);
+  });
+
+  tile._dialData = { ...dial };
+  return tile;
+}
+
+/**
+ * Patch a cached tile element in-place when its data changed.
+ * Surgically updates only the attributes / children that differ.
+ */
+function _patchTileEl(tile, dial) {
+  const prev = tile._dialData ?? {};
+
+  if (prev.url !== dial.url) {
+    tile.href  = dial.url;
+    tile.title = dial.url;
+  }
+
+  const label     = dial.label  || dial.alias;
+  const prevLabel = prev.label  || prev.alias;
+  if (prevLabel !== label) {
+    const labelEl = tile.querySelector('.dial-label');
+    if (labelEl) labelEl.textContent = label;
+  }
+
+  if (prev.url !== dial.url || prevLabel !== label) {
+    tile.setAttribute('aria-label', `${label}: ${dial.url}`);
+  }
+
+  // Rebuild the icon child only when the icon value or the text used for the
+  // letter-box changed (label / url are the fallback sources for the letter).
+  const prevIconVal = normalizeDialIcon(prev.icon);
+  const newIconVal  = normalizeDialIcon(dial.icon);
+  const iconKeyChanged = prevIconVal !== newIconVal
+    || prevLabel !== label
+    || prev.url  !== dial.url;
+
+  if (iconKeyChanged) {
+    const oldIconEl = tile.querySelector('.dial-favicon, .dial-icon-text, .dial-letter-icon');
+    const newIconEl = buildDialIconElement(dial);
+    if (oldIconEl && newIconEl) {
+      oldIconEl.replaceWith(newIconEl);
+    } else if (oldIconEl) {
+      oldIconEl.remove();
+    } else if (newIconEl) {
+      tile.prepend(newIconEl);
+    }
+  }
+
+  tile._dialData = { ...dial };
+}
+
+// ── renderDials (incremental / diffing) ───────────────────────────────────────
+
+/**
+ * Sync #speed-dial to the current storage state without wiping the grid.
+ *
+ * Algorithm:
+ *  1. Load the desired dial list from storage.
+ *  2. For each entry, reuse the cached DOM node (patching changed fields) or
+ *     create a new one.
+ *  3. Remove nodes whose alias no longer appears in the list.
+ *  4. Reconcile order with a single forward pass using insertBefore — nodes
+ *     that are already in the correct position are never touched.
+ *  5. Bind the grid-level drag-over / drop listeners once (guarded flag).
+ */
+async function renderDials() {
+  const dials = await loadDials();
+
+  // ── Step 1: build / patch the node for every desired entry ───────────────
+  const desiredEls = dials.map(dial => {
+    const cached = _dialNodeCache.get(dial.alias);
+    if (cached) {
+      if (dial.type === 'divider') {
+        _patchDividerEl(cached, dial);
+      } else {
+        _patchTileEl(cached, dial);
+      }
+      return cached;
+    }
+    const el = dial.type === 'divider' ? _createDividerEl(dial) : _createTileEl(dial);
+    _dialNodeCache.set(dial.alias, el);
+    return el;
+  });
+
+  // ── Step 2: remove nodes that are no longer in the list ──────────────────
+  const desiredAliases = new Set(dials.map(d => d.alias));
+  for (const [alias, el] of _dialNodeCache) {
+    if (!desiredAliases.has(alias)) {
+      el.remove();
+      _dialNodeCache.delete(alias);
+    }
+  }
+
+  // ── Step 3: reconcile DOM order (no removes, only insertBefore moves) ─────
+  // Walking left-to-right: if the child already at position i is the node we
+  // want, skip it; otherwise insert the correct node before it, which the
+  // browser moves without cloning (preserving event listeners and state).
+  for (let i = 0; i < desiredEls.length; i++) {
+    const current = dialGridEl.children[i];
+    if (current !== desiredEls[i]) {
+      dialGridEl.insertBefore(desiredEls[i], current ?? null);
+    }
+  }
+
+  // ── Step 4: bind grid-level DnD listeners once ───────────────────────────
   if (!dialGridEl.dataset.dndBound) {
     dialGridEl.dataset.dndBound = '1';
 
@@ -1013,7 +1136,7 @@ async function renderDials() {
       const fromIndex = current.findIndex(d => d.alias === fromAlias);
       if (fromIndex === -1) return;
 
-      await moveDialAliasToIndex(fromAlias, current.length - 1);
+      await _moveDialAliasToIndex(fromAlias, current.length - 1);
     });
   }
 }
