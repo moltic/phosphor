@@ -8,5 +8,8 @@
   },
   "permissions": [
     "storage"
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com;"
+  }
 }
