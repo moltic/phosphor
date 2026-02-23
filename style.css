@@ -90,10 +90,11 @@ html, body {
     0 0 8px  var(--glow),
     0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
-  font-size: clamp(3.5rem, 8vw, 6.5rem);
-  line-height: 1;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: clamp(0.52rem, 1.35vw, 0.72rem);
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: pre;
+  overflow-x: hidden;
   margin-bottom: 0.3rem;
 }
 
@@ -492,6 +493,6 @@ html, body {
     padding: 0.5rem 0.75rem 0.5rem;
   }
   #ascii-art {
-    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-size: clamp(0.38rem, 1.1vw, 0.55rem);
   }
 }

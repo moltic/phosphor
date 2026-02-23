@@ -21,7 +21,10 @@
 //    8.  init()
 // ============================================================
 
-'use strict';
+import figlet from './figlet.mjs';
+
+// Configure figlet to load fonts from the extension's local fonts/ directory
+figlet.defaults({ fontPath: chrome.runtime.getURL('fonts') });
 
 // ── 1. DOM refs ────────────────────────────────────────────────────
 
@@ -99,6 +102,16 @@ const DEFAULT_PREFS = {
   scanlines:  true,
   bannerText: DEFAULT_BANNER,
 };
+
+/** Render text as figlet ASCII art using Banner3 font. Returns a Promise<string>. */
+function renderBanner(text) {
+  return new Promise((resolve, reject) => {
+    figlet.text((text || DEFAULT_BANNER).toUpperCase(), { font: 'Banner3' }, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
+}
 
 // ── Command-history state (session-only, not persisted)
 let cmdHistory   = [];   // [0] = most-recently-executed command
@@ -250,7 +263,7 @@ function savePrefs(prefs) {
  * and updating the heading text / scanline visibility.
  * @param {{theme:string, heading:string, fontSize:string, scanlines:boolean}} prefs
  */
-function applyPrefs(prefs) {
+async function applyPrefs(prefs) {
   const root    = document.documentElement;
   const palette = THEMES[prefs.theme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
@@ -261,7 +274,13 @@ function applyPrefs(prefs) {
   if (statusLabel) statusLabel.textContent = 'BBTab HOME TERMINAL V0.1';
 
   const asciiArtEl = document.getElementById('ascii-art');
-  if (asciiArtEl) asciiArtEl.textContent = prefs.bannerText || DEFAULT_BANNER;
+  if (asciiArtEl) {
+    try {
+      asciiArtEl.textContent = await renderBanner(prefs.bannerText || DEFAULT_BANNER);
+    } catch {
+      asciiArtEl.textContent = prefs.bannerText || DEFAULT_BANNER;
+    }
+  }
 
   const scanlinesEl = document.getElementById('scanlines');
   if (scanlinesEl) scanlinesEl.style.display = prefs.scanlines === false ? 'none' : '';
@@ -542,7 +561,7 @@ const settingsPanelEl = (() => {
   bannerInput.id          = 's-banner';
   bannerInput.className   = 'settings-input';
   bannerInput.type        = 'text';
-  bannerInput.maxLength   = 30;
+  bannerInput.maxLength   = 12;
   bannerInput.autocomplete = 'off';
   bannerInput.spellcheck  = false;
   bannerInput.placeholder = 'e.g. BBTAB';
@@ -613,7 +632,7 @@ async function commitSettings() {
     scanlines:  document.getElementById('s-scanlines').value === 'on',
   };
   await savePrefs(prefs);
-  applyPrefs(prefs);
+  await applyPrefs(prefs);
   closeSettingsPanel();
   printLine('✓ Settings saved.', 'line-ok');
 }
@@ -1047,7 +1066,7 @@ function tickClock() {
 async function init() {
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
-  applyPrefs(prefs);
+  await applyPrefs(prefs);
 
   // Start the clock immediately and tick every second
   tickClock();
