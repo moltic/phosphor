@@ -395,8 +395,8 @@ async function fitBanner(el) {
   // Leave a little room for the layered banner offsets so it doesn't clip.
   const available  = Math.max(0, el.parentElement.clientWidth - 18);
   const currentPx  = parseFloat(getComputedStyle(el).fontSize);
-  const idealPx    = (available * 0.50 / probeW) * currentPx;
-  el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 20) + 'px';
+  const idealPx    = (available * 1.00 / probeW) * currentPx;
+  el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 40) + 'px';
 }
 
 // ── Command-history state (session-only, not persisted)
