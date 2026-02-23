@@ -2841,6 +2841,125 @@ const commands = {
     },
   },
 
+  // ── hack — fake multi-stage intrusion sequence ───────────────────
+  hack: {
+    description: 'Run a fake multi-stage intrusion sequence for fun.',
+    usage: 'hack',
+    run() {
+      const BAR_WIDTH = 20;   // filled blocks per bar
+      const TICK_MS   = 55;   // ms between animation frames
+
+      const STAGES = [
+        { label: 'LOCATING TARGET',       color: 'var(--fg-dim)',    ms: 600  },
+        { label: 'BYPASSING FIREWALL',    color: 'var(--fg)',        ms: 900  },
+        { label: 'CRACKING ENCRYPTION',   color: 'var(--fg)',        ms: 1100 },
+        { label: 'ESCALATING PRIVILEGES', color: 'var(--fg-bright)', ms: 800  },
+        { label: 'INJECTING PAYLOAD',     color: 'var(--fg-bright)', ms: 1000 },
+        { label: 'COVERING TRACKS',       color: 'var(--fg-dim)',    ms: 650  },
+      ];
+
+      // Longest label — used for column alignment
+      const PAD = Math.max(...STAGES.map(s => s.label.length));
+
+      // State: one fill counter per stage (0 → BAR_WIDTH)
+      const fills = new Array(STAGES.length).fill(0);
+
+      printLine('INITIATING BREACH SEQUENCE…', 'line-head');
+      endBatch();
+
+      const pre = document.createElement('pre');
+      pre.className = 'banner-output';
+      pre.style.cssText = 'margin:0.4em 0; line-height:1.6; font-size:inherit';
+      outputEl.appendChild(pre);
+      outputEl.scrollTop = outputEl.scrollHeight;
+
+      // Which stage is currently animating (0-based index)
+      let activeStage = 0;
+
+      function renderFrame() {
+        let html = '';
+        STAGES.forEach((stage, i) => {
+          const pct   = Math.round((fills[i] / BAR_WIDTH) * 100);
+          const done  = fills[i] >= BAR_WIDTH;
+          const bar   = '█'.repeat(fills[i]) + '░'.repeat(BAR_WIDTH - fills[i]);
+          const label = stage.label.padEnd(PAD, ' ');
+
+          let barColor, labelColor, suffix;
+          if (done) {
+            barColor   = 'var(--fg-bright)';
+            labelColor = 'var(--fg-bright)';
+            suffix     = '  <span style="color:var(--fg-bright)">✓ DONE</span>';
+          } else if (i === activeStage) {
+            barColor   = stage.color;
+            labelColor = stage.color;
+            suffix     = '';
+          } else {
+            barColor   = 'var(--fg-dim)';
+            labelColor = 'var(--fg-dim)';
+            suffix     = '';
+          }
+
+          html += `<span style="color:${labelColor}">${label}</span>  ` +
+                  `<span style="color:var(--fg-dim)">[</span>` +
+                  `<span style="color:${barColor}">${bar}</span>` +
+                  `<span style="color:var(--fg-dim)">]</span>` +
+                  `  <span style="color:${labelColor}">${String(pct).padStart(3)}%</span>` +
+                  suffix + '\n';
+        });
+        pre.innerHTML = html;
+        outputEl.scrollTop = outputEl.scrollHeight;
+      }
+
+      renderFrame();
+
+      // Advance one tick: fill the active stage; when full move to next.
+      // ticks_per_stage = ceil(BAR_WIDTH / stepsPerTick); we pace each
+      // stage roughly to its target duration by computing stepsPerTick.
+      return new Promise(resolve => {
+        const stepsNeeded = () =>
+          Math.max(1, Math.ceil(STAGES[activeStage].ms / TICK_MS));
+
+        const iv = setInterval(() => {
+          if (activeStage >= STAGES.length) {
+            clearInterval(iv);
+            pre.remove();
+
+            // ACCESS GRANTED banner
+            const grantedLines = [
+              '╔══════════════════════════════════════════╗',
+              '║                                          ║',
+              '║     ░░░  A C C E S S   G R A N T E D  ░░░     ║',
+              '║                                          ║',
+              '╚══════════════════════════════════════════╝',
+            ];
+            const out = document.createElement('pre');
+            out.className = 'banner-output';
+            out.style.cssText =
+              'margin:0.6em 0; color:var(--fg-bright); ' +
+              'text-shadow:0 0 12px var(--glow); font-size:inherit';
+            out.textContent = grantedLines.join('\n');
+            outputEl.appendChild(out);
+            outputEl.scrollTop = outputEl.scrollHeight;
+
+            resolve();
+            return;
+          }
+
+          const needed = stepsNeeded();
+          const step   = BAR_WIDTH / needed;
+          fills[activeStage] = Math.min(BAR_WIDTH, fills[activeStage] + step);
+
+          if (fills[activeStage] >= BAR_WIDTH) {
+            fills[activeStage] = BAR_WIDTH;
+            activeStage++;
+          }
+
+          renderFrame();
+        }, TICK_MS);
+      });
+    },
+  },
+
 };
 
 // ============================================================
