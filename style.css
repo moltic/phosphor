@@ -91,11 +91,14 @@ html, body {
     0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
   font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 1;
+  line-height: 1.08;
   letter-spacing: 0;
   white-space: pre;
   overflow-x: hidden;
   margin-bottom: 0.3rem;
+  /* carve a dark border around each █ block so adjacent cells don't merge */
+  -webkit-text-stroke: 3px var(--bg);
+  paint-order: stroke fill;
 }
 
 #status-line {
