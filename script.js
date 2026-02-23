@@ -2424,6 +2424,56 @@ const commands = {
     },
   },
 
+  // ── ping — fake ICMP echo sequence ──────────────────────────────
+  ping: {
+    description: 'Fake-ping a host — 4 echo replies with randomised RTT values.',
+    usage: 'ping [host]',
+    run(args) {
+      const host = args[0] || 'localhost';
+
+      // Generate all RTT values up-front so the summary can use them.
+      const rtts = Array.from({ length: 4 }, () =>
+        parseFloat((Math.random() * 28 + 2).toFixed(3))
+      );
+
+      // Print the header line while the batch is still active.
+      printBlank();
+      printLine(`PING ${host}: 56 data bytes`, 'line-head');
+
+      // The dispatcher's Promise.resolve(run()).then(endBatch) resolves
+      // synchronously (we return undefined), so endBatch() fires right
+      // after this function returns.  _batchEl becomes null, and every
+      // subsequent printLine call goes straight to #output — giving the
+      // line-by-line appearance via the timeouts below.
+      const BASE_MS = 350;
+      const STEP_MS = 600;
+
+      rtts.forEach((rtt, i) => {
+        setTimeout(() => {
+          printLine(
+            `64 bytes from ${host}: icmp_seq=${i} ttl=64 time=${rtt} ms`,
+            'line-ok'
+          );
+        }, BASE_MS + i * STEP_MS);
+      });
+
+      // Summary stats after all replies.
+      setTimeout(() => {
+        const sorted = [...rtts].sort((a, b) => a - b);
+        const min = sorted[0].toFixed(3);
+        const max = sorted[sorted.length - 1].toFixed(3);
+        const avg = (rtts.reduce((s, v) => s + v, 0) / rtts.length).toFixed(3);
+        printBlank();
+        printLine(`--- ${host} ping statistics ---`, 'line-head');
+        printLine(`4 packets transmitted, 4 received, 0.0% packet loss`, 'line-info');
+        printLine(`round-trip min/avg/max = ${min}/${avg}/${max} ms`, 'line-info');
+        printBlank();
+      }, BASE_MS + rtts.length * STEP_MS + 200);
+
+      // Return undefined so the batch is flushed immediately (header only).
+    },
+  },
+
 };
 
 // ============================================================
