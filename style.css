@@ -88,30 +88,93 @@ html, body {
   color: var(--fg-bright);
   font-family: var(--font-stack);
   font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 1.05;
+  line-height: 1.02;
   letter-spacing: 0;
   white-space: pre;
   overflow: visible;
   margin-bottom: 0.3rem;
-  /* bright thin outline around each █ cell for the neon-grid look */
-  -webkit-text-stroke: 0.6px var(--fg);
-  paint-order: stroke fill;
-  text-shadow: none;
+  text-shadow:
+    0 0 10px var(--glow-soft),
+    0 0 18px var(--glow-soft);
 }
 
-/* ── Banner 3-D character classes ───────────────────────────── */
-#ascii-art .b-face {
+/* ── Banner segmented neon cell styling ─────────────────────── */
+#ascii-art .b-cell {
+  display: inline-block;
+  position: relative;
+  width: 1ch;
+  height: 1em;
+  line-height: 1;
+  vertical-align: top;
   color: var(--fg-bright);
-  -webkit-text-stroke-color: var(--fg);
   text-shadow:
     0 0 5px var(--glow),
     0 0 12px var(--glow-soft);
 }
 
-#ascii-art .b-shade {
+#ascii-art .b-cell.b-core {
   color: var(--fg);
-  -webkit-text-stroke-color: var(--fg-dim);
-  text-shadow: none;
+  opacity: 0.96;
+}
+
+#ascii-art .b-cell.b-mid {
+  color: var(--fg-bright);
+  opacity: 0.94;
+}
+
+#ascii-art .b-cell.b-rim {
+  color: #dff6ff;
+  opacity: 0.98;
+  text-shadow:
+    0 0 4px rgba(223, 246, 255, 0.95),
+    0 0 10px rgba(223, 246, 255, 0.8),
+    0 0 18px var(--glow);
+}
+
+#ascii-art .b-cell.b-node {
+  color: #ffffff;
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.95),
+    0 0 14px rgba(255, 255, 255, 0.7),
+    0 0 18px var(--glow);
+}
+
+#ascii-art .b-cell.has-trace::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(#ecfbff, #ecfbff) 50% 0 / 2px calc(var(--tn) * 56%) no-repeat,
+    linear-gradient(#ecfbff, #ecfbff) 100% 50% / calc(var(--te) * 56%) 2px no-repeat,
+    linear-gradient(#ecfbff, #ecfbff) 50% 100% / 2px calc(var(--ts) * 56%) no-repeat,
+    linear-gradient(#ecfbff, #ecfbff) 0 50% / calc(var(--tw) * 56%) 2px no-repeat;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 2px rgba(236, 251, 255, 0.95))
+          drop-shadow(0 0 4px var(--glow-soft));
+  pointer-events: none;
+}
+
+#ascii-art .b-cell.has-trace::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.34em;
+  height: 0.34em;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: rgba(236, 251, 255, 0.9);
+  opacity: 0.65;
+  box-shadow:
+    0 0 4px rgba(236, 251, 255, 0.9),
+    0 0 8px var(--glow-soft);
+  pointer-events: none;
+}
+
+#ascii-art .b-cell.has-trace[data-j="0"]::after {
+  width: 0.18em;
+  height: 0.18em;
+  opacity: 0.35;
 }
 
 #status-line {

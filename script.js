@@ -109,25 +109,113 @@ function setAsciiArt(el, text) {
   el.innerHTML = val;
 }
 
-const BANNER_FONT_PRIMARY  = 'Banner3-D';
-const BANNER_FONT_FALLBACK = 'Banner3';
+const BANNER_FONT_PRIMARY  = 'Banner3';
+const BANNER_FONT_FALLBACK = 'Banner3-D';
+
+function computeDistanceFromEmpty(lines) {
+  const height = lines.length;
+  const width = Math.max(0, ...lines.map(line => line.length));
+  const grid = Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => (lines[y][x] || ' ') !== ' ')
+  );
+
+  if (!height || !width) return { grid, dist: [] };
+
+  const padH = height + 2;
+  const padW = width + 2;
+  const occ = Array.from({ length: padH }, () => Array(padW).fill(false));
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      occ[y + 1][x + 1] = grid[y][x];
+    }
+  }
+
+  const distPad = Array.from({ length: padH }, () => Array(padW).fill(Infinity));
+  const q = [];
+  let qHead = 0;
+  for (let y = 0; y < padH; y += 1) {
+    for (let x = 0; x < padW; x += 1) {
+      if (!occ[y][x]) {
+        distPad[y][x] = 0;
+        q.push([x, y]);
+      }
+    }
+  }
+
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  while (qHead < q.length) {
+    const [x, y] = q[qHead++];
+    const nextDist = distPad[y][x] + 1;
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= padW || ny >= padH) continue;
+      if (nextDist < distPad[ny][nx]) {
+        distPad[ny][nx] = nextDist;
+        q.push([nx, ny]);
+      }
+    }
+  }
+
+  const dist = Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => distPad[y + 1][x + 1])
+  );
+
+  return { grid, dist };
+}
+
+function bannerCellClass(distance, x, y) {
+  if (distance <= 1) return 'b-rim';
+  if (distance === 2) return 'b-mid';
+  if (distance >= 4 && (x + y) % 7 === 0) return 'b-node';
+  return 'b-core';
+}
+
+function buildBannerHtml(raw) {
+  const lines = String(raw || '').replace(/\r/g, '').split('\n');
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  if (!lines.length) return '';
+
+  const { grid, dist } = computeDistanceFromEmpty(lines);
+  const height = grid.length;
+  const width = Math.max(0, ...lines.map(line => line.length));
+
+  const traceMask = Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => Boolean(grid[y]?.[x]) && dist[y][x] <= 2)
+  );
+
+  const lineHtml = lines.map((line, y) => {
+    let out = '';
+    for (let x = 0; x < width; x += 1) {
+      if (!(grid[y]?.[x])) {
+        out += ' ';
+        continue;
+      }
+
+      const tn = y > 0 && traceMask[y - 1][x] ? 1 : 0;
+      const te = x + 1 < width && traceMask[y][x + 1] ? 1 : 0;
+      const ts = y + 1 < height && traceMask[y + 1][x] ? 1 : 0;
+      const tw = x > 0 && traceMask[y][x - 1] ? 1 : 0;
+      const traceCount = tn + te + ts + tw;
+      const hasTrace = traceMask[y][x] && traceCount > 0;
+      const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}${hasTrace ? ' has-trace' : ''}`;
+      const style = hasTrace
+        ? ` style="--tn:${tn};--te:${te};--ts:${ts};--tw:${tw};"`
+        : '';
+      const traceAttr = hasTrace ? ` data-j="${traceCount >= 3 ? '1' : '0'}"` : '';
+      out += `<span class="${cls}"${style}${traceAttr}>█</span>`;
+    }
+    return out;
+  });
+
+  return lineHtml.join('\n');
+}
 
 /** Render text as figlet ASCII art using the Banner3(-D) font(s). Returns a Promise<string>. */
 function renderBanner(text) {
   return new Promise((resolve, reject) => {
     const banner = (text || DEFAULT_BANNER).toUpperCase();
-
-    // Banner3-D uses # and ' for the letter face, : and . for the 3D shadow.
-    // Map them to █ blocks with different CSS classes to preserve depth.
-    const finish = (result) => {
-      const raw = String(result || '');
-      const html = raw.replace(/[^\r\n]/g, (ch) => {
-        if (ch === ' ') return ' ';
-        if (ch === '#' || ch === "'") return '<span class="b-face">█</span>';
-        return '<span class="b-shade">█</span>';  // : and .
-      });
-      resolve(html);
-    };
+    const finish = (result) => resolve(buildBannerHtml(result));
 
     figlet.text(banner, { font: BANNER_FONT_PRIMARY }, (err, result) => {
       if (!err && result) return finish(result);
