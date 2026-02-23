@@ -991,11 +991,14 @@ async function renderDials() {
 const ctxMenuEl = (() => {
   const menu = document.createElement('div');
   menu.id = 'dial-ctx-menu';
+  menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-hidden', 'true');
 
   const openTabBtn = document.createElement('button');
   openTabBtn.className = 'ctx-menu-item';
   openTabBtn.dataset.action = 'open-tab';
+  openTabBtn.setAttribute('role', 'menuitem');
+  openTabBtn.setAttribute('tabindex', '-1');
   openTabBtn.textContent = 'Open in new tab';
   openTabBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1009,6 +1012,8 @@ const ctxMenuEl = (() => {
   const editBtn = document.createElement('button');
   editBtn.className = 'ctx-menu-item';
   editBtn.dataset.action = 'edit';
+  editBtn.setAttribute('role', 'menuitem');
+  editBtn.setAttribute('tabindex', '-1');
   editBtn.textContent = 'Edit';
   editBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1019,6 +1024,8 @@ const ctxMenuEl = (() => {
 
   const removeBtn = document.createElement('button');
   removeBtn.className = 'ctx-menu-item';
+  removeBtn.setAttribute('role', 'menuitem');
+  removeBtn.setAttribute('tabindex', '-1');
   removeBtn.textContent = 'Remove';
   removeBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1043,17 +1050,21 @@ function showDialCtxMenu(x, y, alias, isDivider = false) {
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
+  ctxMenuEl.setAttribute('aria-hidden', 'false');
 
-  // Nudge inside viewport if the menu clips an edge
+  // Nudge inside viewport if the menu clips an edge, then focus first visible item
   requestAnimationFrame(() => {
     const r = ctxMenuEl.getBoundingClientRect();
     if (r.right  > window.innerWidth)  ctxMenuEl.style.left = `${x - r.width}px`;
     if (r.bottom > window.innerHeight) ctxMenuEl.style.top  = `${y - r.height}px`;
+    const firstItem = ctxMenuEl.querySelector('.ctx-menu-item:not([style*="display: none"]):not([style*="display:none"])');
+    if (firstItem) firstItem.focus();
   });
 }
 
 function hideDialCtxMenu() {
   ctxMenuEl.classList.remove('visible');
+  ctxMenuEl.setAttribute('aria-hidden', 'true');
   delete ctxMenuEl.dataset.target;
 }
 
@@ -1921,6 +1932,27 @@ inputEl.addEventListener('keydown', e => {
 
     default:
       break;
+  }
+});
+
+// ── Context-menu keyboard: Escape closes; arrow keys navigate items
+document.addEventListener('keydown', e => {
+  if (!ctxMenuEl.classList.contains('visible')) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    hideDialCtxMenu();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const items = [...ctxMenuEl.querySelectorAll('.ctx-menu-item')]
+      .filter(btn => btn.style.display !== 'none');
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    const next = e.key === 'ArrowDown'
+      ? items[(idx + 1) % items.length]
+      : items[(idx - 1 + items.length) % items.length];
+    next.focus();
   }
 });
 
