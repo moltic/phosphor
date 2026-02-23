@@ -1,6 +1,6 @@
 // ============================================================
-//  BBTAB — script.js
-//  Retro BBS / terminal New Tab override  (Chrome MV3)
+//  Phosphor — script.js
+//  Retro phosphor terminal New Tab override  (Chrome MV3)
 // ============================================================
 //
 //  Storage schema  (chrome.storage.local):
@@ -25,7 +25,7 @@
 
 // ── 1. DOM refs ────────────────────────────────────────────────────
 
-const APP_TITLE = 'BBTab HOME TERMINAL V0.1';
+const APP_TITLE = 'PHOSPHOR TERMINAL V0.1';
 
 const outputEl  = document.getElementById('output');
 const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
@@ -102,11 +102,11 @@ const FONT_SIZES = {
   large:  '24px',
 };
 
-const DEFAULT_BANNER = 'BBTAB';
+const DEFAULT_BANNER = 'PHOSPHOR';
 
-// Original BBTAB banner (verbatim). Used when bannerText is "BBTAB" so the
-// output matches the legacy header exactly.
-const ORIGINAL_BBTAB_BANNER = [
+// Original Phosphor banner (verbatim). Used when bannerText is "PHOSPHOR" so the
+// output matches the default header exactly.
+const ORIGINAL_PHOSPHOR_BANNER = [
   '██████╗ ██████╗ ████████╗ █████╗ ██████╗',
   '██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗',
   '██████╔╝██████╔╝   ██║   ███████║██████╔╝',
@@ -194,7 +194,7 @@ const LEGACY_BANNER_FONT = {
 
 function renderLegacyBannerText(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
-  if (!normalized) return ORIGINAL_BBTAB_BANNER;
+  if (!normalized) return ORIGINAL_PHOSPHOR_BANNER;
 
   const chars = [...normalized];
   const rows = 6;
@@ -255,8 +255,8 @@ async function renderBanner(text) {
   const bannerText = normalized || DEFAULT_BANNER;
 
   // Preserve the exact original header look for the default title.
-  if (bannerText === 'BBTAB') {
-    return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
+  if (bannerText === 'PHOSPHOR') {
+    return { kind: 'html', value: buildBannerHtml(ORIGINAL_PHOSPHOR_BANNER) };
   }
 
   const raw = renderLegacyBannerText(bannerText);
@@ -1487,7 +1487,7 @@ const settingsPanelEl = (() => {
   bannerInput.maxLength   = 24;
   bannerInput.autocomplete = 'off';
   bannerInput.spellcheck  = false;
-  bannerInput.placeholder = 'e.g. BBTAB';
+  bannerInput.placeholder = 'e.g. PHOSPHOR';
 
   const scanSelect = makeSelect('s-scanlines', [
     ['on', 'ON'], ['off', 'OFF'],
@@ -1665,7 +1665,7 @@ const commands = {
     run(_args) {
       printBlank();
       printRule('═');
-      printLine('  BBTAB COMMAND REFERENCE', 'line-head');
+      printLine('  PHOSPHOR COMMAND REFERENCE', 'line-head');
       printRule('═');
       printBlank();
 
@@ -2617,7 +2617,7 @@ const commands = {
         printLine('*BEEP*', 'line-ok');
       } catch (err) {
         printLine('Beep failed: Web Audio API not available.', 'line-err');
-        console.error('[BBTAB beep]', err);
+        console.error('[Phosphor beep]', err);
       }
     },
   },
@@ -3258,7 +3258,7 @@ function dispatch(raw) {
       .then(() => endBatch())
       .catch(err => {
         printLine(`Error: ${err.message}`, 'line-err');
-        console.error('[BBTAB]', err);
+        console.error('[Phosphor]', err);
         endBatch();
       });
   } else {
