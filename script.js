@@ -2730,6 +2730,117 @@ const commands = {
     },
   },
 
+  // ── matrix — falling-character rain animation (~3 s) ────────────
+  matrix: {
+    description: 'Display a Matrix-style falling-character rain animation (~3 s).',
+    usage: 'matrix',
+    run() {
+      const COLS        = 46;
+      const ROWS        = 16;
+      const DURATION_MS = 3000;
+      const TICK_MS     = 80;
+      // Half-width katakana + digits — the classic Matrix alphabet
+      const CHARS = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789';
+
+      function rndChar() {
+        return CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+
+      // Per-column state: head = current row of the lead glyph (may be < 0
+      // while the drop is still above the visible area).
+      const cols = Array.from({ length: COLS }, () => ({
+        head  : -Math.floor(Math.random() * ROWS),   // stagger initial positions
+        speed : Math.random() < 0.5 ? 1 : 2,         // rows advanced per tick
+        trail : Math.floor(Math.random() * 6) + 4,   // tail length 4–9
+        glyphs: Array.from({ length: ROWS }, rndChar),
+      }));
+
+      // Print the header line inside the live batch, then flush it so the
+      // animation <pre> lands directly in #output (not inside the batch div).
+      printLine('INITIALIZING MATRIX PROTOCOL…', 'line-ok');
+      endBatch();
+
+      // A single <pre> that gets rewritten every tick — no layout thrash.
+      const pre = document.createElement('pre');
+      pre.className = 'banner-output';
+      pre.style.cssText = 'margin:0.2em 0; line-height:1.25; font-size:inherit';
+      outputEl.appendChild(pre);
+      outputEl.scrollTop = outputEl.scrollHeight;
+
+      /** Render the current column state into pre.innerHTML. */
+      function render() {
+        // Build a 2-D tag grid: null = blank, 'H' = head, 'N' = near trail, 'F' = far trail
+        const grid = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
+
+        for (let c = 0; c < COLS; c++) {
+          const { head, trail, glyphs } = cols[c];
+          if (head >= 0 && head < ROWS) grid[head][c] = 'H';
+          for (let t = 1; t <= trail; t++) {
+            const r = head - t;
+            if (r >= 0 && r < ROWS) grid[r][c] = t <= 2 ? 'N' : 'F';
+          }
+        }
+
+        let html = '';
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const tag = grid[r][c];
+            const ch  = cols[c].glyphs[r];
+            if (!tag) {
+              html += ' ';
+            } else if (tag === 'H') {
+              html += `<span style="color:var(--fg-bright);text-shadow:0 0 8px var(--glow)">${ch}</span>`;
+            } else if (tag === 'N') {
+              html += `<span style="color:var(--fg)">${ch}</span>`;
+            } else {
+              html += `<span style="color:var(--fg-dim)">${ch}</span>`;
+            }
+          }
+          html += '\n';
+        }
+        pre.innerHTML = html;
+        outputEl.scrollTop = outputEl.scrollHeight;
+      }
+
+      render();
+
+      const startTime = Date.now();
+
+      const iv = setInterval(() => {
+        // Advance each column and randomly mutate a glyph in its trail
+        for (let c = 0; c < COLS; c++) {
+          const col = cols[c];
+          col.head += col.speed;
+          // Randomly flicker one cell per column
+          if (Math.random() < 0.35) {
+            col.glyphs[Math.floor(Math.random() * ROWS)] = rndChar();
+          }
+          // Recycle the column once the tail has scrolled past the bottom
+          if (col.head - col.trail > ROWS) {
+            col.head  = -Math.floor(Math.random() * 4);
+            col.speed = Math.random() < 0.5 ? 1 : 2;
+            col.trail = Math.floor(Math.random() * 6) + 4;
+            col.glyphs = Array.from({ length: ROWS }, rndChar);
+          }
+        }
+
+        render();
+
+        if (Date.now() - startTime >= DURATION_MS) {
+          clearInterval(iv);
+          pre.remove();
+          printLine('MATRIX PROTOCOL TERMINATED.', 'line-ok');
+          printBlank();
+        }
+      }, TICK_MS);
+
+      // Return a Promise so the dispatcher waits before accepting new input.
+      return new Promise(resolve => {
+        setTimeout(resolve, DURATION_MS + TICK_MS * 2);
+      });
+    },
+  },
+
 };
 
 // ============================================================
