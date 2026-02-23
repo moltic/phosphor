@@ -364,7 +364,7 @@ function renderBanner(text) {
   return new Promise((resolve, reject) => {
     try {
       const raw = renderLegacyBannerText(text);
-      resolve({ kind: 'html', value: buildBannerHtmlPreserveGlyphs(raw) });
+      resolve({ kind: 'html', value: buildBannerHtml(raw) });
     } catch (err) {
       reject(err);
     }
