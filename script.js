@@ -1523,35 +1523,76 @@ const commands = {
 
   // ── ls — list notes + stored dials ─────────────────────────────
   ls: {
-    description: 'List saved notes (latest 20) and speed-dial tiles.',
-    usage: 'ls',
-    async run(_args) {
+    description: 'List saved notes and speed-dial tiles.  Optionally paginate notes: ls [page] or ls notes [page].',
+    usage: 'ls  |  ls [page]  |  ls notes [page]',
+    async run(args) {
+      const PAGE_SIZE = 20;
+
+      // Parse optional page argument.
+      // Accepted forms:  ls          → page 1, show dials
+      //                  ls 3        → page 3, show dials
+      //                  ls notes    → page 1, show dials
+      //                  ls notes 3  → page 3, show dials
+      let pageArg = null;
+      if (args.length >= 1) {
+        const first = args[0].toLowerCase();
+        if (first === 'notes') {
+          pageArg = args[1] ?? null;
+        } else {
+          pageArg = first;
+        }
+      }
+
+      let page = 1;
+      if (pageArg !== null) {
+        const parsed = parseInt(pageArg, 10);
+        if (isNaN(parsed) || parsed < 1) {
+          printLine('Usage:  ls [page]  |  ls notes [page]', 'line-info');
+          printLine('        page must be a positive integer.', 'line-info');
+          return;
+        }
+        page = parsed;
+      }
+
       const [notes, dials] = await Promise.all([loadNotes(), loadDials()]);
+      const reversed = [...notes].reverse();
+      const totalPages = Math.max(1, Math.ceil(reversed.length / PAGE_SIZE));
+
+      if (page > totalPages) {
+        printLine(
+          `  Page ${page} does not exist — there are only ${totalPages} page(s) of notes.`,
+          'line-err',
+        );
+        return;
+      }
+
+      const start = (page - 1) * PAGE_SIZE;
+      const pageNotes = reversed.slice(start, start + PAGE_SIZE);
 
       // ── Notes section
       printBlank();
       printRule('─');
-      printLine('  NOTES', 'line-head');
+      const pageLabel = totalPages > 1 ? `  NOTES  (page ${page} / ${totalPages})` : '  NOTES';
+      printLine(pageLabel, 'line-head');
       printRule('─');
 
       if (notes.length === 0) {
         printLine('  (no notes yet — use:  n [text])', 'line-info');
       } else {
-        const recent = [...notes].reverse().slice(0, 20);
-        recent.forEach((note, i) => {
-          const idx  = String(i + 1).padStart(3, ' ');
+        pageNotes.forEach((note, i) => {
+          const globalIdx = String(start + i + 1).padStart(3, ' ');
           const time = formatTimestamp(note.ts);
-          printLine(`  ${idx}.  [${time}]  ${note.text}`, 'line-out');
+          printLine(`  ${globalIdx}.  [${time}]  ${note.text}`, 'line-out');
         });
-        if (notes.length > 20) {
-          printLine(
-            `  … and ${notes.length - 20} older note(s) not shown.`,
-            'line-info',
-          );
+        if (totalPages > 1) {
+          const prevHint = page > 1          ? `  ls ${page - 1}` : null;
+          const nextHint = page < totalPages ? `  ls ${page + 1}` : null;
+          const hints = [prevHint, nextHint].filter(Boolean).join('    ');
+          printLine(`  ─  ${hints}`, 'line-info');
         }
       }
 
-      // ── Speed-dial section (stored dials)
+      // ── Speed-dial section (stored dials) — always shown
       printBlank();
       printRule('─');
       printLine('  SPEED DIAL', 'line-head');
