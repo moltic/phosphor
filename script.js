@@ -154,15 +154,21 @@ const LEGACY_BANNER_FONT = {
 };
 
 function renderLegacyBannerText(text) {
-  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim().toUpperCase();
+  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
   if (!normalized) return ORIGINAL_BBTAB_BANNER;
 
-  const chars = [...normalized].map(ch => (LEGACY_BANNER_FONT[ch] ? ch : '?'));
+  const chars = [...normalized];
   const rows = 6;
   const out = [];
 
   for (let y = 0; y < rows; y += 1) {
-    const line = chars.map(ch => LEGACY_BANNER_FONT[ch][y]).join(' ');
+    const line = chars.map((ch) => {
+      const isLower = ch >= 'a' && ch <= 'z';
+      const upper = isLower ? ch.toUpperCase() : ch;
+      const key = LEGACY_BANNER_FONT[upper] ? upper : (LEGACY_BANNER_FONT[ch] ? ch : '?');
+      const glyphRow = LEGACY_BANNER_FONT[key][y];
+      return isLower ? glyphRow.replace(/█/g, '▓') : glyphRow;
+    }).join(' ');
     out.push(line.replace(/\s+$/g, ''));
   }
 
