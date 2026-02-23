@@ -615,14 +615,36 @@ async function applyPrefs(prefs) {
 //  Speed-dial UI  (grid + context menu + edit dialog)
 // ============================================================
 
-/** Return Google's favicon service URL for a given destination URL. */
-function getFaviconUrl(url) {
-  try {
-    const { hostname } = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`;
-  } catch {
-    return '';
-  }
+/**
+ * Build a coloured letter-box icon element for a dial — no external requests.
+ * The background colour is derived deterministically from the label/alias string.
+ */
+const _LETTER_ICON_COLORS = [
+  '#1a5276', // deep blue
+  '#1a7a40', // deep green
+  '#7a5c1a', // amber
+  '#1a6b7a', // teal
+  '#5c1a7a', // purple
+  '#7a1a1a', // crimson
+  '#7b1a4e', // magenta
+  '#2e7a1a', // olive
+];
+
+function _letterIconColor(key) {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return _LETTER_ICON_COLORS[h % _LETTER_ICON_COLORS.length];
+}
+
+function buildLetterIcon(dial) {
+  const label = String(dial?.label || dial?.alias || dial?.url || '?');
+  const letter = ([...label][0] ?? '?').toUpperCase();
+  const span = document.createElement('span');
+  span.className = 'dial-letter-icon';
+  span.setAttribute('aria-hidden', 'true');
+  span.textContent = letter;
+  span.style.backgroundColor = _letterIconColor(label.toLowerCase());
+  return span;
 }
 
 function isLikelyUrl(val) {
@@ -647,14 +669,9 @@ function buildDialIconElement(dial) {
   const icon = normalizeDialIcon(dial?.icon);
   if (icon === 'none') return null;
 
-  // Default: site favicon
+  // Default: letter-box icon (no external requests)
   if (!icon) {
-    const img = document.createElement('img');
-    img.className = 'dial-favicon';
-    img.src = getFaviconUrl(dial.url);
-    img.alt = '';
-    img.addEventListener('error', () => img.setAttribute('data-broken', ''));
-    return img;
+    return buildLetterIcon(dial);
   }
 
   // Emoji / short text
@@ -666,19 +683,15 @@ function buildDialIconElement(dial) {
     return span;
   }
 
-  // Custom image URL (fallback to favicon if it fails)
+  // Custom image URL (fallback to letter-box if it fails — no external requests)
   if (isLikelyUrl(icon)) {
     const img = document.createElement('img');
     img.className = 'dial-favicon';
     img.src = icon;
     img.alt = '';
     img.addEventListener('error', () => {
-      const fallback = getFaviconUrl(dial.url);
-      if (fallback && img.src !== fallback) {
-        img.src = fallback;
-        return;
-      }
-      img.setAttribute('data-broken', '');
+      const letter = buildLetterIcon(dial);
+      img.replaceWith(letter);
     });
     return img;
   }
@@ -1072,7 +1085,7 @@ const editDialogEl = (() => {
 
   const iconInput = document.createElement('input');
   iconInput.id = 'dial-edit-icon';
-  iconInput.placeholder = 'Icon (emoji/text or image URL — blank = favicon)';
+  iconInput.placeholder = 'Icon (emoji/text or image URL — blank = letter box)';
   iconInput.autocomplete = 'off';
   iconInput.spellcheck   = false;
 

@@ -256,6 +256,22 @@ html, body {
   display: none;
 }
 
+/* ── Letter-box icon (local fallback — no external favicon requests) ── */
+.dial-letter-icon {
+  width: 1em;
+  height: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: none;
+  border-radius: 2px;
+  /* background-color applied via JS (deterministic per-label colour) */
+}
+
 .dial-icon-text {
   width: 1em;
   height: 1em;
