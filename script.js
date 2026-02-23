@@ -118,7 +118,12 @@ function renderBanner(text) {
   return new Promise((resolve, reject) => {
     const banner = (text || DEFAULT_BANNER).toUpperCase();
 
-    const finish = (result) => resolve(result.replace(/#/g, '█'));
+    // Banner3-D uses punctuation (.:') for shading. For the intended clean
+    // “solid block” banner style, normalize any non-space character to █.
+    const finish = (result) => {
+      const normalized = String(result || '').replace(/[^\r\n ]/g, '█');
+      resolve(normalized);
+    };
 
     figlet.text(banner, { font: BANNER_FONT_PRIMARY }, (err, result) => {
       if (!err && result) return finish(result);
@@ -147,7 +152,7 @@ async function fitBanner(el) {
   probe.style.cssText =
     'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
     'margin:0;padding:0;border:0;font:inherit';
-  probe.textContent = '#'.repeat(maxLen);
+  probe.textContent = '█'.repeat(maxLen);
   document.body.appendChild(probe);
   const probeW = probe.getBoundingClientRect().width;
   document.body.removeChild(probe);
