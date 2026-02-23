@@ -1842,6 +1842,19 @@ inputEl.addEventListener('keydown', e => {
       break;
     }
 
+    case ',': {
+      // Ctrl+, (Win/Linux) or Cmd+, (Mac) → toggle settings panel
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (settingsPanelEl.classList.contains('visible')) {
+          closeSettingsPanel();
+        } else {
+          openSettingsPanel();
+        }
+      }
+      break;
+    }
+
     default:
       break;
   }
