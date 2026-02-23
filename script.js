@@ -373,7 +373,7 @@ async function renderBanner(text) {
 
   // Preserve the exact original header look for the default title.
   if (bannerText === 'BBTAB') {
-    return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
+    return { kind: 'html', value: buildBannerHtmlPreserveGlyphs(ORIGINAL_BBTAB_BANNER) };
   }
 
   // Prefer real figlet output for better readability (especially lowercase).
@@ -389,7 +389,8 @@ async function renderBanner(text) {
     }
   }
 
-  return { kind: 'html', value: buildBannerHtml(raw) };
+  // Preserve glyph characters so letters like "e"/"a" remain readable.
+  return { kind: 'html', value: buildBannerHtmlPreserveGlyphs(raw) };
 }
 
 /**
