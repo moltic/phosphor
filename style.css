@@ -151,10 +151,10 @@ html, body {
 }
 
 #logo {
-  display: block;
+  flex-shrink: 0;
   height: 3rem;
   width: auto;
-  flex-shrink: 0;
+  margin-left: auto;
   filter: drop-shadow(0 0 6px var(--glow-soft));
 }
 
