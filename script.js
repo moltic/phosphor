@@ -30,6 +30,7 @@ const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
 const displayEl = document.getElementById('input-display'); // visible mirror
 const cursorEl  = document.getElementById('cursor');
 const timeEl    = document.getElementById('status-time');
+const dialGridEl = document.getElementById('speed-dial');
 
 // ── Speed-dial alias map.
 //    Add / remove entries freely; both `l` and `ls` read this object.
@@ -142,6 +143,252 @@ function saveNotes(notes) {
   return new Promise(resolve => {
     chrome.storage.local.set({ notes }, resolve);
   });
+}
+
+/**
+ * Load speed-dial entries from chrome.storage.local.
+ * @returns {Promise<Array<{alias:string, label:string, url:string}>>}
+ */
+function loadDials() {
+  return new Promise(resolve => {
+    chrome.storage.local.get({ dials: [] }, data => resolve(data.dials));
+  });
+}
+
+/**
+ * Persist speed-dial entries back to chrome.storage.local.
+ * @param {Array<{alias:string, label:string, url:string}>} dials
+ * @returns {Promise<void>}
+ */
+function saveDials(dials) {
+  return new Promise(resolve => {
+    chrome.storage.local.set({ dials }, resolve);
+  });
+}
+
+// ============================================================
+//  Speed-dial UI  (grid + context menu + edit dialog)
+// ============================================================
+
+/** Return Google's favicon service URL for a given destination URL. */
+function getFaviconUrl(url) {
+  try {
+    const { hostname } = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`;
+  } catch {
+    return '';
+  }
+}
+
+/** (Re)render all dial tiles into #speed-dial from storage. */
+async function renderDials() {
+  const dials = await loadDials();
+  dialGridEl.innerHTML = '';
+
+  dials.forEach(dial => {
+    const tile = document.createElement('div');
+    tile.className = 'dial-tile';
+    tile.dataset.alias = dial.alias;
+    tile.title = dial.url;
+
+    const img = document.createElement('img');
+    img.className = 'dial-favicon';
+    img.src = getFaviconUrl(dial.url);
+    img.alt = '';
+    img.addEventListener('error', () => img.setAttribute('data-broken', ''));
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'dial-label';
+    labelEl.textContent = dial.label || dial.alias;
+
+    tile.appendChild(img);
+    tile.appendChild(labelEl);
+
+    // Left-click → navigate; stop propagation so the document focus handler
+    // doesn't try to re-focus the terminal input after navigation begins.
+    tile.addEventListener('click', e => {
+      e.stopPropagation();
+      window.location.href = dial.url;
+    });
+
+    // Right-click → context menu
+    tile.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      showDialCtxMenu(e.clientX, e.clientY, dial.alias);
+    });
+
+    dialGridEl.appendChild(tile);
+  });
+}
+
+// ── Context menu ─────────────────────────────────────────────────
+
+const ctxMenuEl = (() => {
+  const menu = document.createElement('div');
+  menu.id = 'dial-ctx-menu';
+  menu.setAttribute('aria-hidden', 'true');
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'ctx-menu-item';
+  editBtn.textContent = 'Edit';
+  editBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    showDialEditDialog(alias);
+  });
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'ctx-menu-item';
+  removeBtn.textContent = 'Remove';
+  removeBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    await removeDial(alias);
+  });
+
+  menu.appendChild(editBtn);
+  menu.appendChild(removeBtn);
+  document.body.appendChild(menu);
+  return menu;
+})();
+
+function showDialCtxMenu(x, y, alias) {
+  ctxMenuEl.dataset.target = alias;
+  ctxMenuEl.style.left = `${x}px`;
+  ctxMenuEl.style.top  = `${y}px`;
+  ctxMenuEl.classList.add('visible');
+
+  // Nudge inside viewport if the menu clips an edge
+  requestAnimationFrame(() => {
+    const r = ctxMenuEl.getBoundingClientRect();
+    if (r.right  > window.innerWidth)  ctxMenuEl.style.left = `${x - r.width}px`;
+    if (r.bottom > window.innerHeight) ctxMenuEl.style.top  = `${y - r.height}px`;
+  });
+}
+
+function hideDialCtxMenu() {
+  ctxMenuEl.classList.remove('visible');
+  delete ctxMenuEl.dataset.target;
+}
+
+// ── Edit dialog ───────────────────────────────────────────────────
+
+const editDialogEl = (() => {
+  const overlay = document.createElement('div');
+  overlay.id = 'dial-edit-dialog';
+
+  const inner = document.createElement('div');
+  inner.className = 'dial-edit-inner';
+
+  const title = document.createElement('div');
+  title.className = 'dial-edit-title';
+  title.textContent = 'EDIT DIAL';
+
+  const labelInput = document.createElement('input');
+  labelInput.id = 'dial-edit-label';
+  labelInput.placeholder = 'Label';
+  labelInput.autocomplete = 'off';
+  labelInput.spellcheck   = false;
+
+  const urlInput = document.createElement('input');
+  urlInput.id = 'dial-edit-url';
+  urlInput.placeholder = 'URL';
+  urlInput.autocomplete = 'off';
+  urlInput.spellcheck   = false;
+  urlInput.type         = 'url';
+
+  const actions = document.createElement('div');
+  actions.className = 'dial-edit-actions';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className  = 'dial-edit-btn';
+  saveBtn.textContent = 'SAVE';
+  saveBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    commitDialEdit();
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className   = 'dial-edit-btn';
+  cancelBtn.textContent = 'CANCEL';
+  cancelBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    hideDialEditDialog();
+  });
+
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  inner.appendChild(title);
+  inner.appendChild(labelInput);
+  inner.appendChild(urlInput);
+  inner.appendChild(actions);
+  overlay.appendChild(inner);
+
+  // Click outside the inner box → dismiss
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { e.stopPropagation(); hideDialEditDialog(); }
+  });
+
+  // Keyboard shortcuts inside dialog
+  inner.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitDialEdit(); }
+    if (e.key === 'Escape') { e.preventDefault(); hideDialEditDialog(); }
+  });
+
+  document.body.appendChild(overlay);
+  return overlay;
+})();
+
+async function showDialEditDialog(alias) {
+  const dials = await loadDials();
+  const dial  = dials.find(d => d.alias === alias);
+  if (!dial) return;
+
+  editDialogEl.dataset.target = alias;
+  document.getElementById('dial-edit-label').value = dial.label || dial.alias;
+  document.getElementById('dial-edit-url').value   = dial.url;
+  editDialogEl.classList.add('visible');
+  document.getElementById('dial-edit-label').focus();
+}
+
+function hideDialEditDialog() {
+  editDialogEl.classList.remove('visible');
+  delete editDialogEl.dataset.target;
+  inputEl.focus();
+}
+
+async function commitDialEdit() {
+  const alias    = editDialogEl.dataset.target;
+  const newLabel = document.getElementById('dial-edit-label').value.trim();
+  let   newUrl   = document.getElementById('dial-edit-url').value.trim();
+
+  if (!alias || !newLabel || !newUrl) return;
+
+  // Auto-prefix scheme if missing
+  if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
+
+  const dials = await loadDials();
+  const idx   = dials.findIndex(d => d.alias === alias);
+  if (idx !== -1) {
+    dials[idx] = { alias, label: newLabel, url: newUrl };
+    await saveDials(dials);
+    await renderDials();
+  }
+
+  hideDialEditDialog();
+}
+
+// ── Shared helper: remove a dial by alias and refresh the grid ────
+
+async function removeDial(alias) {
+  const dials    = await loadDials();
+  const filtered = dials.filter(d => d.alias !== alias);
+  await saveDials(filtered);
+  await renderDials();
+  printLine(`✓ Dial "${alias}" removed.`, 'line-ok');
 }
 
 // ============================================================
@@ -271,12 +518,12 @@ const commands = {
     },
   },
 
-  // ── ls — list notes + aliases ───────────────────────────────────
+  // ── ls — list notes + stored dials ─────────────────────────────
   ls: {
-    description: 'List saved notes (latest 20) and speed-dial aliases.',
+    description: 'List saved notes (latest 20) and speed-dial tiles.',
     usage: 'ls',
     async run(_args) {
-      const notes = await loadNotes();
+      const [notes, dials] = await Promise.all([loadNotes(), loadDials()]);
 
       // ── Notes section
       printBlank();
@@ -301,15 +548,94 @@ const commands = {
         }
       }
 
-      // ── Speed-dial section
+      // ── Speed-dial section (stored dials)
       printBlank();
       printRule('─');
       printLine('  SPEED DIAL', 'line-head');
       printRule('─');
-      Object.entries(ALIASES).forEach(([alias, url]) => {
-        printLine(`  ${alias.padEnd(12)} →  ${url}`, 'line-info');
-      });
+      if (dials.length === 0) {
+        printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
+      } else {
+        dials.forEach(d => {
+          const labelCol = (d.label || d.alias).padEnd(14);
+          printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
+        });
+      }
       printBlank();
+    },
+  },
+
+  // ── dial — manage speed-dial tiles ─────────────────────────────
+  dial: {
+    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias]',
+    usage: 'dial add [alias] [url]  |  dial rm [alias]',
+    async run(args) {
+      const sub = (args[0] || '').toLowerCase();
+
+      if (sub === 'add') {
+        const alias  = args[1];
+        const rawUrl = args[2];
+
+        if (!alias || !rawUrl) {
+          printLine('Usage:   dial add [alias] [url]', 'line-info');
+          printLine('Example: dial add hn https://news.ycombinator.com', 'line-info');
+          return;
+        }
+
+        // Auto-prefix scheme if the user omitted it
+        const url = /^[a-z][a-z0-9+\-.]*:\/\//i.test(rawUrl)
+          ? rawUrl
+          : `https://${rawUrl}`;
+
+        const dials = await loadDials();
+
+        if (dials.some(d => d.alias === alias)) {
+          printLine(`Alias "${alias}" already exists. Use  dial rm ${alias}  first.`, 'line-err');
+          return;
+        }
+
+        dials.push({ alias, label: alias, url });
+        await saveDials(dials);
+        await renderDials();
+        printLine(`✓ Dial "${alias}"  →  ${url}`, 'line-ok');
+
+      } else if (sub === 'rm') {
+        const alias = args[1];
+
+        if (!alias) {
+          printLine('Usage:   dial rm [alias]', 'line-info');
+          return;
+        }
+
+        const dials = await loadDials();
+        if (!dials.some(d => d.alias === alias)) {
+          printLine(`Alias "${alias}" not found.`, 'line-err');
+          return;
+        }
+
+        await removeDial(alias);
+
+      } else {
+        // No subcommand: list current dials
+        const dials = await loadDials();
+        printBlank();
+        printRule('─');
+        printLine('  SPEED DIAL', 'line-head');
+        printRule('─');
+        if (dials.length === 0) {
+          printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
+        } else {
+          dials.forEach(d => {
+            const labelCol = (d.label || d.alias).padEnd(14);
+            printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
+          });
+        }
+        printBlank();
+        printLine('  dial add [alias] [url]  — add a new tile', 'line-info');
+        printLine('  dial rm  [alias]        — remove a tile', 'line-info');
+        printLine('  Right-click any tile    — Edit / Remove', 'line-info');
+        printBlank();
+      }
     },
   },
 
@@ -424,8 +750,17 @@ inputEl.addEventListener('keydown', e => {
   }
 });
 
-// ── Re-focus the input whenever the user clicks anywhere on the page
-document.addEventListener('click', () => inputEl.focus());
+// ── Dismiss context menu on any click/right-click outside it
+document.addEventListener('click', e => {
+  if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
+  // Re-focus command input unless the user is interacting with dial overlays
+  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, .dial-tile')) {
+    inputEl.focus();
+  }
+});
+document.addEventListener('contextmenu', e => {
+  if (!e.target.closest('.dial-tile')) hideDialCtxMenu();
+});
 
 // ── Pause the blinking cursor while the tab is in the background;
 //    re-focus when the user returns.
@@ -477,6 +812,9 @@ async function init() {
   // Start the clock immediately and tick every second
   tickClock();
   setInterval(tickClock, 1_000);
+
+  // Render speed-dial grid from storage (runs in parallel with storage reads below)
+  renderDials();
 
   // ── MOTD / welcome banner
   printRule('═');

@@ -114,6 +114,168 @@ html, body {
   color: var(--fg-dim);
 }
 
+/* ── Speed-dial Grid ────────────────────────────────────────── */
+#speed-dial {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.55rem 0 0.65rem;
+  border-bottom: 1px solid var(--fg-dim);
+  margin-bottom: 0.6rem;
+}
+
+/* Hide entirely when empty (no tiles added yet) */
+#speed-dial:not(:has(.dial-tile)) {
+  display: none;
+}
+
+.dial-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  padding: 0.45rem 0.6rem 0.35rem;
+  border: 1px solid var(--fg-dim);
+  cursor: pointer;
+  min-width: 70px;
+  max-width: 110px;
+  user-select: none;
+}
+
+.dial-tile:hover {
+  border-color: var(--fg);
+  background: rgba(255, 176, 0, 0.07);
+}
+
+.dial-favicon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.dial-favicon[data-broken] {
+  display: none;
+}
+
+.dial-label {
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.88rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+  text-align: center;
+}
+
+/* ── Speed-dial Context Menu ─────────────────────────────────── */
+#dial-ctx-menu {
+  position: fixed;
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  min-width: 120px;
+}
+
+#dial-ctx-menu.visible {
+  display: flex;
+}
+
+.ctx-menu-item {
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  padding: 0.3rem 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  line-height: var(--line-height);
+}
+
+.ctx-menu-item:hover {
+  background: rgba(255, 176, 0, 0.13);
+  color: var(--fg-bright);
+}
+
+/* ── Speed-dial Edit Dialog ──────────────────────────────────── */
+#dial-edit-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+#dial-edit-dialog.visible {
+  display: flex;
+}
+
+.dial-edit-inner {
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  padding: 1.1rem 1.3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 300px;
+}
+
+.dial-edit-title {
+  color: var(--fg-bright);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px var(--glow);
+  margin-bottom: 0.15rem;
+}
+
+.dial-edit-inner input {
+  background: var(--bg);
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  padding: 0.3rem 0.5rem;
+  outline: none;
+  width: 100%;
+}
+
+.dial-edit-inner input:focus {
+  border-color: var(--fg);
+}
+
+.dial-edit-actions {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: flex-end;
+  margin-top: 0.2rem;
+}
+
+.dial-edit-btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  padding: 0.25rem 0.85rem;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+
+.dial-edit-btn:hover {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+}
+
 /* ── Output Area ────────────────────────────────────────────── */
 #output {
   flex: 1 1 auto;
