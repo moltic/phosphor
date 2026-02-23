@@ -263,6 +263,18 @@ async function renderBanner(text) {
   return { kind: 'html', value: buildBannerHtml(raw) };
 }
 
+/** Render the header banner with the original glyph shapes for readability. */
+function renderHeaderBanner(text) {
+  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
+  const bannerText = normalized || DEFAULT_BANNER;
+
+  if (bannerText === 'PHOSPHOR') {
+    return { kind: 'text', value: ORIGINAL_PHOSPHOR_BANNER };
+  }
+
+  return { kind: 'text', value: renderLegacyBannerText(bannerText) };
+}
+
 const DEFAULT_PREFS = {
   theme:        'amber',
   terminalSize: 'medium',
@@ -283,12 +295,12 @@ function setAsciiArt(el, text, { asHtml = true } = {}) {
 }
 
 // Visual scale for the header banner after auto-fit measurement.
-// 0.94 ≈ ~25% larger than the previous 0.75 scaling, while still leaving a
-// little room so the banner doesn't clip.
-const BANNER_FIT_SCALE = 0.94;
+// Keep some margin so the title panel reads clearly and doesn't crowd the logo.
+const BANNER_FIT_SCALE = 0.86;
 // Cap the auto-fit measurement length so extremely wide banners don't force the
 // entire header to shrink into illegibility. Most typical phrases still fit.
 const BANNER_FIT_MAX_CHARS = 140;
+const BANNER_FIT_MAX_PX = 32;
 
 function computeDistanceFromEmpty(lines) {
   const height = lines.length;
@@ -378,7 +390,7 @@ function buildBannerHtml(raw) {
       }
 
       const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}`;
-      out += `<span class="${cls}">█</span>`;
+      out += `<span class="${cls}">${escapeHtmlChar(line[x] || ' ')}</span>`;
     }
     return out;
   });
@@ -416,7 +428,7 @@ async function fitBanner(el) {
   // Leave a little room for the layered banner offsets so it doesn't clip.
   const available  = Math.max(0, el.parentElement.clientWidth - 18);
   const idealPx    = (available * BANNER_FIT_SCALE / probeW) * refPx;
-  el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), 40) + 'px';
+  el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), BANNER_FIT_MAX_PX) + 'px';
 }
 
 // ── Session start timestamp — captured once when the page loads.
@@ -633,7 +645,7 @@ async function applyPrefs(prefs) {
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) {
     try {
-      const rendered = await renderBanner(prefs.bannerText || DEFAULT_BANNER);
+      const rendered = renderHeaderBanner(prefs.bannerText || DEFAULT_BANNER);
       setAsciiArt(asciiArtEl, rendered.value, { asHtml: rendered.kind === 'html' });
       await fitBanner(asciiArtEl);
     } catch {
