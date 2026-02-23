@@ -227,10 +227,11 @@ async function renderBanner(text) {
 }
 
 const DEFAULT_PREFS = {
-  theme:      'amber',
-  fontSize:   'medium',
-  scanlines:  true,
-  bannerText: DEFAULT_BANNER,
+  theme:        'amber',
+  terminalSize: 'medium',
+  dialSize:     'medium',
+  scanlines:    true,
+  bannerText:   DEFAULT_BANNER,
 };
 
 function setAsciiArt(el, text) {
@@ -545,19 +546,27 @@ function saveDials(dials) {
 /**
  * Load user preferences from chrome.storage.local.
  * Falls back to DEFAULT_PREFS for any missing key.
- * @returns {Promise<{theme:string, heading:string, fontSize:string, scanlines:boolean}>}
+ * @returns {Promise<{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}>}
  */
 function loadPrefs() {
   return new Promise(resolve => {
     chrome.storage.local.get({ prefs: {} }, data => {
-      resolve({ ...DEFAULT_PREFS, ...data.prefs });
+      const stored = data.prefs || {};
+      const merged = { ...DEFAULT_PREFS, ...stored };
+
+      // Legacy migration: older versions stored a single `fontSize`.
+      // If new keys are missing, derive them from the legacy value.
+      if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+      if (!('dialSize' in stored) && ('fontSize' in stored)) merged.dialSize = stored.fontSize;
+
+      resolve(merged);
     });
   });
 }
 
 /**
  * Persist user preferences to chrome.storage.local.
- * @param {{theme:string, heading:string, fontSize:string, scanlines:boolean}} prefs
+ * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}} prefs
  * @returns {Promise<void>}
  */
 function savePrefs(prefs) {
@@ -569,14 +578,18 @@ function savePrefs(prefs) {
 /**
  * Apply a prefs object immediately by setting CSS custom properties on :root
  * and updating the heading text / scanline visibility.
- * @param {{theme:string, heading:string, fontSize:string, scanlines:boolean}} prefs
+ * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}} prefs
  */
 async function applyPrefs(prefs) {
   const root    = document.documentElement;
   const palette = THEMES[prefs.theme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
 
-  root.style.setProperty('--font-size', FONT_SIZES[prefs.fontSize] || FONT_SIZES.medium);
+  const terminalSize = prefs.terminalSize || prefs.fontSize || DEFAULT_PREFS.terminalSize;
+  const dialSize = prefs.dialSize || prefs.fontSize || DEFAULT_PREFS.dialSize;
+
+  root.style.setProperty('--font-size', FONT_SIZES[terminalSize] || FONT_SIZES.medium);
+  root.style.setProperty('--dial-font-size', FONT_SIZES[dialSize] || FONT_SIZES.medium);
 
   const statusLabel = document.getElementById('status-label');
   if (statusLabel) statusLabel.textContent = 'BBTab HOME TERMINAL V0.1';
@@ -1185,7 +1198,11 @@ const settingsPanelEl = (() => {
     ['amber', 'AMBER'], ['green', 'GREEN'], ['blue', 'BLUE'], ['white', 'WHITE'],
   ]);
 
-  const fontSelect = makeSelect('s-fontsize', [
+  const terminalSizeSelect = makeSelect('s-terminalsize', [
+    ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
+  ]);
+
+  const dialSizeSelect = makeSelect('s-dialsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
 
@@ -1222,7 +1239,8 @@ const settingsPanelEl = (() => {
 
   panel.appendChild(titleEl);
   panel.appendChild(makeRow('THEME',     themeSelect));
-  panel.appendChild(makeRow('FONT SIZE', fontSelect));
+  panel.appendChild(makeRow('TERMINAL SIZE', terminalSizeSelect));
+  panel.appendChild(makeRow('DIAL SIZE', dialSizeSelect));
   panel.appendChild(bannerRow);
   panel.appendChild(makeRow('SCANLINES', scanSelect));
   panel.appendChild(actionsEl);
@@ -1244,7 +1262,8 @@ const settingsPanelEl = (() => {
 async function openSettingsPanel() {
   const prefs = await loadPrefs();
   document.getElementById('s-theme').value    = prefs.theme    || 'amber';
-  document.getElementById('s-fontsize').value = prefs.fontSize || 'medium';
+  document.getElementById('s-terminalsize').value = prefs.terminalSize || prefs.fontSize || 'medium';
+  document.getElementById('s-dialsize').value = prefs.dialSize || prefs.fontSize || 'medium';
   document.getElementById('s-banner').value   = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
   document.getElementById('s-scanlines').value = prefs.scanlines === false ? 'off' : 'on';
   settingsPanelEl.classList.add('visible');
@@ -1259,7 +1278,8 @@ function closeSettingsPanel() {
 async function commitSettings() {
   const prefs = {
     theme:      document.getElementById('s-theme').value,
-    fontSize:   document.getElementById('s-fontsize').value,
+    terminalSize: document.getElementById('s-terminalsize').value,
+    dialSize:     document.getElementById('s-dialsize').value,
     bannerText: document.getElementById('s-banner').value || DEFAULT_BANNER,
     scanlines:  document.getElementById('s-scanlines').value === 'on',
   };
@@ -1577,7 +1597,7 @@ const commands = {
 
   // ── settings — open the settings panel ──────────────────────────
   settings: {
-    description: 'Open settings panel (theme, font size, heading, scanlines).',
+    description: 'Open settings panel (theme, terminal size, dial size, banner, scanlines).',
     usage: 'settings',
     async run(_args) {
       await openSettingsPanel();

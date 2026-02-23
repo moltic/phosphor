@@ -20,8 +20,9 @@
   --cursor-char: "_";
   --font-stack:  "VT323", "Courier New", Courier, monospace;
   --font-size:   1.25rem;          /* 20px at default            */
+  --dial-font-size: var(--font-size);
   --line-height: 1.45;
-  --dial-tile-width: 110px;
+  --dial-tile-width: 5.5em;
 }
 
 /* ── Reset / Base ───────────────────────────────────────────── */
@@ -188,10 +189,11 @@ html, body {
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  padding: 0.55rem 0 0.65rem;
+  font-size: var(--dial-font-size);
+  gap: 0.45em;
+  padding: 0.55em 0 0.65em;
   border-bottom: 1px solid var(--fg-dim);
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.6em;
 }
 
 /* Hide entirely when empty (no tiles added yet) */
@@ -204,8 +206,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.28rem;
-  padding: 0.45rem 0.6rem 0.35rem;
+  gap: 0.28em;
+  padding: 0.45em 0.6em 0.35em;
   border: 1px solid var(--fg-dim);
   cursor: pointer;
   flex: 0 0 var(--dial-tile-width);
@@ -226,8 +228,8 @@ html, body {
 }
 
 .dial-favicon {
-  width: 20px;
-  height: 20px;
+  width: 1em;
+  height: 1em;
   display: block;
   image-rendering: -webkit-optimize-contrast;
   filter:
@@ -240,12 +242,12 @@ html, body {
 }
 
 .dial-icon-text {
-  width: 20px;
-  height: 20px;
+  width: 1em;
+  height: 1em;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.2em;
   line-height: 1;
   color: var(--fg-bright);
   text-shadow:
@@ -256,7 +258,7 @@ html, body {
 .dial-label {
   color: var(--fg);
   font-family: var(--font-stack);
-  font-size: 0.88rem;
+  font-size: 0.88em;
   line-height: 1.05;
   max-width: 100%;
   text-align: center;
@@ -282,13 +284,13 @@ html, body {
 /* Row divider — spans full width, forces items to next row */
 .dial-divider.row-divider {
   width: 100%;
-  height: 0.45rem;
+  height: 0.45em;
   border-top: 1px dashed var(--fg-dim);
 }
 
 /* Column divider — narrow vertical bar, sits between tiles */
 .dial-divider.col-divider {
-  width: 0.45rem;
+  width: 0.45em;
   align-self: stretch;
   border-left: 1px dashed var(--fg-dim);
 }
@@ -312,8 +314,8 @@ html, body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -35%);
-  font-size: 0.6rem;
-  padding: 0 0.28rem;
+  font-size: 0.6em;
+  padding: 0 0.28em;
 }
 
 /* Column divider label */
@@ -322,8 +324,8 @@ html, body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%) rotate(90deg);
-  font-size: 0.54rem;
-  padding: 0 0.18rem;
+  font-size: 0.54em;
+  padding: 0 0.18em;
 }
 
 /* Labels appear only while a drag is in progress */
@@ -386,8 +388,8 @@ html, body {
   border: none;
   color: var(--fg);
   font-family: var(--font-stack);
-  font-size: var(--font-size);
-  padding: 0.3rem 0.9rem;
+  font-size: var(--dial-font-size);
+  padding: 0.3em 0.9em;
   text-align: left;
   cursor: pointer;
   line-height: var(--line-height);
@@ -416,17 +418,17 @@ html, body {
 .dial-edit-inner {
   background: var(--bg);
   border: 1px solid var(--fg);
-  padding: 1.1rem 1.3rem 1rem;
+  padding: 1.1em 1.3em 1em;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  min-width: 300px;
+  gap: 0.6em;
+  min-width: 16em;
 }
 
 .dial-edit-title {
   color: var(--fg-bright);
   font-family: var(--font-stack);
-  font-size: var(--font-size);
+  font-size: var(--dial-font-size);
   letter-spacing: 0.1em;
   text-shadow: 0 0 8px var(--glow);
   margin-bottom: 0.15rem;
@@ -437,7 +439,7 @@ html, body {
   border: 1px solid var(--fg-dim);
   color: var(--fg);
   font-family: var(--font-stack);
-  font-size: var(--font-size);
+  font-size: var(--dial-font-size);
   padding: 0.3rem 0.5rem;
   outline: none;
   width: 100%;
@@ -449,9 +451,9 @@ html, body {
 
 .dial-edit-actions {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.55em;
   justify-content: flex-end;
-  margin-top: 0.2rem;
+  margin-top: 0.2em;
 }
 
 .dial-edit-btn {
@@ -459,8 +461,8 @@ html, body {
   border: 1px solid var(--fg-dim);
   color: var(--fg);
   font-family: var(--font-stack);
-  font-size: var(--font-size);
-  padding: 0.25rem 0.85rem;
+  font-size: var(--dial-font-size);
+  padding: 0.25em 0.85em;
   cursor: pointer;
   letter-spacing: 0.05em;
 }
@@ -504,7 +506,7 @@ html, body {
   color: var(--fg-dim);
   font-family: var(--font-stack);
   font-size: var(--font-size);
-  min-width: 11ch;
+  min-width: 14ch;
   letter-spacing: 0.06em;
 }
 
