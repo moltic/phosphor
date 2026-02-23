@@ -1418,11 +1418,42 @@ const commands = {
 
   // ── n — save a note ─────────────────────────────────────────────
   n: {
-    description: 'Save a timestamped note.  e.g. n call dentist',
-    usage: 'n [text ...]',
+    description: 'Save a note, or manage notes.  n [text]  |  n rm [N]  |  n clear',
+    usage: 'n [text ...]  |  n rm [N]  |  n clear',
     async run(args) {
+      const sub = (args[0] || '').toLowerCase();
+
+      // ── n rm [N] — delete note by display index ──────────────────
+      if (sub === 'rm') {
+        const N = parseInt(args[1], 10);
+        if (!args[1] || isNaN(N) || N < 1) {
+          printLine('Usage: n rm [N]  — delete note by display index (see ls)', 'line-info');
+          return;
+        }
+        const notes = await loadNotes();
+        const reversed = [...notes].reverse();
+        if (N > reversed.length) {
+          printLine(`No note at index ${N}.`, 'line-err');
+          return;
+        }
+        const target = reversed[N - 1];
+        notes.splice(notes.findIndex(note => note.id === target.id), 1);
+        await saveNotes(notes);
+        printLine(`✓ Note ${N} deleted.`, 'line-ok');
+        return;
+      }
+
+      // ── n clear — wipe all notes ──────────────────────────────────
+      if (sub === 'clear') {
+        await saveNotes([]);
+        printLine('✓ All notes cleared.', 'line-ok');
+        return;
+      }
+
       if (args.length === 0) {
         printLine('Usage:   n [text ...]', 'line-info');
+        printLine('         n rm [N]', 'line-info');
+        printLine('         n clear', 'line-info');
         printLine('Example: n review PR #42 before standup', 'line-info');
         return;
       }
