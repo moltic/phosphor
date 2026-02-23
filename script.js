@@ -2042,12 +2042,18 @@ document.addEventListener('contextmenu', e => {
 
 // ── Pause the blinking cursor while the tab is in the background;
 //    re-focus when the user returns.
+let clockInterval = null;
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     cursorEl.style.animationPlayState = 'paused';
+    clearInterval(clockInterval);
+    clockInterval = null;
   } else {
     cursorEl.style.animationPlayState = 'running';
     inputEl.focus();
+    tickClock();
+    clockInterval = setInterval(tickClock, 1_000);
   }
 });
 
@@ -2108,7 +2114,7 @@ async function init() {
 
   // Start the clock immediately and tick every second
   tickClock();
-  setInterval(tickClock, 1_000);
+  clockInterval = setInterval(tickClock, 1_000);
 
   // ── MOTD / welcome banner
   printRule('═');
