@@ -852,7 +852,7 @@ const settingsPanelEl = (() => {
   bannerInput.id          = 's-banner';
   bannerInput.className   = 'settings-input';
   bannerInput.type        = 'text';
-  bannerInput.maxLength   = 12;
+  bannerInput.maxLength   = 24;
   bannerInput.autocomplete = 'off';
   bannerInput.spellcheck  = false;
   bannerInput.placeholder = 'e.g. BBTAB';
