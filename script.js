@@ -1787,8 +1787,7 @@ async function init() {
 
   // ── MOTD / welcome banner
   printRule('═');
-  printLine('  SYSTEM READY.  BBTAB HOME TERMINAL.', 'line-head');
-  printLine(`  ${new Date().toDateString()}`, 'line-info');
+  printLine('  SYSTEM READY.', 'line-head');
   printLine('  Type  help  for a list of commands.', 'line-info');
   printRule('═');
   printBlank();
