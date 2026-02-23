@@ -113,6 +113,7 @@ const LEGACY_BANNER_FONT = {
   ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
   '?': ['█████╗ ', '╚═══██╗', '  ██╔╝ ', ' ██╔╝  ', ' ██║   ', ' ╚═╝   '],
   '-': ['      ', '      ', '█████╗', '╚════╝', '      ', '      '],
+  ',': ['    ', '    ', '    ', '    ', '██╗ ', '╚██║'],
   '.': ['   ', '   ', '   ', '   ', '██╗', '╚═╝'],
   ':': ['   ', '██╗', '╚═╝', '██╗', '╚═╝', '   '],
   '0': [' ██████╗', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
@@ -223,9 +224,9 @@ const BANNER_FONT_FALLBACK = 'Banner3-D';
 // Visual scale for the header banner after auto-fit measurement.
 // 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
 const BANNER_FIT_SCALE = 0.75;
-// Cap the auto-fit measurement length so very long banners don't force the
-// entire header to shrink. Extra width will be clipped by CSS.
-const BANNER_FIT_MAX_CHARS = 12;
+// Cap the auto-fit measurement length so extremely wide banners don't force the
+// entire header to shrink into illegibility. Most typical phrases still fit.
+const BANNER_FIT_MAX_CHARS = 140;
 
 function computeDistanceFromEmpty(lines) {
   const height = lines.length;
