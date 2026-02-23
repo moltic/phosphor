@@ -1279,8 +1279,8 @@ const commands = {
         return;
       }
 
-      // Use only the first token — extra words are silently ignored
-      const raw   = args[0].trim();
+      // Join all tokens back together so stored aliases can contain spaces.
+      const raw   = args.join(' ').trim();
       const lower = raw.toLowerCase();
 
       // 1) Stored dial alias (case-insensitive, takes priority)
@@ -1378,7 +1378,7 @@ const commands = {
       printLine('  SPEED DIAL', 'line-head');
       printRule('─');
       if (dials.length === 0) {
-        printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
+        printLine('  (no dials — use:  dial add [alias ...] [url])', 'line-info');
       } else {
         dials.forEach(d => {
           if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
@@ -1392,18 +1392,21 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias] | dial divider [row|col]',
-    usage: 'dial add [alias] [url]  |  dial rm [alias]  |  dial divider [row|col]',
+    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial divider [row|col]',
+    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial divider [row|col]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
       if (sub === 'add') {
-        const alias  = args[1];
-        const rawUrl = args[2];
+        // Allow multi-word aliases: take the last token as the URL and
+        // everything in between as the alias.
+        const rawUrl = args.length >= 3 ? args[args.length - 1] : '';
+        const alias = args.slice(1, -1).join(' ').trim();
 
         if (!alias || !rawUrl) {
-          printLine('Usage:   dial add [alias] [url]', 'line-info');
+          printLine('Usage:   dial add [alias ...] [url]', 'line-info');
           printLine('Example: dial add hn https://news.ycombinator.com', 'line-info');
+          printLine('Example: dial add Amazon Prime Video https://www.amazon.com/Amazon-Video/b?ie=UTF8', 'line-info');
           return;
         }
 
@@ -1425,10 +1428,10 @@ const commands = {
         printLine(`✓ Dial "${alias}"  →  ${url}`, 'line-ok');
 
       } else if (sub === 'rm') {
-        const alias = args[1];
+        const alias = args.slice(1).join(' ').trim();
 
         if (!alias) {
-          printLine('Usage:   dial rm [alias]', 'line-info');
+          printLine('Usage:   dial rm [alias ...]', 'line-info');
           return;
         }
 
@@ -1466,7 +1469,7 @@ const commands = {
         printLine('  SPEED DIAL', 'line-head');
         printRule('─');
         if (dials.length === 0) {
-          printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
+          printLine('  (no dials — use:  dial add [alias ...] [url])', 'line-info');
         } else {
           dials.forEach(d => {
             if (d.type === 'divider') {
@@ -1479,8 +1482,8 @@ const commands = {
           });
         }
         printBlank();
-        printLine('  dial add     [alias] [url]  — add a new tile', 'line-info');
-        printLine('  dial rm      [alias]        — remove a tile', 'line-info');
+        printLine('  dial add     [alias ...] [url]  — add a new tile', 'line-info');
+        printLine('  dial rm      [alias ...]        — remove a tile', 'line-info');
         printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
         printLine('  Right-click any tile        — Edit / Remove', 'line-info');
         printBlank();
