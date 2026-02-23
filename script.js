@@ -2349,6 +2349,81 @@ const commands = {
     },
   },
 
+  // ── cal — current-month calendar grid ───────────────────────────
+  cal: {
+    description: 'Show the current month as a monospaced calendar grid with today highlighted.',
+    usage: 'cal',
+    run(_args) {
+      const now   = new Date();
+      const year  = now.getFullYear();
+      const month = now.getMonth();   // 0-based
+      const today = now.getDate();
+
+      const MONTH_NAMES = [
+        'January', 'February', 'March',     'April',
+        'May',     'June',     'July',      'August',
+        'September','October', 'November',  'December',
+      ];
+
+      const firstDay    = new Date(year, month, 1).getDay();   // 0 = Sunday
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      // Build flat slot array: 2-char strings, blank for padding
+      const slots = [];
+      for (let i = 0; i < firstDay; i++)    slots.push('  ');
+      for (let d = 1; d <= daysInMonth; d++) slots.push(String(d).padStart(2));
+      while (slots.length % 7 !== 0)        slots.push('  ');
+
+      // Group into weeks
+      const weeks = [];
+      for (let i = 0; i < slots.length; i += 7)
+        weeks.push(slots.slice(i, i + 7));
+
+      // HTML-escape helper
+      function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      const todaySlot  = String(today).padStart(2);
+      const headerText = `${MONTH_NAMES[month]} ${year}`;
+      // Centre header over the 20-char grid
+      const headerLine = headerText
+        .padStart(Math.floor((20 + headerText.length) / 2))
+        .padEnd(20);
+
+      let html = '';
+      html += `<span class="cal-header">${esc(headerLine)}</span>\n`;
+      html += `<span class="cal-days">${esc('Su Mo Tu We Th Fr Sa')}</span>\n`;
+
+      for (const week of weeks) {
+        let row = '';
+        week.forEach((slot, col) => {
+          if (slot === todaySlot && slot.trim() !== '') {
+            row += `<span class="cal-today">${esc(slot)}</span>`;
+          } else {
+            row += esc(slot);
+          }
+          if (col < 6) row += ' ';
+        });
+        html += row + '\n';
+      }
+
+      // Append as a <pre> block so whitespace is preserved
+      const pre = document.createElement('pre');
+      pre.className = 'cal-output';
+      pre.innerHTML = html;
+
+      printBlank();
+      if (_batchEl) {
+        _batchEl.appendChild(pre);
+      } else {
+        outputEl.appendChild(pre);
+        outputEl.scrollTop = outputEl.scrollHeight;
+      }
+      printBlank();
+    },
+  },
+
 };
 
 // ============================================================

@@ -686,6 +686,36 @@ html, body {
   letter-spacing: 0.06em;
 }
 
+/* ── cal command output ────────────────────────────────────── */
+.cal-output {
+  margin: 0.1em 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.6;
+  color: var(--fg);
+  text-shadow: 0 0 5px var(--glow-soft);
+}
+
+.cal-output .cal-header {
+  display: block;
+  color: var(--fg-bright);
+  text-shadow: 0 0 10px var(--glow);
+  letter-spacing: 0.05em;
+}
+
+.cal-output .cal-days {
+  display: block;
+  color: var(--fg-dim);
+}
+
+.cal-today {
+  color: var(--bg);
+  background-color: var(--fg-bright);
+  text-shadow: none;
+  font-weight: bold;
+  border-radius: 2px;
+}
+
 /* ── Input Row ──────────────────────────────────────────────── */
 #input-row {
   flex-shrink: 0;
