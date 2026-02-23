@@ -366,16 +366,30 @@ function buildBannerHtmlPreserveGlyphs(raw) {
   return lineHtml.join('\n');
 }
 
-/** Render text as figlet ASCII art using the Banner3(-D) font(s). Returns a Promise<string>. */
-function renderBanner(text) {
-  return new Promise((resolve, reject) => {
+/** Render text as figlet ASCII art using the Banner3(-D) font(s). */
+async function renderBanner(text) {
+  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
+  const bannerText = normalized || DEFAULT_BANNER;
+
+  // Preserve the exact original header look for the default title.
+  if (bannerText === 'BBTAB') {
+    return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
+  }
+
+  // Prefer real figlet output for better readability (especially lowercase).
+  // Fall back to the legacy font if figlet fails to load.
+  let raw = '';
+  try {
+    raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY });
+  } catch {
     try {
-      const raw = renderLegacyBannerText(text);
-      resolve({ kind: 'html', value: buildBannerHtml(raw) });
-    } catch (err) {
-      reject(err);
+      raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK });
+    } catch {
+      raw = renderLegacyBannerText(bannerText);
     }
-  });
+  }
+
+  return { kind: 'html', value: buildBannerHtml(raw) };
 }
 
 /**
