@@ -159,41 +159,15 @@ html, body {
 }
 
 #ascii-art .b-cell.has-trace::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(#ecfbff, #ecfbff) 50% 0 / 2px calc(var(--tn) * 56%) no-repeat,
-    linear-gradient(#ecfbff, #ecfbff) 100% 50% / calc(var(--te) * 56%) 2px no-repeat,
-    linear-gradient(#ecfbff, #ecfbff) 50% 100% / 2px calc(var(--ts) * 56%) no-repeat,
-    linear-gradient(#ecfbff, #ecfbff) 0 50% / calc(var(--tw) * 56%) 2px no-repeat;
-  opacity: 0.92;
-  filter: drop-shadow(0 0 2px rgba(236, 251, 255, 0.95))
-          drop-shadow(0 0 4px var(--glow-soft));
-  pointer-events: none;
+  display: none;
 }
 
 #ascii-art .b-cell.has-trace::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0.34em;
-  height: 0.34em;
-  transform: translate(-50%, -50%);
-  border-radius: 1px;
-  background: rgba(236, 251, 255, 0.9);
-  opacity: 0.65;
-  box-shadow:
-    0 0 4px rgba(236, 251, 255, 0.9),
-    0 0 8px var(--glow-soft);
-  pointer-events: none;
+  display: none;
 }
 
 #ascii-art .b-cell.has-trace[data-j="0"]::after {
-  width: 0.18em;
-  height: 0.18em;
-  opacity: 0.35;
+  display: none;
 }
 
 #status-line {
