@@ -56,13 +56,14 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 100;
-  /* repeating horizontal stripes every 3px → 1px dark line + 2px gap */
+  /* repeating horizontal stripes every 4px → 1px dark line + 3px gap
+     4px period avoids resonance with common character heights (8/12/16px) */
   background: repeating-linear-gradient(
     to bottom,
     transparent            0px,
-    transparent            2px,
-    var(--scanline-bg)     2px,
-    var(--scanline-bg)     3px
+    transparent            3px,
+    var(--scanline-bg)     3px,
+    var(--scanline-bg)     4px
   );
 }
 
@@ -96,6 +97,9 @@ html, body {
   text-shadow:
     0 0 10px var(--glow-soft),
     0 0 18px var(--glow-soft);
+  /* top-lit depth: top of each glyph is full brightness, base fades slightly */
+  -webkit-mask-image: linear-gradient(to bottom, white 0%, white 60%, rgba(255,255,255,0.72) 100%);
+  mask-image: linear-gradient(to bottom, white 0%, white 60%, rgba(255,255,255,0.72) 100%);
 }
 
 /* ── Banner segmented neon cell styling ─────────────────────── */
@@ -120,6 +124,19 @@ html, body {
 #ascii-art .b-cell.b-mid {
   color: var(--fg-bright);
   opacity: 0.94;
+  text-shadow:
+    0 0 6px var(--glow),
+    0 0 14px var(--glow-soft);
+}
+
+/* b-edge: one step inside the rim — soft near-white transitioning to theme colour */
+#ascii-art .b-cell.b-edge {
+  color: var(--fg-bright);
+  opacity: 0.97;
+  text-shadow:
+    0 0 3px rgba(223, 246, 255, 0.5),
+    0 0 9px var(--glow),
+    0 0 16px var(--glow-soft);
 }
 
 #ascii-art .b-cell.b-rim {

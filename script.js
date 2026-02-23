@@ -275,8 +275,9 @@ function computeDistanceFromEmpty(lines) {
 
 function bannerCellClass(distance, x, y) {
   if (distance <= 1) return 'b-rim';
-  if (distance === 2) return 'b-mid';
-  if (distance >= 4 && (x + y) % 7 === 0) return 'b-node';
+  if (distance === 2) return 'b-edge';
+  if (distance === 3) return 'b-mid';
+  if (distance >= 5 && (x + y) % 7 === 0) return 'b-node';
   return 'b-core';
 }
 
@@ -363,7 +364,7 @@ function renderBanner(text) {
   return new Promise((resolve, reject) => {
     try {
       const raw = renderLegacyBannerText(text);
-      resolve({ kind: 'html', value: buildBannerHtml(raw) });
+      resolve({ kind: 'html', value: buildBannerHtmlPreserveGlyphs(raw) });
     } catch (err) {
       reject(err);
     }
