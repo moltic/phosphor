@@ -380,48 +380,6 @@ function buildBannerHtml(raw) {
   return lineHtml.join('\n');
 }
 
-function buildBannerHtmlPreserveGlyphs(raw) {
-  const lines = String(raw || '').replace(/\r/g, '').split('\n');
-  while (lines.length && lines[lines.length - 1] === '') lines.pop();
-  if (!lines.length) return '';
-
-  const { grid, dist } = computeDistanceFromEmpty(lines);
-  const height = grid.length;
-  const width = Math.max(0, ...lines.map(line => line.length));
-
-  const traceMask = Array.from({ length: height }, (_, y) =>
-    Array.from({ length: width }, (_, x) => Boolean(grid[y]?.[x]) && dist[y][x] <= 2)
-  );
-
-  const lineHtml = lines.map((line, y) => {
-    let out = '';
-    for (let x = 0; x < width; x += 1) {
-      if (!(grid[y]?.[x])) {
-        out += ' ';
-        continue;
-      }
-
-      const tn = y > 0 && traceMask[y - 1][x] ? 1 : 0;
-      const te = x + 1 < width && traceMask[y][x + 1] ? 1 : 0;
-      const ts = y + 1 < height && traceMask[y + 1][x] ? 1 : 0;
-      const tw = x > 0 && traceMask[y][x - 1] ? 1 : 0;
-      const traceCount = tn + te + ts + tw;
-      const hasTrace = traceMask[y][x] && traceCount > 0;
-      const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}${hasTrace ? ' has-trace' : ''}`;
-      const style = hasTrace
-        ? ` style="--tn:${tn};--te:${te};--ts:${ts};--tw:${tw};"`
-        : '';
-      const traceAttr = hasTrace ? ` data-j="${traceCount >= 3 ? '1' : '0'}"` : '';
-
-      const ch = line[x] || '█';
-      out += `<span class="${cls}"${style}${traceAttr}>${escapeHtmlChar(ch)}</span>`;
-    }
-    return out;
-  });
-
-  return lineHtml.join('\n');
-}
-
 /**
  * Scale #ascii-art font-size so the longest line fills ~95% of its container.
  * Uses a probe element for accurate measurement with the actual loaded font.
