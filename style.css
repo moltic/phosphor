@@ -161,10 +161,10 @@ html, body {
   height: 2.5rem;
   width: auto;
   margin-left: auto;
-  padding: 0.2rem;
-  border: 1px solid var(--fg-dim);
-  background: rgba(0, 0, 0, 0.22);
-  border-radius: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
   filter:
     drop-shadow(0 0 6px var(--glow-soft))
     drop-shadow(0 0 2px rgba(255, 255, 255, 0.08));
@@ -180,9 +180,8 @@ html, body {
   letter-spacing: 0;
   white-space: pre;
   padding: 0.28rem 0.45rem 0.2rem;
-  border: 1px solid var(--fg-dim);
-  background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015), rgba(0, 0, 0, 0.20));
+  border: none;
+  background: transparent;
   overflow-x: hidden;
   overflow-y: visible;
   max-width: 100%;
