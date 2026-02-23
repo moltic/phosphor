@@ -2477,6 +2477,44 @@ const commands = {
     },
   },
 
+  // ── typewriter — animate text output one character at a time ──────
+  typewriter: {
+    description: 'Print a message one character at a time (40 ms/char).',
+    usage: 'typewriter [text ...]',
+    run(args) {
+      if (args.length === 0) {
+        printLine('Usage:   typewriter [text ...]', 'line-info');
+        printLine('Example: typewriter Hello, world!', 'line-info');
+        return;
+      }
+
+      const message = args.join(' ');
+
+      // Flush the echo line now so the typewriter span lands directly in
+      // #output and characters become visible as they are appended.
+      endBatch();
+
+      const span = document.createElement('span');
+      span.className = 'line line-out';
+      outputEl.appendChild(span);
+      outputEl.scrollTop = outputEl.scrollHeight;
+
+      return new Promise(resolve => {
+        let i = 0;
+        function typeNext() {
+          if (i < message.length) {
+            span.textContent += message[i++];
+            outputEl.scrollTop = outputEl.scrollHeight;
+            setTimeout(typeNext, 40);
+          } else {
+            resolve();
+          }
+        }
+        setTimeout(typeNext, 40);
+      });
+    },
+  },
+
   // ── uptime — elapsed time since init() ──────────────────────────
   uptime: {
     description: 'Show elapsed time since the terminal session started.',
