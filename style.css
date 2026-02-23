@@ -93,8 +93,8 @@ html, body {
   white-space: pre;
   overflow: visible;
   margin-bottom: 0.3rem;
-  /* thin dark border around each █ cell for the outlined-block look */
-  -webkit-text-stroke: 0.8px var(--bg);
+  /* bright thin outline around each █ cell for the neon-grid look */
+  -webkit-text-stroke: 0.6px var(--fg);
   paint-order: stroke fill;
   text-shadow: none;
 }
@@ -102,14 +102,15 @@ html, body {
 /* ── Banner 3-D character classes ───────────────────────────── */
 #ascii-art .b-face {
   color: var(--fg-bright);
+  -webkit-text-stroke-color: var(--fg);
   text-shadow:
-    0 0 4px var(--glow),
-    0 0 10px var(--glow-soft);
+    0 0 5px var(--glow),
+    0 0 12px var(--glow-soft);
 }
 
 #ascii-art .b-shade {
-  color: var(--fg-dim);
-  opacity: 0.55;
+  color: var(--fg);
+  -webkit-text-stroke-color: var(--fg-dim);
   text-shadow: none;
 }
 
