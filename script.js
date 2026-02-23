@@ -25,6 +25,8 @@
 
 // ── 1. DOM refs ────────────────────────────────────────────────────
 
+const APP_TITLE = 'BBTab HOME TERMINAL V0.1';
+
 const outputEl  = document.getElementById('output');
 const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
 
@@ -613,7 +615,7 @@ async function applyPrefs(prefs) {
   root.style.setProperty('--dial-font-size', FONT_SIZES[dialSize] || FONT_SIZES.medium);
 
   const statusLabel = document.getElementById('status-label');
-  if (statusLabel) statusLabel.textContent = 'BBTab HOME TERMINAL V0.1';
+  if (statusLabel) statusLabel.textContent = APP_TITLE;
 
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) {
