@@ -1558,6 +1558,56 @@ async function commitSettings() {
 }
 
 // ============================================================
+//  4a. Fortune quotes
+// ============================================================
+
+const FORTUNES = [
+  // ── hacker culture ──────────────────────────────────────────────
+  'rm -rf / --no-preserve-root — the only command with an honesty flag.',
+  'There are only 10 types of people in the world: those who understand binary, and those who don\'t.',
+  'The root password is like a toothbrush: never share it, and change it often.',
+  'In UNIX, "almost" means "not at all".',
+  'Premature optimisation is the root of all evil.  — Donald Knuth',
+  'Any fool can write code a computer can understand. Good programmers write code humans can understand.  — Martin Fowler',
+  'First, solve the problem. Then, write the code.  — John Johnson',
+  'It\'s not a bug — it\'s an undocumented feature.',
+  'The best way to accelerate a Windows machine is at 9.8 m/s².',
+  'There\'s no place like 127.0.0.1.',
+  'Real programmers count from zero.',
+  'sudo make me a sandwich.  — xkcd #149',
+  '"Works on my machine" is not a deployment strategy.',
+  'To understand recursion, one must first understand recursion.',
+  'Always code as if the person maintaining your code is a violent psychopath who knows where you live.',
+  'Talk is cheap. Show me the code.  — Linus Torvalds',
+  'Inside every large program is a small program struggling to get out.  — C. A. R. Hoare',
+  'If debugging is removing bugs, then programming must be putting them in.  — Edsger W. Dijkstra',
+  'The three virtues of a programmer: laziness, impatience, and hubris.  — Larry Wall',
+  'UNIX was not designed to stop you from doing stupid things — that would also stop clever things.',
+  // ── BBS era ──────────────────────────────────────────────────────
+  'BBS: where 1200 baud felt like drinking from a fire hose.',
+  'You have new mail.  (Nobody sends mail any more.)',
+  'ANSI art: proof that beauty is achievable with 16 colours and a 9600-baud modem.',
+  'SysOps never sleep — they just go into low-power standby.',
+  'Leave the modem on and the door unlocked. The BBS never closes.',
+  'FidoNet: stitching the planet together at 2 AM, one noisy handshake at a time.',
+  'Door games built more character than any console title ever shipped.',
+  'The longest download of your life was just a single ISO at 14.4k.',
+  'G-Phile (n): sacred text, distributed only under cover of night.',
+  'Call back later — the line is busy.',
+  'Ten seconds of ANSI animation took three hours and a borrowed compiler.',
+  'Elite status: achieved by knowing which BBS to call and when.',
+  // ── computing lore ───────────────────────────────────────────────
+  '640K ought to be enough for anybody.  (Misattributed to Bill Gates, 1981)',
+  'Hardware: the parts of a computer system that can be kicked.',
+  'A computer is a bicycle for the mind.  — Steve Jobs',
+  'Computers are useless. They can only give you answers.  — Pablo Picasso',
+  'Never trust a computer you can\'t throw out a window.  — Steve Wozniak',
+  'The internet: a series of tubes.  — Ted Stevens, 2006',
+  'Software never works on the first try. That\'s what the second try is for.',
+  'pwd: the command you type when you\'ve completely forgotten where you are.',
+];
+
+// ============================================================
 //  4. Command registry
 //
 //  To add a new command:
@@ -2042,6 +2092,47 @@ const commands = {
     usage: 'settings',
     async run(_args) {
       await openSettingsPanel();
+    },
+  },
+
+  // ── fortune — random hacker / BBS witticism ─────────────────────
+  fortune: {
+    description: 'Print a random hacker / BBS / computing witticism in a decorative box.',
+    usage: 'fortune',
+    run(_args) {
+      const quote = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
+      const INNER = 54;   // usable text columns inside the box
+
+      // ── word-wrap the quote to INNER columns ──────────────────────
+      const words   = quote.split(' ');
+      const wrapped = [];
+      let   cur     = '';
+      for (const word of words) {
+        if (cur.length === 0) {
+          cur = word;
+        } else if (cur.length + 1 + word.length <= INNER) {
+          cur += ' ' + word;
+        } else {
+          wrapped.push(cur);
+          cur = word;
+        }
+      }
+      if (cur) wrapped.push(cur);
+
+      // ── box frame (total width = INNER + 4 = 58, matches printRule) ──
+      const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
+      const bottom = '╚' + '═'.repeat(INNER + 2) + '╝';
+      const blank  = '║' + ' '.repeat(INNER + 2) + '║';
+
+      printBlank();
+      printLine(top,    'line-sep');
+      printLine(blank,  'line-sep');
+      for (const line of wrapped) {
+        printLine('║ ' + line.padEnd(INNER) + ' ║', 'line-head');
+      }
+      printLine(blank,  'line-sep');
+      printLine(bottom, 'line-sep');
+      printBlank();
     },
   },
 
