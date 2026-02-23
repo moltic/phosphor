@@ -830,11 +830,10 @@ function _arrayMove(arr, fromIndex, toIndex) {
 }
 
 /** Persist a reorder that moves alias to toIndex (0-based). */
-async function _moveDialAliasToIndex(alias, toIndex) {
-  const current = await loadDials();
-  const fromIndex = current.findIndex(d => d.alias === alias);
+async function _moveDialAliasToIndex(dials, alias, toIndex) {
+  const fromIndex = dials.findIndex(d => d.alias === alias);
   if (fromIndex === -1) return;
-  const next = _arrayMove(current, fromIndex, toIndex);
+  const next = _arrayMove(dials, fromIndex, toIndex);
   await saveDials(next);
   await renderDials();
 }
@@ -1159,7 +1158,7 @@ async function renderDials() {
       const fromIndex = current.findIndex(d => d.alias === fromAlias);
       if (fromIndex === -1) return;
 
-      await _moveDialAliasToIndex(fromAlias, current.length - 1);
+      await _moveDialAliasToIndex(current, fromAlias, current.length - 1);
     });
   }
 }
