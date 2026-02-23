@@ -16,7 +16,7 @@
   --fg-bright:   #ffd050;          /* highlights / headings      */
   --glow:        rgba(255, 176, 0, 0.60);
   --glow-soft:   rgba(255, 176, 0, 0.22);
-  --scanline-bg: rgba(0, 0, 0, 0.18);
+  --scanline-bg: rgba(0, 0, 0, 0.10);
   --cursor-char: "_";
   --font-stack:  "VT323", "Courier New", Courier, monospace;
   --font-size:   1.25rem;          /* 20px at default            */
@@ -97,11 +97,10 @@ html, body {
   max-width: 100%;
   margin-bottom: 0.3rem;
   text-shadow:
-    0 0 10px var(--glow-soft),
-    0 0 18px var(--glow-soft);
-  /* top-lit depth: top of each glyph is full brightness, base fades slightly */
-  -webkit-mask-image: linear-gradient(to bottom, white 0%, white 78%, rgba(255,255,255,0.90) 100%);
-  mask-image: linear-gradient(to bottom, white 0%, white 78%, rgba(255,255,255,0.90) 100%);
+    0 0 6px var(--glow-soft),
+    0 0 10px var(--glow-soft);
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* ── Banner segmented neon cell styling ─────────────────────── */
