@@ -37,18 +37,7 @@ html, body {
   font-family: var(--font-stack);
   font-size: var(--font-size);
   line-height: var(--line-height);
-  /* subtle warm flicker on the whole viewport */
-  animation: screen-flicker 8s ease-in-out infinite;
   overflow: hidden;           /* terminal owns the scroll */
-}
-
-/* ── CRT Flicker ────────────────────────────────────────────── */
-@keyframes screen-flicker {
-  0%,  97%, 100%  { opacity: 1;    }
-  97.5%            { opacity: 0.92; }
-  98%              { opacity: 1;    }
-  98.5%            { opacity: 0.88; }
-  99%              { opacity: 1;    }
 }
 
 /* ── Blinking Cursor ────────────────────────────────────────── */
@@ -242,9 +231,6 @@ html, body {
 
 /* ── Reduced-Motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  html, body {
-    animation: none;        /* no flicker */
-  }
   .blink {
     animation: none;        /* static underscore */
   }
