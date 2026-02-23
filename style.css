@@ -91,7 +91,7 @@ html, body {
     0 0 20px var(--glow-soft);
   font-family: var(--font-stack);
   font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 1.15;
+  line-height: 1;
   letter-spacing: 0;
   white-space: pre;
   overflow-x: hidden;

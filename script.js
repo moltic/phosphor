@@ -108,7 +108,7 @@ function renderBanner(text) {
   return new Promise((resolve, reject) => {
     figlet.text((text || DEFAULT_BANNER).toUpperCase(), { font: 'Banner3' }, (err, result) => {
       if (err) reject(err);
-      else resolve(result);
+      else resolve(result.replace(/#/g, '█'));
     });
   });
 }
