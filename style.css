@@ -619,6 +619,11 @@ html, body {
 #output::-webkit-scrollbar-track  { background: transparent; }
 #output::-webkit-scrollbar-thumb  { background: var(--fg-dim); border-radius: 3px; }
 
+/* Wrapper inserted once per command so aria-live fires a single announcement */
+.cmd-output-block {
+  display: contents; /* no box of its own; children participate directly in #output layout */
+}
+
 /* Generic output line */
 .line {
   display: block;

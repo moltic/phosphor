@@ -27,6 +27,10 @@
 
 const outputEl  = document.getElementById('output');
 const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
+
+// Active batch container — printLine writes here while a command is running;
+// the whole block is appended to outputEl in one shot so aria-live fires once.
+let _batchEl = null;
 const displayEl = document.getElementById('input-display'); // visible mirror
 const cursorEl  = document.getElementById('cursor');
 const timeEl    = document.getElementById('status-time');
@@ -450,8 +454,12 @@ function printLine(text, cls = 'line-out') {
   const span = document.createElement('span');
   span.className = `line ${cls}`;
   span.textContent = text;          // textContent → safe, no XSS
-  outputEl.appendChild(span);
-  outputEl.scrollTop = outputEl.scrollHeight;
+  if (_batchEl) {
+    _batchEl.appendChild(span);
+  } else {
+    outputEl.appendChild(span);
+    outputEl.scrollTop = outputEl.scrollHeight;
+  }
 }
 
 /**
@@ -476,6 +484,29 @@ function printRule(char = '─', length = 58) {
 /** Wipe the terminal output area.  Storage is untouched. */
 function clearScreen() {
   outputEl.innerHTML = '';
+}
+
+/**
+ * Start collecting printLine output into a single off-DOM container.
+ * Call before running a command so all its lines are batched together.
+ */
+function beginBatch() {
+  _batchEl = document.createElement('div');
+  _batchEl.className = 'cmd-output-block';
+}
+
+/**
+ * Flush the current batch to #output in one DOM insertion so the
+ * aria-live="polite" region announces the full response once.
+ */
+function endBatch() {
+  if (_batchEl) {
+    if (_batchEl.hasChildNodes()) {
+      outputEl.appendChild(_batchEl);
+      outputEl.scrollTop = outputEl.scrollHeight;
+    }
+    _batchEl = null;
+  }
 }
 
 // ── Input mirror helpers ─────────────────────────────────────────
@@ -1833,6 +1864,11 @@ function dispatch(raw) {
   const trimmed = raw.trim();
   if (trimmed === '') return;
 
+  // Open a batch so every printLine call during this command goes into a
+  // single container that is appended to #output in one shot, causing
+  // aria-live="polite" to fire exactly one announcement per command.
+  beginBatch();
+
   // Echo what the user typed
   printLine(`> ${trimmed}`, 'line-cmd');
 
@@ -1841,11 +1877,15 @@ function dispatch(raw) {
   const key = cmdName.toLowerCase();
 
   if (Object.prototype.hasOwnProperty.call(commands, key)) {
-    // run() may return a Promise (async commands); catch any errors
-    Promise.resolve(commands[key].run(args)).catch(err => {
-      printLine(`Error: ${err.message}`, 'line-err');
-      console.error('[BBTAB]', err);
-    });
+    // run() may return a Promise (async commands); flush the batch and
+    // catch any errors only after the full response has been produced.
+    Promise.resolve(commands[key].run(args))
+      .then(() => endBatch())
+      .catch(err => {
+        printLine(`Error: ${err.message}`, 'line-err');
+        console.error('[BBTAB]', err);
+        endBatch();
+      });
   } else {
     printLine(`Unknown command: "${cmdName}"`, 'line-err');
     const suggestion = Object.keys(commands).find(
@@ -1856,6 +1896,7 @@ function dispatch(raw) {
     } else {
       printLine('Type  help  to see available commands.', 'line-info');
     }
+    endBatch();
   }
 }
 
