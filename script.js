@@ -101,7 +101,6 @@ const DEFAULT_BANNER =
 
 const DEFAULT_PREFS = {
   theme:      'amber',
-  heading:    'HOME TERMINAL v1.0',
   fontSize:   'medium',
   scanlines:  true,
   bannerText: DEFAULT_BANNER,
@@ -265,7 +264,7 @@ function applyPrefs(prefs) {
   root.style.setProperty('--font-size', FONT_SIZES[prefs.fontSize] || FONT_SIZES.medium);
 
   const statusLabel = document.getElementById('status-label');
-  if (statusLabel) statusLabel.textContent = prefs.heading || DEFAULT_PREFS.heading;
+  if (statusLabel) statusLabel.textContent = 'BBTab HOME TERMINAL V0.1';
 
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) asciiArtEl.textContent = '\n' + (prefs.bannerText || DEFAULT_PREFS.bannerText);
@@ -545,14 +544,6 @@ const settingsPanelEl = (() => {
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
 
-  const headingInput = document.createElement('input');
-  headingInput.id          = 's-heading';
-  headingInput.className   = 'settings-input';
-  headingInput.type        = 'text';
-  headingInput.maxLength   = 40;
-  headingInput.autocomplete = 'off';
-  headingInput.spellcheck  = false;
-
   const bannerTextarea = document.createElement('textarea');
   bannerTextarea.id          = 's-banner';
   bannerTextarea.className   = 'settings-textarea';
@@ -587,7 +578,6 @@ const settingsPanelEl = (() => {
   panel.appendChild(titleEl);
   panel.appendChild(makeRow('THEME',     themeSelect));
   panel.appendChild(makeRow('FONT SIZE', fontSelect));
-  panel.appendChild(makeRow('HEADING',   headingInput));
   panel.appendChild(bannerRow);
   panel.appendChild(makeRow('SCANLINES', scanSelect));
   panel.appendChild(actionsEl);
@@ -610,7 +600,6 @@ async function openSettingsPanel() {
   const prefs = await loadPrefs();
   document.getElementById('s-theme').value    = prefs.theme    || 'amber';
   document.getElementById('s-fontsize').value = prefs.fontSize || 'medium';
-  document.getElementById('s-heading').value  = prefs.heading  || DEFAULT_PREFS.heading;
   document.getElementById('s-banner').value   = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
   document.getElementById('s-scanlines').value = prefs.scanlines === false ? 'off' : 'on';
   settingsPanelEl.classList.add('visible');
@@ -626,7 +615,6 @@ async function commitSettings() {
   const prefs = {
     theme:      document.getElementById('s-theme').value,
     fontSize:   document.getElementById('s-fontsize').value,
-    heading:    document.getElementById('s-heading').value.trim() || DEFAULT_PREFS.heading,
     bannerText: document.getElementById('s-banner').value || DEFAULT_BANNER,
     scanlines:  document.getElementById('s-scanlines').value === 'on',
   };
