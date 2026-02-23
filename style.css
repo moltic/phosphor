@@ -176,8 +176,8 @@ html, body {
   color: var(--fg-bright);
   font-family: var(--font-stack);
   font-size: 0.72rem; /* base — fitBanner() scales this to fill the header */
-  line-height: 0.94;
-  letter-spacing: 0.02em;
+  line-height: 1;
+  letter-spacing: 0;
   white-space: pre;
   padding: 0.28rem 0.45rem 0.2rem;
   border: 1px solid var(--fg-dim);
@@ -188,11 +188,13 @@ html, body {
   max-width: 100%;
   margin-bottom: 0;
   text-shadow:
-    0 0 4px var(--glow-soft),
-    0 0 10px rgba(0, 0, 0, 0.35);
+    0 0 3px var(--glow-soft);
   -webkit-mask-image: none;
   mask-image: none;
-  text-rendering: optimizeLegibility;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "kern" 0;
+  text-rendering: geometricPrecision;
 }
 
 /* ── Banner segmented neon cell styling ─────────────────────── */
@@ -914,7 +916,7 @@ html, body {
   #ascii-art {
     padding: 0.2rem 0.28rem 0.14rem;
     font-size: 0.52rem;
-    line-height: 0.96;
+    line-height: 1;
   }
   #status-line {
     font-size: 0.72rem;
