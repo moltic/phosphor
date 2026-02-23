@@ -116,6 +116,11 @@ const LEGACY_BANNER_FONT = {
   ',': ['    ', '    ', '    ', '    ', '██╗ ', '╚██║'],
   '.': ['   ', '   ', '   ', '   ', '██╗', '╚═╝'],
   ':': ['   ', '██╗', '╚═╝', '██╗', '╚═╝', '   '],
+  // Lowercase variants (only where we want clearer differentiation).
+  // These are 6-row glyphs with an intentionally blank top row so they
+  // read as "lowercase" under the legacy banner style.
+  'a': ['        ', ' █████╗ ', '██╔══██╗', '███████║', '██╔══██║', '╚█████╔╝'],
+  'e': ['        ', ' █████╗ ', '██╔═══╝ ', '█████╗  ', '██╔══╝  ', '╚█████╗ '],
   '0': [' ██████╗', '██╔═████╗', '██║██╔██║', '████╔╝██║', '╚██████╔╝', ' ╚═════╝ '],
   '1': [' ██╗', '███║', '╚██║', ' ██║', ' ██║', ' ╚═╝'],
   '2': ['██████╗ ', '╚════██╗', ' █████╔╝', '██╔═══╝ ', '███████╗', '╚══════╝'],
@@ -167,11 +172,16 @@ function renderLegacyBannerText(text) {
   function glyphRowsForChar(ch) {
     const isLower = ch >= 'a' && ch <= 'z';
     const upper = isLower ? ch.toUpperCase() : ch;
-    const key = LEGACY_BANNER_FONT[upper]
-      ? upper
-      : (LEGACY_BANNER_FONT[ch] ? ch : '?');
+    const key = (isLower && LEGACY_BANNER_FONT[ch])
+      ? ch
+      : (LEGACY_BANNER_FONT[upper] ? upper : (LEGACY_BANNER_FONT[ch] ? ch : '?'));
     const glyph = LEGACY_BANNER_FONT[key];
     const width = Math.max(0, ...glyph.map(r => r.length));
+
+    // Lowercase with explicit glyphs: use as-is (already designed to be shorter).
+    if (isLower && key === ch) {
+      return glyph.map(r => String(r || '').padEnd(width, ' '));
+    }
 
     if (!isLower) {
       return glyph.map(r => String(r || '').padEnd(width, ' '));
@@ -201,6 +211,20 @@ function renderLegacyBannerText(text) {
   }
 
   return out.join('\n');
+}
+
+/** Render banner text using the legacy neon block style. */
+async function renderBanner(text) {
+  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
+  const bannerText = normalized || DEFAULT_BANNER;
+
+  // Preserve the exact original header look for the default title.
+  if (bannerText === 'BBTAB') {
+    return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
+  }
+
+  const raw = renderLegacyBannerText(bannerText);
+  return { kind: 'html', value: buildBannerHtml(raw) };
 }
 
 const DEFAULT_PREFS = {
@@ -364,33 +388,6 @@ function buildBannerHtmlPreserveGlyphs(raw) {
   });
 
   return lineHtml.join('\n');
-}
-
-/** Render text as figlet ASCII art using the Banner3(-D) font(s). */
-async function renderBanner(text) {
-  const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
-  const bannerText = normalized || DEFAULT_BANNER;
-
-  // Preserve the exact original header look for the default title.
-  if (bannerText === 'BBTAB') {
-    return { kind: 'html', value: buildBannerHtmlPreserveGlyphs(ORIGINAL_BBTAB_BANNER) };
-  }
-
-  // Prefer real figlet output for better readability (especially lowercase).
-  // Fall back to the legacy font if figlet fails to load.
-  let raw = '';
-  try {
-    raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY });
-  } catch {
-    try {
-      raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK });
-    } catch {
-      raw = renderLegacyBannerText(bannerText);
-    }
-  }
-
-  // Preserve glyph characters so letters like "e"/"a" remain readable.
-  return { kind: 'html', value: buildBannerHtmlPreserveGlyphs(raw) };
 }
 
 /**
