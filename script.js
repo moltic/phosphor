@@ -523,7 +523,7 @@ function saveNotes(notes) {
 
 /**
  * Load speed-dial entries from chrome.storage.local.
- * @returns {Promise<Array<{alias:string, label:string, url:string}>>}
+ * @returns {Promise<Array<{alias:string, label:string, url:string, icon?:string}>>}
  */
 function loadDials() {
   return new Promise(resolve => {
@@ -533,7 +533,7 @@ function loadDials() {
 
 /**
  * Persist speed-dial entries back to chrome.storage.local.
- * @param {Array<{alias:string, label:string, url:string}>} dials
+ * @param {Array<{alias:string, label:string, url:string, icon?:string}>} dials
  * @returns {Promise<void>}
  */
 function saveDials(dials) {
@@ -608,6 +608,72 @@ function getFaviconUrl(url) {
   } catch {
     return '';
   }
+}
+
+function isLikelyUrl(val) {
+  return /^[a-z][a-z0-9+\-.]*:\/\//i.test(val);
+}
+
+function normalizeDialIcon(val) {
+  const trimmed = String(val ?? '').trim();
+  if (!trimmed) return '';
+  if (trimmed.toLowerCase() === 'none') return 'none';
+  return trimmed;
+}
+
+function isShortTextIcon(val) {
+  const s = String(val ?? '').trim();
+  if (!s || isLikelyUrl(s) || s.toLowerCase() === 'none') return false;
+  // Count code points (good enough for emoji + short labels like GH).
+  return [...s].length <= 3;
+}
+
+function buildDialIconElement(dial) {
+  const icon = normalizeDialIcon(dial?.icon);
+  if (icon === 'none') return null;
+
+  // Default: site favicon
+  if (!icon) {
+    const img = document.createElement('img');
+    img.className = 'dial-favicon';
+    img.src = getFaviconUrl(dial.url);
+    img.alt = '';
+    img.addEventListener('error', () => img.setAttribute('data-broken', ''));
+    return img;
+  }
+
+  // Emoji / short text
+  if (isShortTextIcon(icon)) {
+    const span = document.createElement('span');
+    span.className = 'dial-icon-text';
+    span.setAttribute('aria-hidden', 'true');
+    span.textContent = icon;
+    return span;
+  }
+
+  // Custom image URL (fallback to favicon if it fails)
+  if (isLikelyUrl(icon)) {
+    const img = document.createElement('img');
+    img.className = 'dial-favicon';
+    img.src = icon;
+    img.alt = '';
+    img.addEventListener('error', () => {
+      const fallback = getFaviconUrl(dial.url);
+      if (fallback && img.src !== fallback) {
+        img.src = fallback;
+        return;
+      }
+      img.setAttribute('data-broken', '');
+    });
+    return img;
+  }
+
+  // Any other value: treat as short text if possible, else first 3 code points.
+  const span = document.createElement('span');
+  span.className = 'dial-icon-text';
+  span.setAttribute('aria-hidden', 'true');
+  span.textContent = [...icon].slice(0, 3).join('');
+  return span;
 }
 
 // ── Drop-position indicator (fixed overlay so it never reflows the grid) ──
@@ -770,17 +836,13 @@ async function renderDials() {
     tile.rel = 'noopener noreferrer';
     tile.draggable = true;
 
-    const img = document.createElement('img');
-    img.className = 'dial-favicon';
-    img.src = getFaviconUrl(dial.url);
-    img.alt = '';
-    img.addEventListener('error', () => img.setAttribute('data-broken', ''));
+    const iconEl = buildDialIconElement(dial);
 
     const labelEl = document.createElement('span');
     labelEl.className = 'dial-label';
     labelEl.textContent = dial.label || dial.alias;
 
-    tile.appendChild(img);
+    if (iconEl) tile.appendChild(iconEl);
     tile.appendChild(labelEl);
 
     // Allow native link behavior (middle-click, ctrl-click, etc). We only stop
@@ -977,6 +1039,12 @@ const editDialogEl = (() => {
   urlInput.spellcheck   = false;
   urlInput.type         = 'url';
 
+  const iconInput = document.createElement('input');
+  iconInput.id = 'dial-edit-icon';
+  iconInput.placeholder = 'Icon (emoji/text or image URL — blank = favicon)';
+  iconInput.autocomplete = 'off';
+  iconInput.spellcheck   = false;
+
   const actions = document.createElement('div');
   actions.className = 'dial-edit-actions';
 
@@ -1001,6 +1069,7 @@ const editDialogEl = (() => {
   inner.appendChild(title);
   inner.appendChild(labelInput);
   inner.appendChild(urlInput);
+  inner.appendChild(iconInput);
   inner.appendChild(actions);
   overlay.appendChild(inner);
 
@@ -1027,6 +1096,7 @@ async function showDialEditDialog(alias) {
   editDialogEl.dataset.target = alias;
   document.getElementById('dial-edit-label').value = dial.label || dial.alias;
   document.getElementById('dial-edit-url').value   = dial.url;
+  document.getElementById('dial-edit-icon').value  = dial.icon || '';
   editDialogEl.classList.add('visible');
   document.getElementById('dial-edit-label').focus();
 }
@@ -1041,6 +1111,8 @@ async function commitDialEdit() {
   const alias    = editDialogEl.dataset.target;
   const newLabel = document.getElementById('dial-edit-label').value.trim();
   let   newUrl   = document.getElementById('dial-edit-url').value.trim();
+  const newIconRaw = document.getElementById('dial-edit-icon').value;
+  const newIcon = normalizeDialIcon(newIconRaw);
 
   if (!alias || !newLabel || !newUrl) return;
 
@@ -1050,7 +1122,10 @@ async function commitDialEdit() {
   const dials = await loadDials();
   const idx   = dials.findIndex(d => d.alias === alias);
   if (idx !== -1) {
-    dials[idx] = { alias, label: newLabel, url: newUrl };
+    const next = { ...dials[idx], alias, label: newLabel, url: newUrl };
+    if (!newIcon) delete next.icon;
+    else next.icon = newIcon;
+    dials[idx] = next;
     await saveDials(dials);
     await renderDials();
   }
