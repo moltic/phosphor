@@ -863,6 +863,7 @@ async function renderDials() {
     tile.href = dial.url;
     tile.rel = 'noopener noreferrer';
     tile.draggable = true;
+    tile.setAttribute('aria-label', `${dial.label || dial.alias}: ${dial.url}`);
 
     const iconEl = buildDialIconElement(dial);
 
