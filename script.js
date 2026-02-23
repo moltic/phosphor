@@ -2963,6 +2963,114 @@ const commands = {
     },
   },
 
+  // ── countdown — live MM:SS timer in the status line ─────────────
+  countdown: {
+    description: 'Start a countdown timer for N minutes (default 5).  countdown stop  cancels.',
+    usage: 'countdown [N | stop]',
+    run(args) {
+      /** Zero-pad a number to two digits. */
+      function pad2(n) { return String(n).padStart(2, '0'); }
+
+      /** Format total seconds as MM:SS string. */
+      function fmtMMSS(secs) {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        return `${pad2(m)}:${pad2(s)}`;
+      }
+
+      /** Tear down an active countdown and restore the wall-clock. */
+      function stopCountdown() {
+        if (_countdownInterval !== null) {
+          clearInterval(_countdownInterval);
+          _countdownInterval = null;
+        }
+        timeEl.classList.remove('countdown-active');
+        // Restore normal clock.
+        tickClock();
+        clearInterval(clockInterval);
+        clockInterval = setInterval(tickClock, 1_000);
+      }
+
+      // ── countdown stop ──
+      if (args[0] && args[0].toLowerCase() === 'stop') {
+        if (_countdownInterval === null) {
+          printLine('No countdown is running.', 'line-info');
+        } else {
+          stopCountdown();
+          printLine('Countdown cancelled.', 'line-info');
+        }
+        return;
+      }
+
+      // ── parse N (minutes) ──
+      let totalSeconds;
+      if (args.length === 0) {
+        totalSeconds = 5 * 60;
+      } else {
+        const n = parseFloat(args[0]);
+        if (!isFinite(n) || n <= 0 || n > 1440) {
+          printLine('Usage:   countdown [N]       — N = minutes (0 < N ≤ 1440)', 'line-info');
+          printLine('         countdown stop      — cancel a running timer', 'line-info');
+          return;
+        }
+        totalSeconds = Math.round(n * 60);
+        if (totalSeconds < 1) totalSeconds = 1;
+      }
+
+      // ── cancel any existing countdown ──
+      if (_countdownInterval !== null) {
+        clearInterval(_countdownInterval);
+        _countdownInterval = null;
+      }
+
+      // ── pause the wall-clock; the countdown owns the display now ──
+      clearInterval(clockInterval);
+      clockInterval = null;
+
+      let remaining = totalSeconds;
+
+      function tick() {
+        // Display current remaining time.
+        timeEl.textContent = `⏱ ${fmtMMSS(remaining)}`;
+        timeEl.classList.add('countdown-active');
+
+        if (remaining === 0) {
+          // Timer expired — clean up.
+          clearInterval(_countdownInterval);
+          _countdownInterval = null;
+          timeEl.classList.remove('countdown-active');
+
+          // Flash the terminal border.
+          const termEl = document.getElementById('terminal');
+          termEl.classList.remove('countdown-alert');
+          void termEl.offsetWidth;              // force reflow → restart animation
+          termEl.classList.add('countdown-alert');
+          termEl.addEventListener('animationend', () => {
+            termEl.classList.remove('countdown-alert');
+          }, { once: true });
+
+          // Restore clock after the flash.
+          stopCountdown();
+          printLine('⏱  COUNTDOWN REACHED ZERO!', 'line-err');
+          return;
+        }
+
+        remaining--;
+      }
+
+      // Fire immediately so the display updates without a 1-second delay.
+      tick();
+      _countdownInterval = setInterval(tick, 1_000);
+
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      const label = s === 0
+        ? `${m} min${m !== 1 ? 's' : ''}`
+        : `${fmtMMSS(totalSeconds)}`;
+      printLine(`Countdown started: ${label}.  Type  countdown stop  to cancel.`, 'line-ok');
+    },
+  },
+
 };
 
 // ============================================================
@@ -3188,6 +3296,9 @@ document.addEventListener('contextmenu', e => {
 //    re-focus when the user returns.
 let clockInterval = null;
 
+// Active countdown setInterval handle (null when no countdown is running).
+let _countdownInterval = null;
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     cursorEl.style.animationPlayState = 'paused';
@@ -3196,8 +3307,11 @@ document.addEventListener('visibilitychange', () => {
   } else {
     cursorEl.style.animationPlayState = 'running';
     inputEl.focus();
-    tickClock();
-    clockInterval = setInterval(tickClock, 1_000);
+    // Don't restart the wall-clock if a countdown has taken over the display.
+    if (_countdownInterval === null) {
+      tickClock();
+      clockInterval = setInterval(tickClock, 1_000);
+    }
   }
 });
 

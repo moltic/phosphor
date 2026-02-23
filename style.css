@@ -794,6 +794,34 @@ html, body {
   }
 }
 
+/* ── Countdown timer in status line ────────────────────────── */
+/* Applied to #status-time while a countdown is active */
+#status-time.countdown-active {
+  color: var(--fg-bright);
+  text-shadow:
+    0 0 4px var(--glow),
+    0 0 14px var(--glow-soft);
+  letter-spacing: 0.06em;
+}
+
+/* ── Countdown zero alert — flash the terminal border ──────── */
+@keyframes countdown-terminal-flash {
+  0%, 49% {
+    outline: 2px solid var(--fg-bright);
+    box-shadow:
+      inset 0 0 18px var(--glow-soft),
+      0 0 24px var(--glow);
+  }
+  50%, 100% {
+    outline: 2px solid transparent;
+    box-shadow: none;
+  }
+}
+
+#terminal.countdown-alert {
+  animation: countdown-terminal-flash 0.42s step-end 7;
+}
+
 /* ── Small viewport tweaks ──────────────────────────────────── */
 @media (max-width: 600px) {
   :root {
