@@ -1874,8 +1874,16 @@ const commands = {
 
         const dials = await loadDials();
 
-        if (dials.some(d => d.alias === alias)) {
-          printLine(`Alias "${alias}" already exists. Use  dial rm ${alias}  first.`, 'line-err');
+        // Check every entry — including divider entries — for a case-insensitive
+        // alias collision before writing to storage.
+        const aliasLower = alias.toLowerCase();
+        const collision  = dials.find(d => d.alias != null && d.alias.toLowerCase() === aliasLower);
+        if (collision) {
+          if (collision.type === 'divider') {
+            printLine(`"${alias}" clashes with an existing divider entry. Remove it first (right-click the divider tile).`, 'line-err');
+          } else {
+            printLine(`Alias "${collision.alias}" already exists. Use  dial rm ${collision.alias}  first.`, 'line-err');
+          }
           return;
         }
 
