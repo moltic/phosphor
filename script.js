@@ -86,9 +86,11 @@ const THEMES = {
 };
 
 const FONT_SIZES = {
-  small:  '1.05rem',
-  medium: '1.25rem',
-  large:  '1.5rem',
+  // Use px (not rem) so terminal and dial sizes can be independent.
+  // rem would scale with the root font-size, re-coupling the two.
+  small:  '16.8px',
+  medium: '20px',
+  large:  '24px',
 };
 
 const DEFAULT_BANNER = 'BBTAB';

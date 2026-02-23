@@ -19,7 +19,7 @@
   --scanline-bg: rgba(0, 0, 0, 0.10);
   --cursor-char: "_";
   --font-stack:  "VT323", "Courier New", Courier, monospace;
-  --font-size:   1.25rem;          /* 20px at default            */
+  --font-size:   20px;             /* default terminal size      */
   --dial-font-size: var(--font-size);
   --line-height: 1.45;
   --dial-tile-width: 5.5em;
@@ -682,7 +682,7 @@ html, body {
 /* ── Small viewport tweaks ──────────────────────────────────── */
 @media (max-width: 600px) {
   :root {
-    --font-size: 1.05rem;
+    --font-size: 16.8px;
   }
   #terminal {
     padding: 0.5rem 0.75rem 0.5rem;
