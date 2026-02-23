@@ -223,8 +223,19 @@ async function renderBanner(text) {
     return { kind: 'html', value: buildBannerHtml(ORIGINAL_BBTAB_BANNER) };
   }
 
-  const raw = renderLegacyBannerText(bannerText);
-  return { kind: 'html', value: buildBannerHtml(raw) };
+  // Prefer FIGlet so lowercase can have distinct glyphs (via Banner3-Lower.flf).
+  try {
+    const raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY });
+    return { kind: 'html', value: buildBannerHtml(raw) };
+  } catch {
+    try {
+      const raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK });
+      return { kind: 'html', value: buildBannerHtml(raw) };
+    } catch {
+      const raw = renderLegacyBannerText(bannerText);
+      return { kind: 'html', value: buildBannerHtml(raw) };
+    }
+  }
 }
 
 const DEFAULT_PREFS = {
@@ -243,8 +254,8 @@ function setAsciiArt(el, text) {
   else el.textContent = val;
 }
 
-const BANNER_FONT_PRIMARY  = 'Banner3';
-const BANNER_FONT_FALLBACK = 'Banner3-D';
+const BANNER_FONT_PRIMARY  = 'Banner3-Lower';
+const BANNER_FONT_FALLBACK = 'Banner3';
 // Visual scale for the header banner after auto-fit measurement.
 // 0.75 ≈ 25% smaller than the current fit-to-width behaviour.
 const BANNER_FIT_SCALE = 0.75;
