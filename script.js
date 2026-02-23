@@ -225,11 +225,11 @@ async function renderBanner(text) {
 
   // Prefer FIGlet so lowercase can have distinct glyphs (via Banner3-Lower.flf).
   try {
-    const raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY });
+    const raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY, horizontalLayout: 'full' });
     return { kind: 'html', value: buildBannerHtml(raw) };
   } catch {
     try {
-      const raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK });
+      const raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK, horizontalLayout: 'full' });
       return { kind: 'html', value: buildBannerHtml(raw) };
     } catch {
       const raw = renderLegacyBannerText(bannerText);
