@@ -33,6 +33,9 @@ const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
 // Active batch container — printLine writes here while a command is running;
 // the whole block is appended to outputEl in one shot so aria-live fires once.
 let _batchEl = null;
+
+// Timestamp (ms) recorded at the very start of init() — used by `uptime`.
+let sessionStart = null;
 const displayEl = document.getElementById('input-display'); // visible mirror
 const cursorEl  = document.getElementById('cursor');
 const timeEl    = document.getElementById('status-time');
@@ -2474,6 +2477,30 @@ const commands = {
     },
   },
 
+  // ── uptime — elapsed time since init() ──────────────────────────
+  uptime: {
+    description: 'Show elapsed time since the terminal session started.',
+    usage: 'uptime',
+    run(_args) {
+      const now  = Date.now();
+      const start = sessionStart ?? now;
+      const totalSec = Math.floor((now - start) / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+
+      const elapsed = `${h}h ${m}m ${s}s`;
+      const startStr = new Date(start).toLocaleString();
+
+      printBlank();
+      printLine('  TERMINAL UPTIME', 'line-head');
+      printRule('─', 36);
+      printLine(`  Session started : ${startStr}`, 'line-info');
+      printLine(`  Elapsed         : ${elapsed}`, 'line-ok');
+      printBlank();
+    },
+  },
+
 };
 
 // ============================================================
@@ -2743,6 +2770,8 @@ function tickClock() {
 // ============================================================
 
 async function init() {
+  sessionStart = Date.now();
+
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
 
