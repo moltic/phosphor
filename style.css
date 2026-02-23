@@ -315,21 +315,6 @@ html, body {
   display: none;
 }
 
-/* Header banner uses the fixed cell grid for alignment, but a flatter CRT
-   treatment than the inline `banner` command output for readability. */
-#ascii-art .b-cell,
-#ascii-art .b-cell.b-core,
-#ascii-art .b-cell.b-mid,
-#ascii-art .b-cell.b-edge,
-#ascii-art .b-cell.b-rim,
-#ascii-art .b-cell.b-node {
-  color: var(--fg);
-  opacity: 0.94;
-  text-shadow:
-    0 0 1px rgba(255, 255, 255, 0.06),
-    0 0 4px var(--glow-soft);
-}
-
 #status-line {
   display: flex;
   flex-wrap: wrap;
