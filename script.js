@@ -45,6 +45,59 @@ const ALIASES = {
   maps   : 'https://maps.google.com',
 };
 
+// ── Theme palettes — applied as CSS custom-property overrides on :root ──────
+const THEMES = {
+  amber: {
+    '--bg':          '#0a0800',
+    '--fg':          '#ffb000',
+    '--fg-dim':      '#a06800',
+    '--fg-bright':   '#ffd050',
+    '--glow':        'rgba(255, 176, 0, 0.60)',
+    '--glow-soft':   'rgba(255, 176, 0, 0.22)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.18)',
+  },
+  green: {
+    '--bg':          '#001408',
+    '--fg':          '#33ff77',
+    '--fg-dim':      '#1a7a40',
+    '--fg-bright':   '#80ffaa',
+    '--glow':        'rgba(51, 255, 119, 0.55)',
+    '--glow-soft':   'rgba(51, 255, 119, 0.20)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.18)',
+  },
+  blue: {
+    '--bg':          '#000a1a',
+    '--fg':          '#40b4ff',
+    '--fg-dim':      '#206080',
+    '--fg-bright':   '#80d4ff',
+    '--glow':        'rgba(64, 180, 255, 0.55)',
+    '--glow-soft':   'rgba(64, 180, 255, 0.20)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.18)',
+  },
+  white: {
+    '--bg':          '#0a0a0a',
+    '--fg':          '#cccccc',
+    '--fg-dim':      '#666666',
+    '--fg-bright':   '#eeeeee',
+    '--glow':        'rgba(200, 200, 200, 0.30)',
+    '--glow-soft':   'rgba(200, 200, 200, 0.12)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.15)',
+  },
+};
+
+const FONT_SIZES = {
+  small:  '1.05rem',
+  medium: '1.25rem',
+  large:  '1.5rem',
+};
+
+const DEFAULT_PREFS = {
+  theme:     'amber',
+  heading:   'HOME TERMINAL v1.0',
+  fontSize:  'medium',
+  scanlines: true,
+};
+
 // ── Command-history state (session-only, not persisted)
 let cmdHistory   = [];   // [0] = most-recently-executed command
 let historyIndex = -1;   // -1 means "not navigating history"
@@ -164,6 +217,49 @@ function saveDials(dials) {
   return new Promise(resolve => {
     chrome.storage.local.set({ dials }, resolve);
   });
+}
+
+/**
+ * Load user preferences from chrome.storage.local.
+ * Falls back to DEFAULT_PREFS for any missing key.
+ * @returns {Promise<{theme:string, heading:string, fontSize:string, scanlines:boolean}>}
+ */
+function loadPrefs() {
+  return new Promise(resolve => {
+    chrome.storage.local.get({ prefs: {} }, data => {
+      resolve({ ...DEFAULT_PREFS, ...data.prefs });
+    });
+  });
+}
+
+/**
+ * Persist user preferences to chrome.storage.local.
+ * @param {{theme:string, heading:string, fontSize:string, scanlines:boolean}} prefs
+ * @returns {Promise<void>}
+ */
+function savePrefs(prefs) {
+  return new Promise(resolve => {
+    chrome.storage.local.set({ prefs }, resolve);
+  });
+}
+
+/**
+ * Apply a prefs object immediately by setting CSS custom properties on :root
+ * and updating the heading text / scanline visibility.
+ * @param {{theme:string, heading:string, fontSize:string, scanlines:boolean}} prefs
+ */
+function applyPrefs(prefs) {
+  const root    = document.documentElement;
+  const palette = THEMES[prefs.theme] || THEMES.amber;
+  Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
+
+  root.style.setProperty('--font-size', FONT_SIZES[prefs.fontSize] || FONT_SIZES.medium);
+
+  const statusLabel = document.getElementById('status-label');
+  if (statusLabel) statusLabel.textContent = prefs.heading || DEFAULT_PREFS.heading;
+
+  const scanlinesEl = document.getElementById('scanlines');
+  if (scanlinesEl) scanlinesEl.style.display = prefs.scanlines === false ? 'none' : '';
 }
 
 // ============================================================
@@ -389,6 +485,129 @@ async function removeDial(alias) {
   await saveDials(filtered);
   await renderDials();
   printLine(`✓ Dial "${alias}" removed.`, 'line-ok');
+}
+
+// ── Settings panel ────────────────────────────────────────────────
+
+const settingsPanelEl = (() => {
+  const panel = document.createElement('div');
+  panel.id = 'settings-panel';
+  panel.setAttribute('aria-label', 'Settings');
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'settings-title';
+  titleEl.textContent = '[ SETTINGS ]';
+
+  /** Build a label + control row. */
+  function makeRow(labelText, control) {
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    const lbl = document.createElement('label');
+    lbl.className = 'settings-label';
+    lbl.textContent = labelText;
+    lbl.htmlFor = control.id;
+    row.appendChild(lbl);
+    row.appendChild(control);
+    return row;
+  }
+
+  /** Build a <select> with [value, label] pairs. */
+  function makeSelect(id, pairs) {
+    const sel = document.createElement('select');
+    sel.id = id;
+    sel.className = 'settings-select';
+    pairs.forEach(([val, text]) => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = text;
+      sel.appendChild(opt);
+    });
+    return sel;
+  }
+
+  const themeSelect = makeSelect('s-theme', [
+    ['amber', 'AMBER'], ['green', 'GREEN'], ['blue', 'BLUE'], ['white', 'WHITE'],
+  ]);
+
+  const fontSelect = makeSelect('s-fontsize', [
+    ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
+  ]);
+
+  const headingInput = document.createElement('input');
+  headingInput.id          = 's-heading';
+  headingInput.className   = 'settings-input';
+  headingInput.type        = 'text';
+  headingInput.maxLength   = 40;
+  headingInput.autocomplete = 'off';
+  headingInput.spellcheck  = false;
+
+  const scanSelect = makeSelect('s-scanlines', [
+    ['on', 'ON'], ['off', 'OFF'],
+  ]);
+
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'settings-actions';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className   = 'settings-btn';
+  saveBtn.textContent = 'SAVE';
+  saveBtn.addEventListener('click', e => { e.stopPropagation(); commitSettings(); });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className   = 'settings-btn';
+  cancelBtn.textContent = 'CANCEL';
+  cancelBtn.addEventListener('click', e => { e.stopPropagation(); closeSettingsPanel(); });
+
+  actionsEl.appendChild(saveBtn);
+  actionsEl.appendChild(cancelBtn);
+
+  panel.appendChild(titleEl);
+  panel.appendChild(makeRow('THEME',     themeSelect));
+  panel.appendChild(makeRow('FONT SIZE', fontSelect));
+  panel.appendChild(makeRow('HEADING',   headingInput));
+  panel.appendChild(makeRow('SCANLINES', scanSelect));
+  panel.appendChild(actionsEl);
+
+  // Keyboard shortcuts inside the panel
+  panel.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
+      e.preventDefault();
+      commitSettings();
+    }
+  });
+
+  // Insert inline — between #speed-dial and #output
+  outputEl.before(panel);
+  return panel;
+})();
+
+async function openSettingsPanel() {
+  const prefs = await loadPrefs();
+  document.getElementById('s-theme').value    = prefs.theme    || 'amber';
+  document.getElementById('s-fontsize').value = prefs.fontSize || 'medium';
+  document.getElementById('s-heading').value  = prefs.heading  || DEFAULT_PREFS.heading;
+  document.getElementById('s-scanlines').value = prefs.scanlines === false ? 'off' : 'on';
+  settingsPanelEl.classList.add('visible');
+  document.getElementById('s-theme').focus();
+}
+
+function closeSettingsPanel() {
+  settingsPanelEl.classList.remove('visible');
+  inputEl.focus();
+}
+
+async function commitSettings() {
+  const prefs = {
+    theme:     document.getElementById('s-theme').value,
+    fontSize:  document.getElementById('s-fontsize').value,
+    heading:   document.getElementById('s-heading').value.trim() || DEFAULT_PREFS.heading,
+    scanlines: document.getElementById('s-scanlines').value === 'on',
+  };
+  await savePrefs(prefs);
+  applyPrefs(prefs);
+  closeSettingsPanel();
+  printLine('✓ Settings saved.', 'line-ok');
 }
 
 // ============================================================
@@ -648,6 +867,15 @@ const commands = {
     },
   },
 
+  // ── settings — open the settings panel ──────────────────────────
+  settings: {
+    description: 'Open settings panel (theme, font size, heading, scanlines).',
+    usage: 'settings',
+    async run(_args) {
+      await openSettingsPanel();
+    },
+  },
+
 };
 
 // ============================================================
@@ -754,7 +982,7 @@ inputEl.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
   // Re-focus command input unless the user is interacting with dial overlays
-  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, .dial-tile')) {
+  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, #settings-panel, .dial-tile')) {
     inputEl.focus();
   }
 });
@@ -809,12 +1037,13 @@ function tickClock() {
 // ============================================================
 
 async function init() {
+  // Load prefs and render speed-dial concurrently; apply prefs before any painting
+  const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
+  applyPrefs(prefs);
+
   // Start the clock immediately and tick every second
   tickClock();
   setInterval(tickClock, 1_000);
-
-  // Render speed-dial grid from storage (runs in parallel with storage reads below)
-  renderDials();
 
   // ── MOTD / welcome banner
   printRule('═');
