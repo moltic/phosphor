@@ -633,6 +633,64 @@ async function renderDials() {
   let isDraggingDial = false;
 
   dials.forEach(dial => {
+    // ── Divider spacer ──────────────────────────────────────────
+    if (dial.type === 'divider') {
+      const dividerEl = document.createElement('div');
+      dividerEl.className = 'dial-divider';
+      dividerEl.dataset.alias = dial.alias;
+      dividerEl.draggable = true;
+      dividerEl.title = 'Divider — drag to reorder, right-click to remove';
+
+      dividerEl.addEventListener('dragstart', e => {
+        isDraggingDial = true;
+        dividerEl.classList.add('is-dragging');
+        try {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', dial.alias);
+        } catch { /* ignore */ }
+      });
+
+      dividerEl.addEventListener('dragend', () => {
+        dividerEl.classList.remove('is-dragging');
+        setTimeout(() => { isDraggingDial = false; }, 0);
+      });
+
+      dividerEl.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      dividerEl.addEventListener('drop', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const fromAlias = e.dataTransfer?.getData('text/plain');
+        const toAlias   = dial.alias;
+        if (!fromAlias || fromAlias === toAlias) return;
+        const current = await loadDials();
+        const fromIndex = current.findIndex(d => d.alias === fromAlias);
+        const toIndex   = current.findIndex(d => d.alias === toAlias);
+        if (fromIndex === -1 || toIndex === -1) return;
+        const rect   = dividerEl.getBoundingClientRect();
+        const before = e.clientX < (rect.left + rect.width / 2);
+        let insertIndex = toIndex + (before ? 0 : 1);
+        if (fromIndex < insertIndex) insertIndex -= 1;
+        insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+        const next = arrayMove(current, fromIndex, insertIndex);
+        await saveDials(next);
+        await renderDials();
+      });
+
+      dividerEl.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        showDialCtxMenu(e.clientX, e.clientY, dial.alias, true);
+      });
+
+      dialGridEl.appendChild(dividerEl);
+      return;
+    }
+    // ────────────────────────────────────────────────────────────
+
     const tile = document.createElement('a');
     tile.className = 'dial-tile';
     tile.dataset.alias = dial.alias;
@@ -736,8 +794,8 @@ async function renderDials() {
     });
 
     dialGridEl.addEventListener('drop', async e => {
-      const tile = e.target.closest('.dial-tile');
-      if (tile) return; // handled by tile drop
+      const tile = e.target.closest('.dial-tile, .dial-divider');
+      if (tile) return; // handled by tile/divider drop
 
       e.preventDefault();
       e.stopPropagation();
@@ -762,6 +820,7 @@ const ctxMenuEl = (() => {
 
   const editBtn = document.createElement('button');
   editBtn.className = 'ctx-menu-item';
+  editBtn.dataset.action = 'edit';
   editBtn.textContent = 'Edit';
   editBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -786,8 +845,10 @@ const ctxMenuEl = (() => {
   return menu;
 })();
 
-function showDialCtxMenu(x, y, alias) {
+function showDialCtxMenu(x, y, alias, isDivider = false) {
   ctxMenuEl.dataset.target = alias;
+  const ctxEditBtn = ctxMenuEl.querySelector('[data-action="edit"]');
+  if (ctxEditBtn) ctxEditBtn.style.display = isDivider ? 'none' : '';
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
@@ -1214,6 +1275,7 @@ const commands = {
         printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
       } else {
         dials.forEach(d => {
+          if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
           const labelCol = (d.label || d.alias).padEnd(14);
           printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
         });
@@ -1224,8 +1286,8 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias]',
-    usage: 'dial add [alias] [url]  |  dial rm [alias]',
+    description: 'Manage speed-dial tiles.  dial add [alias] [url] | dial rm [alias] | dial divider',
+    usage: 'dial add [alias] [url]  |  dial rm [alias]  |  dial divider',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -1272,6 +1334,14 @@ const commands = {
 
         await removeDial(alias);
 
+      } else if (sub === 'divider') {
+        const dials = await loadDials();
+        const alias  = `__div_${Date.now()}__`;
+        dials.push({ type: 'divider', alias });
+        await saveDials(dials);
+        await renderDials();
+        printLine('✓ Divider added. Drag to reorder, right-click to remove.', 'line-ok');
+
       } else {
         // No subcommand: list current dials
         const dials = await loadDials();
@@ -1283,14 +1353,16 @@ const commands = {
           printLine('  (no dials — use:  dial add [alias] [url])', 'line-info');
         } else {
           dials.forEach(d => {
+            if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
             const labelCol = (d.label || d.alias).padEnd(14);
             printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
           });
         }
         printBlank();
-        printLine('  dial add [alias] [url]  — add a new tile', 'line-info');
-        printLine('  dial rm  [alias]        — remove a tile', 'line-info');
-        printLine('  Right-click any tile    — Edit / Remove', 'line-info');
+        printLine('  dial add     [alias] [url]  — add a new tile', 'line-info');
+        printLine('  dial rm      [alias]        — remove a tile', 'line-info');
+        printLine('  dial divider                — add a gap/spacer', 'line-info');
+        printLine('  Right-click any tile        — Edit / Remove', 'line-info');
         printBlank();
       }
     },

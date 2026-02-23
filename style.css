@@ -250,6 +250,26 @@ html, body {
   text-align: center;
 }
 
+/* ── Speed-dial Divider ─────────────────────────────────────── */
+.dial-divider {
+  width: 100%;
+  height: 0.6rem;
+  cursor: grab;
+  user-select: none;
+  border-radius: 2px;
+}
+
+.dial-divider:hover {
+  outline: 1px dashed var(--fg-dim);
+  outline-offset: -2px;
+}
+
+.dial-divider.is-dragging {
+  opacity: 0.35;
+  outline: 1px dashed var(--fg);
+  outline-offset: -2px;
+}
+
 /* ── Speed-dial Context Menu ─────────────────────────────────── */
 #dial-ctx-menu {
   position: fixed;
