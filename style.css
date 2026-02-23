@@ -263,13 +263,13 @@ html, body {
 /* Row divider — spans full width, forces items to next row */
 .dial-divider.row-divider {
   width: 100%;
-  height: 0.85rem;
+  height: 0.45rem;
   border-top: 1px dashed var(--fg-dim);
 }
 
 /* Column divider — narrow vertical bar, sits between tiles */
 .dial-divider.col-divider {
-  width: 0.85rem;
+  width: 0.45rem;
   align-self: stretch;
   border-left: 1px dashed var(--fg-dim);
 }
@@ -293,8 +293,8 @@ html, body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -35%);
-  font-size: 0.68rem;
-  padding: 0 0.4rem;
+  font-size: 0.6rem;
+  padding: 0 0.28rem;
 }
 
 /* Column divider label */
@@ -303,8 +303,8 @@ html, body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%) rotate(90deg);
-  font-size: 0.6rem;
-  padding: 0 0.22rem;
+  font-size: 0.54rem;
+  padding: 0 0.18rem;
 }
 
 /* Labels appear only while a drag is in progress */
