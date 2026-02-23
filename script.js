@@ -682,9 +682,12 @@ async function renderDials() {
         e.dataTransfer.dropEffect = 'move';
         if (dividerEl.classList.contains('is-dragging')) return;
         const rect = dividerEl.getBoundingClientRect();
+        const ind    = getDropIndicator();
         const before = e.clientX < (rect.left + rect.width / 2);
-        if (before) dividerEl.before(getDropIndicator());
-        else        dividerEl.after(getDropIndicator());
+        if  (before && dividerEl.previousElementSibling === ind) return;
+        if (!before && dividerEl.nextElementSibling     === ind) return;
+        if (before) dividerEl.before(ind);
+        else        dividerEl.after(ind);
       });
 
       dividerEl.addEventListener('drop', async e => {
@@ -778,10 +781,13 @@ async function renderDials() {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (tile.classList.contains('is-dragging')) return;
-      const rect = tile.getBoundingClientRect();
+      const rect   = tile.getBoundingClientRect();
+      const ind    = getDropIndicator();
       const before = e.clientX < (rect.left + rect.width / 2);
-      if (before) tile.before(getDropIndicator());
-      else        tile.after(getDropIndicator());
+      if  (before && tile.previousElementSibling === ind) return;
+      if (!before && tile.nextElementSibling     === ind) return;
+      if (before) tile.before(ind);
+      else        tile.after(ind);
     });
 
     tile.addEventListener('drop', async e => {
