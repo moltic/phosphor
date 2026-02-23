@@ -143,11 +143,18 @@ html, body {
   margin-bottom: 0.6rem;
 }
 
+#banner-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.3rem;
+}
+
 #logo {
   display: block;
   height: 3rem;
   width: auto;
-  margin-bottom: 0.5rem;
+  flex-shrink: 0;
   filter: drop-shadow(0 0 6px var(--glow-soft));
 }
 
@@ -161,7 +168,7 @@ html, body {
   overflow-x: hidden;
   overflow-y: visible;
   max-width: 100%;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0;
   text-shadow:
     0 0 6px var(--glow-soft);
   -webkit-mask-image: none;
