@@ -91,11 +91,20 @@ const FONT_SIZES = {
   large:  '1.5rem',
 };
 
+const DEFAULT_BANNER =
+  '██████╗ ██████╗ ████████╗ █████╗ ██████╗\n' +
+  '██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗\n' +
+  '██████╔╝██████╔╝   ██║   ███████║██████╔╝\n' +
+  '██╔══██╗██╔══██╗   ██║   ██╔══██║██╔══██╗\n' +
+  '██████╔╝██████╔╝   ██║   ██║  ██║██████╔╝\n' +
+  '╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝';
+
 const DEFAULT_PREFS = {
-  theme:     'amber',
-  heading:   'HOME TERMINAL v1.0',
-  fontSize:  'medium',
-  scanlines: true,
+  theme:      'amber',
+  heading:    'HOME TERMINAL v1.0',
+  fontSize:   'medium',
+  scanlines:  true,
+  bannerText: DEFAULT_BANNER,
 };
 
 // ── Command-history state (session-only, not persisted)
@@ -257,6 +266,9 @@ function applyPrefs(prefs) {
 
   const statusLabel = document.getElementById('status-label');
   if (statusLabel) statusLabel.textContent = prefs.heading || DEFAULT_PREFS.heading;
+
+  const asciiArtEl = document.getElementById('ascii-art');
+  if (asciiArtEl) asciiArtEl.textContent = '\n' + (prefs.bannerText || DEFAULT_PREFS.bannerText);
 
   const scanlinesEl = document.getElementById('scanlines');
   if (scanlinesEl) scanlinesEl.style.display = prefs.scanlines === false ? 'none' : '';
@@ -541,6 +553,14 @@ const settingsPanelEl = (() => {
   headingInput.autocomplete = 'off';
   headingInput.spellcheck  = false;
 
+  const bannerTextarea = document.createElement('textarea');
+  bannerTextarea.id          = 's-banner';
+  bannerTextarea.className   = 'settings-textarea';
+  bannerTextarea.rows        = 7;
+  bannerTextarea.autocomplete = 'off';
+  bannerTextarea.spellcheck  = false;
+  bannerTextarea.placeholder = 'ASCII art or plain text for the header';
+
   const scanSelect = makeSelect('s-scanlines', [
     ['on', 'ON'], ['off', 'OFF'],
   ]);
@@ -561,17 +581,21 @@ const settingsPanelEl = (() => {
   actionsEl.appendChild(saveBtn);
   actionsEl.appendChild(cancelBtn);
 
+  const bannerRow = makeRow('BANNER', bannerTextarea);
+  bannerRow.classList.add('settings-row--top');
+
   panel.appendChild(titleEl);
   panel.appendChild(makeRow('THEME',     themeSelect));
   panel.appendChild(makeRow('FONT SIZE', fontSelect));
   panel.appendChild(makeRow('HEADING',   headingInput));
+  panel.appendChild(bannerRow);
   panel.appendChild(makeRow('SCANLINES', scanSelect));
   panel.appendChild(actionsEl);
 
   // Keyboard shortcuts inside the panel
   panel.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
-    if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
+    if (e.key === 'Enter' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
       e.preventDefault();
       commitSettings();
     }
@@ -587,6 +611,7 @@ async function openSettingsPanel() {
   document.getElementById('s-theme').value    = prefs.theme    || 'amber';
   document.getElementById('s-fontsize').value = prefs.fontSize || 'medium';
   document.getElementById('s-heading').value  = prefs.heading  || DEFAULT_PREFS.heading;
+  document.getElementById('s-banner').value   = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
   document.getElementById('s-scanlines').value = prefs.scanlines === false ? 'off' : 'on';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
@@ -599,10 +624,11 @@ function closeSettingsPanel() {
 
 async function commitSettings() {
   const prefs = {
-    theme:     document.getElementById('s-theme').value,
-    fontSize:  document.getElementById('s-fontsize').value,
-    heading:   document.getElementById('s-heading').value.trim() || DEFAULT_PREFS.heading,
-    scanlines: document.getElementById('s-scanlines').value === 'on',
+    theme:      document.getElementById('s-theme').value,
+    fontSize:   document.getElementById('s-fontsize').value,
+    heading:    document.getElementById('s-heading').value.trim() || DEFAULT_PREFS.heading,
+    bannerText: document.getElementById('s-banner').value || DEFAULT_BANNER,
+    scanlines:  document.getElementById('s-scanlines').value === 'on',
   };
   await savePrefs(prefs);
   applyPrefs(prefs);

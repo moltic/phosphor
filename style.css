@@ -334,6 +334,29 @@ html, body {
   flex: 1;
 }
 
+.settings-textarea {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: monospace;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.5rem;
+  outline: none;
+  resize: vertical;
+  line-height: 1.25;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.settings-textarea:focus {
+  border-color: var(--fg);
+}
+
+.settings-row--top {
+  align-items: flex-start;
+}
+
 .settings-actions {
   display: flex;
   gap: 0.55rem;
