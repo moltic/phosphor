@@ -426,6 +426,7 @@ const SESSION_START = Date.now();
 let cmdHistory   = [];   // [0] = most-recently-executed command
 let historyIndex = -1;   // -1 means "not navigating history"
 let pendingInput = '';   // draft the user had before pressing ↑
+let _pendingConfirm = null;  // resolve fn set while nuke awaits user confirmation
 
 // ============================================================
 //  2. Render helpers
@@ -2696,6 +2697,39 @@ const commands = {
     },
   },
 
+  // ── nuke — wipe all notes after typed confirmation + countdown ──
+  nuke: {
+    usage: 'nuke',
+    description: 'Permanently destroy ALL stored notes after typed confirmation.',
+    async run() {
+      printLine('!! WARNING: This will permanently destroy ALL stored notes !!', 'line-err');
+      printLine('Type  CONFIRM  (all caps) to proceed, or anything else to abort:', 'line-info');
+
+      // Flush so the prompt is visible before waiting for input.
+      // All further printLine calls go directly to #output.
+      endBatch();
+
+      const answer = await new Promise(resolve => { _pendingConfirm = resolve; });
+
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+      printLine(`> ${answer}`, 'line-cmd');
+
+      if (answer.trim() !== 'CONFIRM') {
+        printLine('Aborted. No notes were deleted.', 'line-info');
+        return;
+      }
+
+      for (const n of ['3', '2', '1']) {
+        printLine(`NUKING IN ${n}...`, 'line-err');
+        await sleep(1000);
+      }
+
+      await saveNotes([]);
+      printLine('▓▓▓  ALL NOTES WIPED  ▓▓▓', 'line-err');
+    },
+  },
+
 };
 
 // ============================================================
@@ -2783,6 +2817,16 @@ inputEl.addEventListener('keydown', e => {
     case 'Enter': {
       e.preventDefault();
       const val = inputEl.value;
+
+      // If a command is awaiting user confirmation, deliver the typed value
+      // directly instead of dispatching it as a normal command.
+      if (_pendingConfirm) {
+        const resolve = _pendingConfirm;
+        _pendingConfirm = null;
+        setInput('');
+        resolve(val);
+        break;
+      }
 
       // Push non-empty command into session history
       if (val.trim() !== '') {
