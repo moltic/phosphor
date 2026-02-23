@@ -610,17 +610,61 @@ function getFaviconUrl(url) {
   }
 }
 
-// ── Drop-position indicator (one shared element, repositioned on dragover) ──
+// ── Drop-position indicator (fixed overlay so it never reflows the grid) ──
 let _dropIndicator = null;
-function getDropIndicator() {
-  if (!_dropIndicator) {
-    _dropIndicator = document.createElement('div');
-    _dropIndicator.className = 'dial-drop-indicator';
-  }
+let _dropPreview = null; // { toAlias: string|null, before: boolean, end: boolean }
+
+function ensureDropIndicator() {
+  if (_dropIndicator) return _dropIndicator;
+  _dropIndicator = document.createElement('div');
+  _dropIndicator.className = 'dial-drop-indicator';
+  _dropIndicator.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(_dropIndicator);
   return _dropIndicator;
 }
-function removeDropIndicator() {
-  _dropIndicator?.remove();
+
+function showDropIndicatorAt(x, top, height) {
+  const el = ensureDropIndicator();
+  el.style.left = `${Math.round(x)}px`;
+  el.style.top = `${Math.round(top)}px`;
+  el.style.height = `${Math.max(10, Math.round(height))}px`;
+  el.classList.add('visible');
+}
+
+function hideDropIndicator() {
+  _dropPreview = null;
+  _dropIndicator?.classList.remove('visible');
+}
+
+function chooseBeforeWithDeadzone(rect, clientX, priorBefore) {
+  const mid = rect.left + rect.width / 2;
+  const lo = rect.left + rect.width * 0.45;
+  const hi = rect.left + rect.width * 0.55;
+  if (clientX < lo) return true;
+  if (clientX > hi) return false;
+  return typeof priorBefore === 'boolean' ? priorBefore : (clientX < mid);
+}
+
+function previewDropNearElement(toAlias, rect, clientX) {
+  const prior = _dropPreview?.toAlias === toAlias && !_dropPreview.end ? _dropPreview.before : undefined;
+  const before = chooseBeforeWithDeadzone(rect, clientX, prior);
+  _dropPreview = { toAlias, before, end: false };
+  const x = before ? rect.left : rect.right;
+  showDropIndicatorAt(x, rect.top, rect.height);
+}
+
+function previewDropAtEnd() {
+  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-divider');
+  const last = items.length ? items[items.length - 1] : null;
+  if (!last) return;
+  const rect = last.getBoundingClientRect();
+  _dropPreview = { toAlias: null, before: false, end: true };
+  showDropIndicatorAt(rect.right, rect.top, rect.height);
+}
+
+function getPreviewBeforeFor(toAlias, fallbackRect, clientX) {
+  if (_dropPreview && !_dropPreview.end && _dropPreview.toAlias === toAlias) return _dropPreview.before;
+  return clientX < (fallbackRect.left + fallbackRect.width / 2);
 }
 
 /** (Re)render all dial tiles into #speed-dial from storage. */
@@ -662,6 +706,7 @@ async function renderDials() {
 
       dividerEl.addEventListener('dragstart', e => {
         isDraggingDial = true;
+        hideDropIndicator();
         dividerEl.classList.add('is-dragging');
         dialGridEl.classList.add('is-dragging-dial');
         try {
@@ -673,7 +718,7 @@ async function renderDials() {
       dividerEl.addEventListener('dragend', () => {
         dividerEl.classList.remove('is-dragging');
         dialGridEl.classList.remove('is-dragging-dial');
-        removeDropIndicator();
+        hideDropIndicator();
         setTimeout(() => { isDraggingDial = false; }, 0);
       });
 
@@ -681,19 +726,13 @@ async function renderDials() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         if (dividerEl.classList.contains('is-dragging')) return;
-        const rect = dividerEl.getBoundingClientRect();
-        const ind    = getDropIndicator();
-        const before = e.clientX < (rect.left + rect.width / 2);
-        if  (before && dividerEl.previousElementSibling === ind) return;
-        if (!before && dividerEl.nextElementSibling     === ind) return;
-        if (before) dividerEl.before(ind);
-        else        dividerEl.after(ind);
+        previewDropNearElement(dial.alias, dividerEl.getBoundingClientRect(), e.clientX);
       });
 
       dividerEl.addEventListener('drop', async e => {
         e.preventDefault();
         e.stopPropagation();
-        removeDropIndicator();
+        hideDropIndicator();
         dialGridEl.classList.remove('is-dragging-dial');
         const fromAlias = e.dataTransfer?.getData('text/plain');
         const toAlias   = dial.alias;
@@ -703,7 +742,7 @@ async function renderDials() {
         const toIndex   = current.findIndex(d => d.alias === toAlias);
         if (fromIndex === -1 || toIndex === -1) return;
         const rect   = dividerEl.getBoundingClientRect();
-        const before = e.clientX < (rect.left + rect.width / 2);
+        const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
         let insertIndex = toIndex + (before ? 0 : 1);
         if (fromIndex < insertIndex) insertIndex -= 1;
         insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
@@ -758,6 +797,7 @@ async function renderDials() {
 
     tile.addEventListener('dragstart', e => {
       isDraggingDial = true;
+      hideDropIndicator();
       tile.classList.add('is-dragging');
       dialGridEl.classList.add('is-dragging-dial');
       try {
@@ -771,7 +811,7 @@ async function renderDials() {
     tile.addEventListener('dragend', () => {
       tile.classList.remove('is-dragging');
       dialGridEl.classList.remove('is-dragging-dial');
-      removeDropIndicator();
+      hideDropIndicator();
       // Delay reset so the subsequent click (if any) can be suppressed.
       setTimeout(() => { isDraggingDial = false; }, 0);
     });
@@ -781,19 +821,13 @@ async function renderDials() {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (tile.classList.contains('is-dragging')) return;
-      const rect   = tile.getBoundingClientRect();
-      const ind    = getDropIndicator();
-      const before = e.clientX < (rect.left + rect.width / 2);
-      if  (before && tile.previousElementSibling === ind) return;
-      if (!before && tile.nextElementSibling     === ind) return;
-      if (before) tile.before(ind);
-      else        tile.after(ind);
+      previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
     });
 
     tile.addEventListener('drop', async e => {
       e.preventDefault();
       e.stopPropagation();
-      removeDropIndicator();
+      hideDropIndicator();
       dialGridEl.classList.remove('is-dragging-dial');
 
       const fromAlias = e.dataTransfer?.getData('text/plain');
@@ -806,7 +840,7 @@ async function renderDials() {
       if (fromIndex === -1 || toIndex === -1) return;
 
       const rect = tile.getBoundingClientRect();
-      const before = e.clientX < (rect.left + rect.width / 2);
+      const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
 
       // Compute insertion index (before/after), then adjust for removal shift.
       let insertIndex = toIndex + (before ? 0 : 1);
@@ -836,9 +870,9 @@ async function renderDials() {
       // Allow drop; if we're over a tile, that tile's handler will run.
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      // Move indicator to end when hovering empty grid space.
-      if (!e.target.closest('.dial-tile, .dial-divider, .dial-drop-indicator')) {
-        dialGridEl.appendChild(getDropIndicator());
+      // Show indicator at end when hovering empty grid space.
+      if (!e.target.closest('.dial-tile, .dial-divider')) {
+        previewDropAtEnd();
       }
     });
 
@@ -848,7 +882,7 @@ async function renderDials() {
 
       e.preventDefault();
       e.stopPropagation();
-      removeDropIndicator();
+      hideDropIndicator();
       dialGridEl.classList.remove('is-dragging-dial');
 
       const fromAlias = e.dataTransfer?.getData('text/plain');

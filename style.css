@@ -331,14 +331,20 @@ html, body {
 
 /* ── Drop insertion indicator ───────────────────────────────── */
 .dial-drop-indicator {
+  position: fixed;
+  z-index: 150;
+  display: none;
+  top: 0;
+  left: 0;
   width: 2px;
-  align-self: stretch;
-  min-height: 52px;
   background: var(--fg);
   box-shadow: 0 0 8px var(--glow), 0 0 2px var(--fg);
   border-radius: 1px;
   pointer-events: none;
-  flex-shrink: 0;
+}
+
+.dial-drop-indicator.visible {
+  display: block;
 }
 
 /* ── Speed-dial Context Menu ─────────────────────────────────── */
