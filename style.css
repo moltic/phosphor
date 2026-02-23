@@ -267,22 +267,6 @@ html, body {
   border-top: 1px dashed var(--fg-dim);
 }
 
-/* Row divider label — centred, floats over the line */
-.dial-divider.row-divider::after {
-  content: '⟵  ROW  ⟶';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -35%);
-  background: var(--bg);
-  color: var(--fg-dim);
-  font-family: var(--font-stack);
-  font-size: 0.72rem;
-  padding: 0 0.55rem;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
-
 /* Column divider — narrow vertical bar, sits between tiles */
 .dial-divider.col-divider {
   width: 1.6rem;
@@ -290,20 +274,42 @@ html, body {
   border-left: 1px dashed var(--fg-dim);
 }
 
-/* Column divider label */
+/* Shared label base — invisible by default, fades in during drag */
+.dial-divider.row-divider::after,
 .dial-divider.col-divider::after {
-  content: 'COL';
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(90deg);
   background: var(--bg);
   color: var(--fg-dim);
   font-family: var(--font-stack);
+  pointer-events: none;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  transition: color 0.1s, opacity 0.1s;
+}
+
+/* Row divider label */
+.dial-divider.row-divider::after {
+  content: '⟵  ROW  ⟶';
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -35%);
+  font-size: 0.72rem;
+  padding: 0 0.55rem;
+}
+
+/* Column divider label */
+.dial-divider.col-divider::after {
+  content: 'COL';
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
   font-size: 0.65rem;
   padding: 0 0.3rem;
-  letter-spacing: 0.06em;
-  pointer-events: none;
+}
+
+/* Labels appear only while a drag is in progress */
+#speed-dial.is-dragging-dial .dial-divider::after {
+  opacity: 1;
 }
 
 .dial-divider:hover {
@@ -312,18 +318,27 @@ html, body {
 .dial-divider.row-divider:hover {
   border-top-color: var(--fg);
 }
-.dial-divider.row-divider:hover::after {
-  color: var(--fg);
-}
 .dial-divider.col-divider:hover {
   border-left-color: var(--fg);
 }
-.dial-divider.col-divider:hover::after {
+#speed-dial.is-dragging-dial .dial-divider:hover::after {
   color: var(--fg);
 }
 
 .dial-divider.is-dragging {
   opacity: 0.4;
+}
+
+/* ── Drop insertion indicator ───────────────────────────────── */
+.dial-drop-indicator {
+  width: 2px;
+  align-self: stretch;
+  min-height: 52px;
+  background: var(--fg);
+  box-shadow: 0 0 8px var(--glow), 0 0 2px var(--fg);
+  border-radius: 1px;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 /* ── Speed-dial Context Menu ─────────────────────────────────── */

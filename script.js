@@ -610,6 +610,19 @@ function getFaviconUrl(url) {
   }
 }
 
+// ── Drop-position indicator (one shared element, repositioned on dragover) ──
+let _dropIndicator = null;
+function getDropIndicator() {
+  if (!_dropIndicator) {
+    _dropIndicator = document.createElement('div');
+    _dropIndicator.className = 'dial-drop-indicator';
+  }
+  return _dropIndicator;
+}
+function removeDropIndicator() {
+  _dropIndicator?.remove();
+}
+
 /** (Re)render all dial tiles into #speed-dial from storage. */
 async function renderDials() {
   const dials = await loadDials();
@@ -650,6 +663,7 @@ async function renderDials() {
       dividerEl.addEventListener('dragstart', e => {
         isDraggingDial = true;
         dividerEl.classList.add('is-dragging');
+        dialGridEl.classList.add('is-dragging-dial');
         try {
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('text/plain', dial.alias);
@@ -658,17 +672,26 @@ async function renderDials() {
 
       dividerEl.addEventListener('dragend', () => {
         dividerEl.classList.remove('is-dragging');
+        dialGridEl.classList.remove('is-dragging-dial');
+        removeDropIndicator();
         setTimeout(() => { isDraggingDial = false; }, 0);
       });
 
       dividerEl.addEventListener('dragover', e => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
+        if (dividerEl.classList.contains('is-dragging')) return;
+        const rect = dividerEl.getBoundingClientRect();
+        const before = e.clientX < (rect.left + rect.width / 2);
+        if (before) dividerEl.before(getDropIndicator());
+        else        dividerEl.after(getDropIndicator());
       });
 
       dividerEl.addEventListener('drop', async e => {
         e.preventDefault();
         e.stopPropagation();
+        removeDropIndicator();
+        dialGridEl.classList.remove('is-dragging-dial');
         const fromAlias = e.dataTransfer?.getData('text/plain');
         const toAlias   = dial.alias;
         if (!fromAlias || fromAlias === toAlias) return;
@@ -733,6 +756,7 @@ async function renderDials() {
     tile.addEventListener('dragstart', e => {
       isDraggingDial = true;
       tile.classList.add('is-dragging');
+      dialGridEl.classList.add('is-dragging-dial');
       try {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', dial.alias);
@@ -743,6 +767,8 @@ async function renderDials() {
 
     tile.addEventListener('dragend', () => {
       tile.classList.remove('is-dragging');
+      dialGridEl.classList.remove('is-dragging-dial');
+      removeDropIndicator();
       // Delay reset so the subsequent click (if any) can be suppressed.
       setTimeout(() => { isDraggingDial = false; }, 0);
     });
@@ -751,11 +777,18 @@ async function renderDials() {
       // Required to allow dropping.
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
+      if (tile.classList.contains('is-dragging')) return;
+      const rect = tile.getBoundingClientRect();
+      const before = e.clientX < (rect.left + rect.width / 2);
+      if (before) tile.before(getDropIndicator());
+      else        tile.after(getDropIndicator());
     });
 
     tile.addEventListener('drop', async e => {
       e.preventDefault();
       e.stopPropagation();
+      removeDropIndicator();
+      dialGridEl.classList.remove('is-dragging-dial');
 
       const fromAlias = e.dataTransfer?.getData('text/plain');
       const toAlias = dial.alias;
@@ -797,6 +830,10 @@ async function renderDials() {
       // Allow drop; if we're over a tile, that tile's handler will run.
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
+      // Move indicator to end when hovering empty grid space.
+      if (!e.target.closest('.dial-tile, .dial-divider, .dial-drop-indicator')) {
+        dialGridEl.appendChild(getDropIndicator());
+      }
     });
 
     dialGridEl.addEventListener('drop', async e => {
@@ -805,6 +842,8 @@ async function renderDials() {
 
       e.preventDefault();
       e.stopPropagation();
+      removeDropIndicator();
+      dialGridEl.classList.remove('is-dragging-dial');
 
       const fromAlias = e.dataTransfer?.getData('text/plain');
       if (!fromAlias) return;
