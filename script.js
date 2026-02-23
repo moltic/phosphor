@@ -104,17 +104,6 @@ const FONT_SIZES = {
 
 const DEFAULT_BANNER = 'PHOSPHOR';
 
-// Original Phosphor banner (verbatim). Used when bannerText is "PHOSPHOR" so the
-// output matches the default header exactly.
-const ORIGINAL_PHOSPHOR_BANNER = [
-  '██████╗ ██████╗ ████████╗ █████╗ ██████╗',
-  '██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗',
-  '██████╔╝██████╔╝   ██║   ███████║██████╔╝',
-  '██╔══██╗██╔══██╗   ██║   ██╔══██║██╔══██╗',
-  '██████╔╝██████╔╝   ██║   ██║  ██║██████╔╝',
-  '╚═════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═════╝',
-].join('\n');
-
 // Legacy 6-row banner font (Unicode) inspired by the original header style.
 // Goal: keep the same look for any user-entered banner text.
 const LEGACY_BANNER_FONT = {
@@ -194,7 +183,7 @@ const LEGACY_BANNER_FONT = {
 
 function renderLegacyBannerText(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
-  if (!normalized) return ORIGINAL_PHOSPHOR_BANNER;
+  if (!normalized) return '';
 
   const chars = [...normalized];
   const rows = 6;
@@ -254,11 +243,6 @@ async function renderBanner(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
   const bannerText = normalized || DEFAULT_BANNER;
 
-  // Preserve the exact original header look for the default title.
-  if (bannerText === 'PHOSPHOR') {
-    return { kind: 'html', value: buildBannerHtml(ORIGINAL_PHOSPHOR_BANNER) };
-  }
-
   const raw = renderLegacyBannerText(bannerText);
   // Custom banners are rendered on a solid cell grid so mixed box-drawing
   // glyph fallback cannot skew alternate rows.
@@ -269,10 +253,6 @@ async function renderBanner(text) {
 function renderHeaderBanner(text) {
   const normalized = String(text || DEFAULT_BANNER).replace(/\r/g, '').trim();
   const bannerText = normalized || DEFAULT_BANNER;
-
-  if (bannerText === 'PHOSPHOR') {
-    return { kind: 'text', value: ORIGINAL_PHOSPHOR_BANNER };
-  }
 
   const raw = renderLegacyBannerText(bannerText);
   return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
