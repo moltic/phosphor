@@ -476,6 +476,12 @@ html, body {
   color: var(--fg-bright);
 }
 
+#dial-edit-error {
+  color: #e06c75;
+  font-size: 0.78em;
+  min-height: 1em;
+}
+
 /* ── Settings Panel ─────────────────────────────────────────── */
 #settings-panel {
   flex-shrink: 0;

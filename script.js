@@ -1079,12 +1079,16 @@ const editDialogEl = (() => {
     hideDialEditDialog();
   });
 
+  const errorMsg = document.createElement('div');
+  errorMsg.id = 'dial-edit-error';
+
   actions.appendChild(saveBtn);
   actions.appendChild(cancelBtn);
   inner.appendChild(title);
   inner.appendChild(labelInput);
   inner.appendChild(urlInput);
   inner.appendChild(iconInput);
+  inner.appendChild(errorMsg);
   inner.appendChild(actions);
   overlay.appendChild(inner);
 
@@ -1119,6 +1123,7 @@ async function showDialEditDialog(alias) {
 function hideDialEditDialog() {
   editDialogEl.classList.remove('visible');
   delete editDialogEl.dataset.target;
+  document.getElementById('dial-edit-error').textContent = '';
   inputEl.focus();
 }
 
@@ -1129,7 +1134,15 @@ async function commitDialEdit() {
   const newIconRaw = document.getElementById('dial-edit-icon').value;
   const newIcon = normalizeDialIcon(newIconRaw);
 
-  if (!alias || !newLabel || !newUrl) return;
+  const errorEl = document.getElementById('dial-edit-error');
+  if (!newLabel && !newUrl) {
+    errorEl.textContent = 'Label and URL are required.';
+    return;
+  }
+  if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
+  if (!newUrl)   { errorEl.textContent = 'URL is required.';   return; }
+  errorEl.textContent = '';
+  if (!alias) return;
 
   // Auto-prefix scheme if missing
   if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
