@@ -241,6 +241,8 @@ html, body {
   min-width: 70px;
   max-width: 110px;
   user-select: none;
+  text-decoration: none;
+  color: inherit;
 }
 
 .dial-tile:hover {
@@ -248,11 +250,19 @@ html, body {
   background: rgba(255, 176, 0, 0.07);
 }
 
+.dial-tile:focus-visible {
+  outline: 1px solid var(--fg);
+  outline-offset: 2px;
+}
+
 .dial-favicon {
   width: 20px;
   height: 20px;
   display: block;
   image-rendering: -webkit-optimize-contrast;
+  filter:
+    drop-shadow(0 0 1px rgba(236, 251, 255, 0.85))
+    drop-shadow(0 0 4px var(--glow-soft));
 }
 
 .dial-favicon[data-broken] {

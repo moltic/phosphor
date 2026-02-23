@@ -603,10 +603,12 @@ async function renderDials() {
   dialGridEl.innerHTML = '';
 
   dials.forEach(dial => {
-    const tile = document.createElement('div');
+    const tile = document.createElement('a');
     tile.className = 'dial-tile';
     tile.dataset.alias = dial.alias;
     tile.title = dial.url;
+    tile.href = dial.url;
+    tile.rel = 'noopener noreferrer';
 
     const img = document.createElement('img');
     img.className = 'dial-favicon';
@@ -621,11 +623,10 @@ async function renderDials() {
     tile.appendChild(img);
     tile.appendChild(labelEl);
 
-    // Left-click → navigate; stop propagation so the document focus handler
-    // doesn't try to re-focus the terminal input after navigation begins.
+    // Allow native link behavior (middle-click, ctrl-click, etc). We only stop
+    // propagation so the document focus handler doesn't steal focus.
     tile.addEventListener('click', e => {
       e.stopPropagation();
-      window.location.href = dial.url;
     });
 
     // Right-click → context menu
