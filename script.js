@@ -260,7 +260,9 @@ async function renderBanner(text) {
   }
 
   const raw = renderLegacyBannerText(bannerText);
-  return { kind: 'html', value: buildBannerHtml(raw) };
+  // Custom banners are rendered on a solid cell grid so mixed box-drawing
+  // glyph fallback cannot skew alternate rows.
+  return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
 }
 
 /** Render the header banner with the original glyph shapes for readability. */
@@ -272,7 +274,8 @@ function renderHeaderBanner(text) {
     return { kind: 'text', value: ORIGINAL_PHOSPHOR_BANNER };
   }
 
-  return { kind: 'text', value: renderLegacyBannerText(bannerText) };
+  const raw = renderLegacyBannerText(bannerText);
+  return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: false }) };
 }
 
 const DEFAULT_PREFS = {
@@ -372,7 +375,7 @@ function escapeHtmlChar(ch) {
   }
 }
 
-function buildBannerHtml(raw) {
+function buildBannerHtml(raw, { preserveGlyphs = true } = {}) {
   const lines = String(raw || '').replace(/\r/g, '').split('\n');
   while (lines.length && lines[lines.length - 1] === '') lines.pop();
   if (!lines.length) return '';
@@ -390,7 +393,8 @@ function buildBannerHtml(raw) {
       }
 
       const cls = `b-cell ${bannerCellClass(dist[y][x], x, y)}`;
-      out += `<span class="${cls}">${escapeHtmlChar(line[x] || ' ')}</span>`;
+      const cellCh = preserveGlyphs ? (line[x] || ' ') : '█';
+      out += `<span class="${cls}">${escapeHtmlChar(cellCh)}</span>`;
     }
     return out;
   });
