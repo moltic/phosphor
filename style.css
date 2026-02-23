@@ -170,18 +170,22 @@ html, body {
 #status-line {
   display: flex;
   justify-content: space-between;
-  color: var(--fg-dim);
+  color: var(--fg);
   font-size: 1rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-shadow: 0 0 8px var(--glow-soft);
 }
 
 #status-label {
-  color: var(--fg-dim);
+  color: var(--fg-bright);
+  text-shadow: 0 0 10px var(--glow-soft);
 }
 
 #status-time {
-  color: var(--fg-dim);
+  color: var(--fg);
+  text-shadow: 0 0 10px var(--glow-soft);
 }
 
 /* ── Speed-dial Grid ────────────────────────────────────────── */
