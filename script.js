@@ -600,7 +600,7 @@ function savePrefs(prefs) {
 
 /**
  * Apply a prefs object immediately by setting CSS custom properties on :root
- * and updating the heading text / scanline visibility.
+ * and updating the bannerText / scanline visibility.
  * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}} prefs
  */
 async function applyPrefs(prefs) {
