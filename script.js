@@ -96,6 +96,11 @@ const FONT_SIZES = {
 
 const DEFAULT_BANNER = 'BBTAB';
 
+// Figlet keeps parsed fonts in-memory; in dev, the New Tab page can stay open
+// across extension reloads, so we clear the cache once to ensure updated .flf
+// files are picked up.
+let _figletCacheCleared = false;
+
 // Original BBTAB banner (verbatim). Used when bannerText is "BBTAB" so the
 // output matches the legacy header exactly.
 const ORIGINAL_BBTAB_BANNER = [
@@ -225,10 +230,18 @@ async function renderBanner(text) {
 
   // Prefer FIGlet so lowercase can have distinct glyphs (via Banner3-Lower.flf).
   try {
+    if (!_figletCacheCleared && typeof figlet.clearLoadedFonts === 'function') {
+      _figletCacheCleared = true;
+      figlet.clearLoadedFonts();
+    }
     const raw = await figlet.text(bannerText, { font: BANNER_FONT_PRIMARY, horizontalLayout: 'full' });
     return { kind: 'html', value: buildBannerHtml(raw) };
   } catch {
     try {
+      if (!_figletCacheCleared && typeof figlet.clearLoadedFonts === 'function') {
+        _figletCacheCleared = true;
+        figlet.clearLoadedFonts();
+      }
       const raw = await figlet.text(bannerText, { font: BANNER_FONT_FALLBACK, horizontalLayout: 'full' });
       return { kind: 'html', value: buildBannerHtml(raw) };
     } catch {
