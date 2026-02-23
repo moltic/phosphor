@@ -1619,10 +1619,18 @@ const commands = {
     },
   },
 
-  // ── clr — clear screen ──────────────────────────────────────────
+  // ── clr / clear — clear screen ──────────────────────────────────
   clr: {
     description: 'Clear the terminal output (notes in storage are kept).',
     usage: 'clr',
+    run(_args) {
+      clearScreen();
+    },
+  },
+
+  clear: {
+    description: 'Clear the terminal output (alias for clr).',
+    usage: 'clear',
     run(_args) {
       clearScreen();
     },
