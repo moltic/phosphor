@@ -86,18 +86,22 @@ html, body {
 
 #ascii-art {
   color: var(--fg-bright);
+  /* Layered 3D/outlined look via stacked text-shadows (reliable for multiline <pre>). */
   text-shadow:
-    0 0 8px  var(--glow),
-    0 0 20px var(--glow-soft);
+    10px 6px 0   var(--fg-dim),
+    5px  3px 0   var(--fg),
+    0    0 8px   var(--glow),
+    0    0 20px  var(--glow-soft);
   font-family: var(--font-stack);
   font-size: 0.9rem; /* base — fitBanner() scales this to fill the header */
   line-height: 1.08;
   letter-spacing: 0;
   white-space: pre;
-  overflow-x: hidden;
+  /* allow layered pseudo-element offsets to be visible */
+  overflow: visible;
   margin-bottom: 0.3rem;
   /* carve a dark border around each █ block so adjacent cells don't merge */
-  -webkit-text-stroke: 3px var(--bg);
+  -webkit-text-stroke: 2px var(--bg);
   paint-order: stroke fill;
 }
 

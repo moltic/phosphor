@@ -103,12 +103,31 @@ const DEFAULT_PREFS = {
   bannerText: DEFAULT_BANNER,
 };
 
-/** Render text as figlet ASCII art using Banner3 font. Returns a Promise<string>. */
+function setAsciiArt(el, text) {
+  const val = text || '';
+  el.textContent = val;
+  // Used by CSS pseudo-elements for layered banner rendering.
+  el.dataset.ascii = val;
+}
+
+const BANNER_FONT_PRIMARY  = 'Banner3-D';
+const BANNER_FONT_FALLBACK = 'Banner3';
+
+/** Render text as figlet ASCII art using the Banner3(-D) font(s). Returns a Promise<string>. */
 function renderBanner(text) {
   return new Promise((resolve, reject) => {
-    figlet.text((text || DEFAULT_BANNER).toUpperCase(), { font: 'Banner3' }, (err, result) => {
-      if (err) reject(err);
-      else resolve(result.replace(/#/g, '█'));
+    const banner = (text || DEFAULT_BANNER).toUpperCase();
+
+    const finish = (result) => resolve(result.replace(/#/g, '█'));
+
+    figlet.text(banner, { font: BANNER_FONT_PRIMARY }, (err, result) => {
+      if (!err && result) return finish(result);
+
+      // Fallback for older installs / missing font file.
+      figlet.text(banner, { font: BANNER_FONT_FALLBACK }, (err2, result2) => {
+        if (err2) reject(err2);
+        else finish(result2 || '');
+      });
     });
   });
 }
@@ -134,7 +153,8 @@ async function fitBanner(el) {
   document.body.removeChild(probe);
   if (!probeW) return;
 
-  const available  = el.parentElement.clientWidth;
+  // Leave a little room for the layered banner offsets so it doesn't clip.
+  const available  = Math.max(0, el.parentElement.clientWidth - 18);
   const currentPx  = parseFloat(getComputedStyle(el).fontSize);
   const idealPx    = (available * 0.95 / probeW) * currentPx;
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 8), 36) + 'px';
@@ -303,10 +323,10 @@ async function applyPrefs(prefs) {
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) {
     try {
-      asciiArtEl.textContent = await renderBanner(prefs.bannerText || DEFAULT_BANNER);
+      setAsciiArt(asciiArtEl, await renderBanner(prefs.bannerText || DEFAULT_BANNER));
       await fitBanner(asciiArtEl);
     } catch {
-      asciiArtEl.textContent = prefs.bannerText || DEFAULT_BANNER;
+      setAsciiArt(asciiArtEl, prefs.bannerText || DEFAULT_BANNER);
     }
   }
 
