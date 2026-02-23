@@ -482,19 +482,29 @@ html, body {
   min-height: 1em;
 }
 
-/* ── Settings Panel ─────────────────────────────────────────── */
+/* ── Settings Panel (modal overlay — matches #dial-edit-dialog) ── */
 #settings-panel {
-  flex-shrink: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
   display: none;
-  flex-direction: column;
-  gap: 0.45rem;
-  border: 1px solid var(--fg);
-  padding: 0.75rem 1rem 0.7rem;
-  margin-bottom: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
 }
 
 #settings-panel.visible {
   display: flex;
+}
+
+.settings-inner {
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  padding: 0.75rem 1rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 22em;
 }
 
 .settings-title {

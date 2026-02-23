@@ -1198,7 +1198,10 @@ async function removeDial(alias) {
 const settingsPanelEl = (() => {
   const panel = document.createElement('div');
   panel.id = 'settings-panel';
-  panel.setAttribute('aria-label', 'Settings');
+
+  const inner = document.createElement('div');
+  inner.className = 'settings-inner';
+  inner.setAttribute('aria-label', 'Settings');
 
   const titleEl = document.createElement('div');
   titleEl.className = 'settings-title';
@@ -1274,16 +1277,16 @@ const settingsPanelEl = (() => {
 
   const bannerRow = makeRow('BANNER', bannerInput);
 
-  panel.appendChild(titleEl);
-  panel.appendChild(makeRow('THEME',     themeSelect));
-  panel.appendChild(makeRow('TERMINAL SIZE', terminalSizeSelect));
-  panel.appendChild(makeRow('DIAL SIZE', dialSizeSelect));
-  panel.appendChild(bannerRow);
-  panel.appendChild(makeRow('SCANLINES', scanSelect));
-  panel.appendChild(actionsEl);
+  inner.appendChild(titleEl);
+  inner.appendChild(makeRow('THEME',     themeSelect));
+  inner.appendChild(makeRow('TERMINAL SIZE', terminalSizeSelect));
+  inner.appendChild(makeRow('DIAL SIZE', dialSizeSelect));
+  inner.appendChild(bannerRow);
+  inner.appendChild(makeRow('SCANLINES', scanSelect));
+  inner.appendChild(actionsEl);
 
   // Keyboard shortcuts inside the panel
-  panel.addEventListener('keydown', e => {
+  inner.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
     if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
       e.preventDefault();
@@ -1291,8 +1294,15 @@ const settingsPanelEl = (() => {
     }
   });
 
-  // Insert inline — between #speed-dial and #output
-  outputEl.before(panel);
+  // Click outside the inner box → dismiss
+  panel.addEventListener('click', e => {
+    if (e.target === panel) { e.stopPropagation(); closeSettingsPanel(); }
+  });
+
+  panel.appendChild(inner);
+
+  // Append to body as a modal overlay (does not affect the terminal flex layout)
+  document.body.appendChild(panel);
   return panel;
 })();
 
