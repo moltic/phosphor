@@ -1147,6 +1147,12 @@ async function commitDialEdit() {
   // Auto-prefix scheme if missing
   if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
 
+  // Reject dangerous schemes
+  if (/^(javascript|data):/i.test(newUrl)) {
+    errorEl.textContent = 'URL scheme not allowed.';
+    return;
+  }
+
   const dials = await loadDials();
   const idx   = dials.findIndex(d => d.alias === alias);
   if (idx !== -1) {
@@ -1555,6 +1561,12 @@ const commands = {
         const url = /^[a-z][a-z0-9+\-.]*:\/\//i.test(rawUrl)
           ? rawUrl
           : `https://${rawUrl}`;
+
+        // Reject dangerous schemes
+        if (/^(javascript|data):/i.test(url)) {
+          printLine('Error: URL scheme not allowed.', 'line-err');
+          return;
+        }
 
         const dials = await loadDials();
 
