@@ -612,6 +612,26 @@ async function renderDials() {
   const dials = await loadDials();
   dialGridEl.innerHTML = '';
 
+  function arrayMove(arr, fromIndex, toIndex) {
+    const next = [...arr];
+    if (fromIndex < 0 || fromIndex >= next.length) return next;
+    const clampedTo = Math.max(0, Math.min(toIndex, next.length - 1));
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(clampedTo, 0, item);
+    return next;
+  }
+
+  async function moveDialAliasToIndex(alias, toIndex) {
+    const current = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === alias);
+    if (fromIndex === -1) return;
+    const next = arrayMove(current, fromIndex, toIndex);
+    await saveDials(next);
+    await renderDials();
+  }
+
+  let isDraggingDial = false;
+
   dials.forEach(dial => {
     const tile = document.createElement('a');
     tile.className = 'dial-tile';
@@ -619,6 +639,7 @@ async function renderDials() {
     tile.title = dial.url;
     tile.href = dial.url;
     tile.rel = 'noopener noreferrer';
+    tile.draggable = true;
 
     const img = document.createElement('img');
     img.className = 'dial-favicon';
@@ -636,7 +657,62 @@ async function renderDials() {
     // Allow native link behavior (middle-click, ctrl-click, etc). We only stop
     // propagation so the document focus handler doesn't steal focus.
     tile.addEventListener('click', e => {
+      // Prevent accidental navigation when the user just finished dragging.
+      if (isDraggingDial) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       e.stopPropagation();
+    });
+
+    tile.addEventListener('dragstart', e => {
+      isDraggingDial = true;
+      tile.classList.add('is-dragging');
+      try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dial.alias);
+      } catch {
+        // Some environments may restrict dataTransfer; reordering will just no-op.
+      }
+    });
+
+    tile.addEventListener('dragend', () => {
+      tile.classList.remove('is-dragging');
+      // Delay reset so the subsequent click (if any) can be suppressed.
+      setTimeout(() => { isDraggingDial = false; }, 0);
+    });
+
+    tile.addEventListener('dragover', e => {
+      // Required to allow dropping.
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    tile.addEventListener('drop', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fromAlias = e.dataTransfer?.getData('text/plain');
+      const toAlias = dial.alias;
+      if (!fromAlias || fromAlias === toAlias) return;
+
+      const current = await loadDials();
+      const fromIndex = current.findIndex(d => d.alias === fromAlias);
+      const toIndex = current.findIndex(d => d.alias === toAlias);
+      if (fromIndex === -1 || toIndex === -1) return;
+
+      const rect = tile.getBoundingClientRect();
+      const before = e.clientX < (rect.left + rect.width / 2);
+
+      // Compute insertion index (before/after), then adjust for removal shift.
+      let insertIndex = toIndex + (before ? 0 : 1);
+      if (fromIndex < insertIndex) insertIndex -= 1;
+      insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+
+      const next = arrayMove(current, fromIndex, insertIndex);
+      await saveDials(next);
+      await renderDials();
     });
 
     // Right-click → context menu
@@ -648,6 +724,33 @@ async function renderDials() {
 
     dialGridEl.appendChild(tile);
   });
+
+  // Drop on empty space in the grid → move dragged tile to the end.
+  if (!dialGridEl.dataset.dndBound) {
+    dialGridEl.dataset.dndBound = '1';
+
+    dialGridEl.addEventListener('dragover', e => {
+      // Allow drop; if we're over a tile, that tile's handler will run.
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    dialGridEl.addEventListener('drop', async e => {
+      const tile = e.target.closest('.dial-tile');
+      if (tile) return; // handled by tile drop
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fromAlias = e.dataTransfer?.getData('text/plain');
+      if (!fromAlias) return;
+      const current = await loadDials();
+      const fromIndex = current.findIndex(d => d.alias === fromAlias);
+      if (fromIndex === -1) return;
+
+      await moveDialAliasToIndex(fromAlias, current.length - 1);
+    });
+  }
 }
 
 // ── Context menu ─────────────────────────────────────────────────
