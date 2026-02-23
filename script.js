@@ -1335,9 +1335,14 @@ const commands = {
       printBlank();
 
       // Build the table dynamically from the registry itself
+      const COL = 26;
       Object.entries(commands).forEach(([, cmd]) => {
-        const usageCol = cmd.usage.padEnd(26);
-        printLine(`  ${usageCol} ${cmd.description}`, 'line-out');
+        if (cmd.usage.length <= COL) {
+          printLine(`  ${cmd.usage.padEnd(COL)} ${cmd.description}`, 'line-out');
+        } else {
+          printLine(`  ${cmd.usage}`, 'line-out');
+          printLine(`  ${' '.repeat(COL)} ${cmd.description}`, 'line-info');
+        }
       });
 
       printBlank();
