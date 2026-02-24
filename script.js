@@ -1781,7 +1781,15 @@ const commands = {
       // Build the table dynamically from the registry itself
       const COL = 26;
       const DESC_START = 2 + COL + 1;   // characters before description text
-      const MAX_WIDTH  = 72;             // total columns before wrapping
+      // Measure actual container width in monospace characters
+      const _probe = document.createElement('span');
+      _probe.className = 'line line-out';
+      _probe.style.cssText = 'visibility:hidden;position:absolute;white-space:pre';
+      _probe.textContent = 'x'.repeat(80);
+      outputEl.appendChild(_probe);
+      const _charW = _probe.getBoundingClientRect().width / 80;
+      outputEl.removeChild(_probe);
+      const MAX_WIDTH  = _charW > 0 ? Math.floor(outputEl.clientWidth / _charW) - 1 : 90;
       const DESC_WIDTH = MAX_WIDTH - DESC_START;
       const indent     = ' '.repeat(DESC_START);
 
