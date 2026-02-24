@@ -1086,9 +1086,7 @@ function _createTileEl(dial) {
 
   const labelEl = document.createElement('span');
   labelEl.className = 'dial-label';
-  const _labelText = dial.label || dial.alias;
-  labelEl.textContent = _labelText;
-  if (_labelText.length > 10) tile.dataset.long = '';
+  labelEl.textContent = dial.label || dial.alias;
   tile.appendChild(labelEl);
 
   // Allow native link behaviour (middle-click, ctrl-click, etc.). We only stop
@@ -1188,8 +1186,6 @@ function _patchTileEl(tile, dial) {
   if (prevLabel !== label) {
     const labelEl = tile.querySelector('.dial-label');
     if (labelEl) labelEl.textContent = label;
-    if (label.length > 10) tile.dataset.long = '';
-    else delete tile.dataset.long;
   }
 
   if (prev.url !== dial.url || prevLabel !== label) {

@@ -417,10 +417,6 @@ html, body {
     0 0 5px var(--glow-soft);
 }
 
-.dial-tile[data-long] {
-  font-size: 0.78em;
-}
-
 .dial-label {
   color: var(--fg);
   font-family: var(--font-stack);
