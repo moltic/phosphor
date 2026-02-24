@@ -3657,8 +3657,22 @@ async function printBootSequence() {
   }
 }
 
+// ── Re-focus the terminal input whenever the window itself receives focus,
+//    unless an overlay (settings panel, dial editor) is currently open.
+//    This counters Chrome's NTP behaviour of keeping the omnibar focused.
+window.addEventListener('focus', () => {
+  const overlayOpen =
+    settingsPanelEl?.classList.contains('visible') ||
+    document.getElementById('dial-edit-dialog')?.classList.contains('visible');
+  if (!overlayOpen) inputEl.focus();
+});
+
 async function init() {
   sessionStart = Date.now();
+
+  // Grab focus immediately — before any async work — so keystrokes land in
+  // the terminal rather than the browser omnibar.
+  inputEl.focus();
 
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
@@ -3697,8 +3711,11 @@ async function init() {
     printBlank();
   }
 
-  // Always focus the command input on load
+  // Always focus the command input on load.
+  // The setTimeout(0) gives Chrome one more tick to finish any internal
+  // focus bookkeeping before we claim the caret.
   inputEl.focus();
+  setTimeout(() => inputEl.focus(), 0);
 }
 
 // ============================================================
