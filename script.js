@@ -3,12 +3,15 @@
 //  Retro phosphor terminal New Tab override  (Chrome MV3)
 // ============================================================
 //
-//  Storage schema  (chrome.storage.local):
+//  Storage schema  (chrome.storage.sync):
 //    {
-//      notes: [
-//        { id: string, text: string, ts: number }   // ts = Date.now()
-//      ]
+//      dials: [ { alias, label, url, icon? } ],
+//      notes: [ { id: string, text: string, ts: number } ],  // ts = Date.now()
+//      prefs: { theme, terminalSize, dialSize, scanlines, bannerText, … }
 //    }
+//
+//  On first run the extension migrates any existing chrome.storage.local data
+//  into sync automatically (one-time, guarded by _syncMigrated flag in local).
 //
 //  Architecture:
 //    1.  DOM refs & constants
@@ -654,48 +657,48 @@ function syncDisplay() {
 // ============================================================
 
 /**
- * Load notes array from chrome.storage.local.
+ * Load notes array from chrome.storage.sync.
  * @returns {Promise<Array<{id:string, text:string, ts:number}>>}
  */
 async function loadNotes() {
-  const data = await chrome.storage.local.get({ notes: [] });
+  const data = await chrome.storage.sync.get({ notes: [] });
   return data.notes;
 }
 
 /**
- * Persist the notes array back to chrome.storage.local.
+ * Persist the notes array back to chrome.storage.sync.
  * @param {Array<{id:string, text:string, ts:number}>} notes
  * @returns {Promise<void>}
  */
 function saveNotes(notes) {
-  return chrome.storage.local.set({ notes });
+  return chrome.storage.sync.set({ notes });
 }
 
 /**
- * Load speed-dial entries from chrome.storage.local.
+ * Load speed-dial entries from chrome.storage.sync.
  * @returns {Promise<Array<{alias:string, label:string, url:string, icon?:string}>>}
  */
 async function loadDials() {
-  const data = await chrome.storage.local.get({ dials: [] });
+  const data = await chrome.storage.sync.get({ dials: [] });
   return data.dials;
 }
 
 /**
- * Persist speed-dial entries back to chrome.storage.local.
+ * Persist speed-dial entries back to chrome.storage.sync.
  * @param {Array<{alias:string, label:string, url:string, icon?:string}>} dials
  * @returns {Promise<void>}
  */
 function saveDials(dials) {
-  return chrome.storage.local.set({ dials });
+  return chrome.storage.sync.set({ dials });
 }
 
 /**
- * Load user preferences from chrome.storage.local.
+ * Load user preferences from chrome.storage.sync.
  * Falls back to DEFAULT_PREFS for any missing key.
  * @returns {Promise<{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}>}
  */
 async function loadPrefs() {
-  const data = await chrome.storage.local.get({ prefs: {} });
+  const data = await chrome.storage.sync.get({ prefs: {} });
   const stored = data.prefs || {};
   const merged = { ...DEFAULT_PREFS, ...stored };
 
@@ -708,12 +711,42 @@ async function loadPrefs() {
 }
 
 /**
- * Persist user preferences to chrome.storage.local.
+ * Persist user preferences to chrome.storage.sync.
  * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}} prefs
  * @returns {Promise<void>}
  */
 function savePrefs(prefs) {
-  return chrome.storage.local.set({ prefs });
+  return chrome.storage.sync.set({ prefs });
+}
+
+/**
+ * One-time migration: copy any existing chrome.storage.local data into
+ * chrome.storage.sync so that users who already have dials/notes/prefs
+ * don't lose them when switching to sync-backed storage.
+ * Guarded by a `_syncMigrated` flag written back to local so it only
+ * runs once per machine.
+ */
+async function migrateLocalToSync() {
+  const flag = await chrome.storage.local.get({ _syncMigrated: false });
+  if (flag._syncMigrated) return;
+
+  const local  = await chrome.storage.local.get({ dials: [], notes: [], prefs: {} });
+  const synced = await chrome.storage.sync.get({ dials: [], notes: [] });
+
+  // Only push local data if sync is still empty (don't overwrite a real sync store)
+  const syncIsEmpty = synced.dials.length === 0 && synced.notes.length === 0;
+  if (syncIsEmpty) {
+    const toSync = {};
+    if (local.dials.length > 0)                 toSync.dials = local.dials;
+    if (local.notes.length > 0)                 toSync.notes = local.notes;
+    if (Object.keys(local.prefs).length > 0)    toSync.prefs = local.prefs;
+    if (Object.keys(toSync).length > 0) {
+      await chrome.storage.sync.set(toSync);
+      console.info('[Phosphor] Migrated local storage → sync:', Object.keys(toSync));
+    }
+  }
+
+  await chrome.storage.local.set({ _syncMigrated: true });
 }
 
 /**
@@ -3768,6 +3801,9 @@ async function printBootSequence() {
 
 async function init() {
   sessionStart = Date.now();
+
+  // Migrate any existing local data into sync (runs once per machine, no-op thereafter)
+  await migrateLocalToSync();
 
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
