@@ -548,6 +548,28 @@ function printRule(char = '─', length = 58) {
 }
 
 /**
+ * Word-wrap `text` so no line exceeds `maxWidth` characters.
+ * Returns an array of lines.
+ */
+function wrapWords(text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    if (!current) {
+      current = word;
+    } else if (current.length + 1 + word.length <= maxWidth) {
+      current += ' ' + word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/**
  * Append a pre-rendered neon banner (HTML from buildBannerHtml) to #output.
  * @param {string} html – innerHTML produced by buildBannerHtml(), not user input
  */
@@ -1758,12 +1780,22 @@ const commands = {
 
       // Build the table dynamically from the registry itself
       const COL = 26;
+      const DESC_START = 2 + COL + 1;   // characters before description text
+      const MAX_WIDTH  = 72;             // total columns before wrapping
+      const DESC_WIDTH = MAX_WIDTH - DESC_START;
+      const indent     = ' '.repeat(DESC_START);
+
       Object.entries(commands).forEach(([, cmd]) => {
+        const descLines = wrapWords(cmd.description, DESC_WIDTH);
         if (cmd.usage.length <= COL) {
-          printLine(`  ${cmd.usage.padEnd(COL)} ${cmd.description}`, 'line-out');
+          printLine(`  ${cmd.usage.padEnd(COL)} ${descLines[0]}`, 'line-out');
         } else {
           printLine(`  ${cmd.usage}`, 'line-out');
-          printLine(`  ${' '.repeat(COL)} ${cmd.description}`, 'line-info');
+          printLine(`${indent}${descLines[0]}`, 'line-info');
+        }
+        // continuation lines always use info style, indented under description
+        for (let i = 1; i < descLines.length; i++) {
+          printLine(`${indent}${descLines[i]}`, 'line-info');
         }
       });
 
