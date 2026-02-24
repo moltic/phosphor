@@ -258,7 +258,10 @@ function renderHeaderBanner(text) {
   const bannerText = normalized || DEFAULT_BANNER;
 
   const raw = renderLegacyBannerText(bannerText);
-  return { kind: 'text', value: raw };
+  // Use the HTML grid renderer (with original glyphs preserved) so every
+  // character occupies an explicit fixed-width cell. This prevents per-glyph
+  // font fallback from skewing columns in the header.
+  return { kind: 'html', value: buildBannerHtml(raw, { preserveGlyphs: true }) };
 }
 
 const DEFAULT_PREFS = {
@@ -400,22 +403,55 @@ async function updateBannerMetrics() {
   }
 
   const root = document.documentElement;
+  const GLYPHS = ['█', '╗', '╔', '╝', '╚', '═', '║'];
 
-  const pre = document.createElement('pre');
-  pre.className = 'banner-output';
-  pre.style.cssText =
-    'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
-    'margin:0;padding:0;border:0;white-space:pre;';
+  function measureMaxWidthFor(preEl) {
+    const spans = GLYPHS.map((g) => {
+      const s = document.createElement('span');
+      s.textContent = g;
+      preEl.appendChild(s);
+      return s;
+    });
+    const widths = spans.map(s => s.getBoundingClientRect().width);
+    return Math.max(0, ...widths);
+  }
 
-  const span = document.createElement('span');
-  span.textContent = '█';
-  pre.appendChild(span);
-  document.body.appendChild(pre);
+  // Measure the banner command output sizing (uses .banner-output CSS).
+  {
+    const pre = document.createElement('pre');
+    pre.className = 'banner-output';
+    pre.style.cssText =
+      'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
+      'margin:0;padding:0;border:0;white-space:pre;';
+    document.body.appendChild(pre);
+    const maxW = measureMaxWidthFor(pre);
+    document.body.removeChild(pre);
+    if (maxW) root.style.setProperty('--banner-output-cell-w', maxW + 'px');
+  }
 
-  const rect = span.getBoundingClientRect();
-  document.body.removeChild(pre);
-
-  if (rect.width) root.style.setProperty('--banner-output-cell-w', rect.width + 'px');
+  // Measure the header banner sizing (depends on fitBanner()'s inline font-size).
+  {
+    const header = document.getElementById('ascii-art');
+    if (header) {
+      const cs = getComputedStyle(header);
+      const pre = document.createElement('pre');
+      pre.style.cssText =
+        'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
+        'margin:0;padding:0;border:0;white-space:pre;';
+      pre.style.fontFamily = cs.fontFamily;
+      pre.style.fontSize = cs.fontSize;
+      pre.style.fontWeight = cs.fontWeight;
+      pre.style.fontStyle = cs.fontStyle;
+      pre.style.letterSpacing = cs.letterSpacing;
+      pre.style.fontKerning = 'none';
+      pre.style.fontVariantLigatures = 'none';
+      pre.style.fontFeatureSettings = '"liga" 0, "kern" 0';
+      document.body.appendChild(pre);
+      const maxW = measureMaxWidthFor(pre);
+      document.body.removeChild(pre);
+      if (maxW) root.style.setProperty('--banner-header-cell-w', maxW + 'px');
+    }
+  }
 }
 
 /**
@@ -671,6 +707,8 @@ async function applyPrefs(prefs) {
       const rendered = renderHeaderBanner(prefs.bannerText || DEFAULT_BANNER);
       setAsciiArt(asciiArtEl, rendered.value, { asHtml: rendered.kind === 'html' });
       await fitBanner(asciiArtEl);
+      // fitBanner() changes the header font-size; measure after it settles.
+      await updateBannerMetrics();
     } catch {
       setAsciiArt(asciiArtEl, prefs.bannerText || DEFAULT_BANNER, { asHtml: false });
     }

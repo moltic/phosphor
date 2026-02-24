@@ -173,6 +173,9 @@ html, body {
   flex: 1 1 auto;
   min-width: 0;
   position: relative;
+  /* Header banner uses its own measured cell width because fitBanner() sets an
+     inline font-size that differs from .banner-output. */
+  --banner-cell-w: var(--banner-header-cell-w, 1ch);
   color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.72rem; /* base — fitBanner() scales this to fill the header */
@@ -197,6 +200,14 @@ html, body {
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "kern" 0;
   text-rendering: optimizeSpeed;
+}
+
+/* The header banner should look identical to the previous plain-text <pre>.
+   We only use spans to lock the layout to a stable cell grid. */
+#ascii-art .b-cell {
+  color: inherit;
+  text-shadow: inherit;
+  opacity: inherit;
 }
 
 #ascii-art::before {
