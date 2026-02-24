@@ -440,8 +440,8 @@ html, body {
      Extra vertical padding makes this tile — and therefore its entire
      flex row — slightly taller than the other rows. */
   align-items: stretch;
-  padding-top: 0.75em;
-  padding-bottom: 0.65em;
+  padding-top: 0.58em;
+  padding-bottom: 0.45em;
 }
 
 .dial-weather-row1 {
