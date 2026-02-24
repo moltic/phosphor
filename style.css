@@ -436,8 +436,12 @@ html, body {
 /* ── Weather Dial tile ──────────────────────────────────────── */
 .dial-tile--weather {
   /* Weather tile uses 2 rows: (icon + temp) and location label.
-     Stretch horizontally so row 1 can left/right align content. */
+     Stretch horizontally so row 1 can left/right align content.
+     Extra vertical padding makes this tile — and therefore its entire
+     flex row — slightly taller than the other rows. */
   align-items: stretch;
+  padding-top: 0.75em;
+  padding-bottom: 0.65em;
 }
 
 .dial-weather-row1 {
