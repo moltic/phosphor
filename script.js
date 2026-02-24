@@ -3657,15 +3657,32 @@ async function printBootSequence() {
   }
 }
 
-// ── Re-focus the terminal input whenever the window itself receives focus,
-//    unless an overlay (settings panel, dial editor) is currently open.
-//    This counters Chrome's NTP behaviour of keeping the omnibar focused.
-window.addEventListener('focus', () => {
-  const overlayOpen =
-    settingsPanelEl?.classList.contains('visible') ||
-    document.getElementById('dial-edit-dialog')?.classList.contains('visible');
-  if (!overlayOpen) inputEl.focus();
-});
+// ── Chrome's NTP always starts with the omnibar focused; JS cannot steal
+//    that focus directly.  Poll document.hasFocus() at a low rate — as soon
+//    as the user presses Escape (or clicks the page), the document gains
+//    focus and we immediately route it to the terminal input.
+//    Polling stops after 30 s or once focus is claimed.
+(function claimFocusWhenReady() {
+  if (document.hasFocus()) {
+    inputEl.focus();
+    return;
+  }
+  const INTERVAL = 150;   // ms between checks
+  const TIMEOUT  = 30_000; // give up after 30 s
+  let elapsed = 0;
+  const timer = setInterval(() => {
+    elapsed += INTERVAL;
+    if (document.hasFocus()) {
+      clearInterval(timer);
+      const overlayOpen =
+        settingsPanelEl?.classList.contains('visible') ||
+        document.getElementById('dial-edit-dialog')?.classList.contains('visible');
+      if (!overlayOpen) inputEl.focus();
+    } else if (elapsed >= TIMEOUT) {
+      clearInterval(timer);
+    }
+  }, INTERVAL);
+}());
 
 async function init() {
   sessionStart = Date.now();
@@ -3711,11 +3728,9 @@ async function init() {
     printBlank();
   }
 
-  // Always focus the command input on load.
-  // The setTimeout(0) gives Chrome one more tick to finish any internal
-  // focus bookkeeping before we claim the caret.
+  // Attempt to focus now; the claimFocusWhenReady() poller (above) will
+  // ensure focus lands here once Chrome yields it from the omnibar.
   inputEl.focus();
-  setTimeout(() => inputEl.focus(), 0);
 }
 
 // ============================================================
