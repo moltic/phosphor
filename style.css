@@ -433,6 +433,57 @@ html, body {
   min-height: 2.1em;
 }
 
+/* ── Weather Dial tile ──────────────────────────────────────── */
+.dial-tile--weather {
+  /* Slightly taller to fit icon + temp + condition + city */
+  min-height: 5em;
+  justify-content: center;
+  gap: 0.1em;
+}
+
+.dial-weather-icon {
+  font-size: 1.5em;
+  line-height: 1;
+  display: block;
+  text-align: center;
+  /* Inherit theme glow for a phosphor feel */
+  filter: drop-shadow(0 0 4px var(--glow-soft));
+}
+
+.dial-weather-temp {
+  font-family: var(--font-stack);
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--fg-bright);
+  text-shadow: 0 0 8px var(--glow);
+  line-height: 1.1;
+  display: block;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.dial-weather-cond {
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  color: var(--fg-dim);
+  line-height: 1.1;
+  display: block;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Override label sizing for weather tile so city name stays compact */
+.dial-tile--weather .dial-label {
+  font-size: 0.78em;
+  min-height: unset;
+  -webkit-line-clamp: 1;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}
+
 /* ── Speed-dial Divider ─────────────────────────────────────── */
 .dial-divider {
   cursor: grab;

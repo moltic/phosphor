@@ -1250,6 +1250,278 @@ function _patchTileEl(tile, dial) {
   tile._dialData = { ...dial };
 }
 
+// ============================================================
+//  Weather Dial  (Open-Meteo + browser geolocation)
+// ============================================================
+
+/**
+ * WMO weather interpretation codes → display info.
+ * https://open-meteo.com/en/docs  (WMO Weather interpretation codes)
+ */
+const WMO_WEATHER = {
+  0:  { icon: '☀',  label: 'Clear'        },
+  1:  { icon: '🌤', label: 'Mostly Clear'  },
+  2:  { icon: '⛅', label: 'Partly Cloudy' },
+  3:  { icon: '☁',  label: 'Overcast'     },
+  45: { icon: '🌫', label: 'Fog'          },
+  48: { icon: '🌫', label: 'Icy Fog'      },
+  51: { icon: '🌦', label: 'Lt Drizzle'   },
+  53: { icon: '🌦', label: 'Drizzle'      },
+  55: { icon: '🌧', label: 'Hvy Drizzle'  },
+  61: { icon: '🌧', label: 'Lt Rain'      },
+  63: { icon: '🌧', label: 'Rain'         },
+  65: { icon: '🌧', label: 'Hvy Rain'     },
+  71: { icon: '🌨', label: 'Lt Snow'      },
+  73: { icon: '🌨', label: 'Snow'         },
+  75: { icon: '❄',  label: 'Hvy Snow'     },
+  77: { icon: '🌨', label: 'Snow Grains'  },
+  80: { icon: '🌦', label: 'Showers'      },
+  81: { icon: '🌦', label: 'Showers'      },
+  82: { icon: '⛈',  label: 'Hvy Showers'  },
+  85: { icon: '🌨', label: 'Snow Shower'  },
+  86: { icon: '❄',  label: 'Hvy Snow Shw' },
+  95: { icon: '⛈',  label: 'Thunderstorm' },
+  96: { icon: '⛈',  label: 'T-storm/Hail' },
+  99: { icon: '⛈',  label: 'Severe Storm' },
+};
+const WMO_FALLBACK = { icon: '☁', label: 'Unknown' };
+
+/** ms between automatic weather refreshes (10 min). */
+const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+
+/** Returns true when the user's locale typically uses Fahrenheit. */
+function _useFahrenheit() {
+  try {
+    const region = new Intl.Locale(navigator.language).maximize().region;
+    return ['US', 'LR', 'MM'].includes(region);
+  } catch {
+    return /^en(-US)?$/i.test(navigator.language ?? '');
+  }
+}
+
+/** alias → intervalId — tracks auto-refresh timers for weather tiles. */
+const _weatherIntervals = new Map();
+
+/**
+ * Resolve browser geolocation to {lat, lon}.
+ * Resolves immediately from cache if a fresh fix is available.
+ */
+function _getGeolocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('Geolocation unavailable')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      err => reject(err),
+      { timeout: 12_000, maximumAge: 5 * 60 * 1000 }
+    );
+  });
+}
+
+/**
+ * Fetch current weather from Open-Meteo (no API key required).
+ * Returns { temp, symbol, code, condition, icon }.
+ */
+async function _fetchWeatherData(lat, lon) {
+  const useFahr = _useFahrenheit();
+  const unitParam = useFahr ? 'fahrenheit' : 'celsius';
+  const symbol    = useFahr ? '°F' : '°C';
+  const resp = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current_weather=true&temperature_unit=${unitParam}`
+  );
+  if (!resp.ok) throw new Error(`Open-Meteo HTTP ${resp.status}`);
+  const data = await resp.json();
+  const cw   = data?.current_weather;
+  if (!cw) throw new Error('No current_weather in response');
+  const code = cw.weathercode ?? 0;
+  const { icon, label } = WMO_WEATHER[code] ?? WMO_FALLBACK;
+  return { temp: Math.round(cw.temperature), symbol, code, condition: label, icon };
+}
+
+/**
+ * Reverse-geocode lat/lon to a city name using Nominatim.
+ * Result is cached in chrome.storage.local (keyed by rounded coords).
+ */
+async function _getCityName(lat, lon) {
+  const key = `weatherCity_${Math.round(lat * 10)}_${Math.round(lon * 10)}`;
+  const cached = await chrome.storage.local.get({ [key]: null });
+  if (cached[key]) return cached[key];
+  try {
+    const resp = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!resp.ok) throw new Error('Geocode failed');
+    const data = await resp.json();
+    const city =
+      data?.address?.city    ||
+      data?.address?.town    ||
+      data?.address?.village ||
+      data?.address?.county  ||
+      `${lat.toFixed(1)},${lon.toFixed(1)}`;
+    await chrome.storage.local.set({ [key]: city });
+    return city;
+  } catch {
+    return `${lat.toFixed(1)},${lon.toFixed(1)}`;
+  }
+}
+
+/** Push weather values into the tile's display elements. */
+function _setWeatherTileContent(tile, { icon, temp, symbol, city, condition }) {
+  const iconEl  = tile.querySelector('.dial-weather-icon');
+  const tempEl  = tile.querySelector('.dial-weather-temp');
+  const condEl  = tile.querySelector('.dial-weather-cond');
+  const labelEl = tile.querySelector('.dial-label');
+  if (iconEl)  iconEl.textContent  = icon ?? '☁';
+  if (tempEl)  tempEl.textContent  = temp != null ? `${temp}${symbol}` : '--';
+  if (condEl)  condEl.textContent  = condition ?? '';
+  if (labelEl && city) labelEl.textContent = city;
+}
+
+/**
+ * Fetch fresh weather data and update the tile.
+ * Silently no-ops if the tile has been removed from the DOM.
+ */
+async function _refreshWeatherTile(tile) {
+  if (!tile.isConnected) return;
+  try {
+    const { lat, lon } = await _getGeolocation();
+    const [weather, city] = await Promise.all([
+      _fetchWeatherData(lat, lon),
+      _getCityName(lat, lon),
+    ]);
+    await chrome.storage.local.set({ weatherLast: { ...weather, city } });
+    _setWeatherTileContent(tile, { ...weather, city });
+  } catch (err) {
+    console.warn('[Phosphor] Weather refresh failed:', err?.message ?? err);
+    const iconEl = tile.querySelector('.dial-weather-icon');
+    const tempEl = tile.querySelector('.dial-weather-temp');
+    if (iconEl && iconEl.textContent === '⏳') iconEl.textContent = '?';
+    if (tempEl && tempEl.textContent === '--') tempEl.textContent = '--';
+  }
+}
+
+/** Create the weather dial tile element. */
+function _createWeatherTileEl(dial) {
+  const tile = document.createElement('a');
+  tile.className     = 'dial-tile dial-tile--weather';
+  tile.dataset.alias = dial.alias;
+  tile.dataset.type  = 'weather';
+  tile.href          = dial.url || 'https://wttr.in';
+  tile.rel           = 'noopener noreferrer';
+  tile.draggable     = true;
+  tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://wttr.in'}`);
+
+  // ── Icon (condition emoji)
+  const iconEl = document.createElement('span');
+  iconEl.className   = 'dial-weather-icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  iconEl.textContent = '⏳';
+
+  // ── Temperature line
+  const tempEl = document.createElement('span');
+  tempEl.className   = 'dial-weather-temp';
+  tempEl.textContent = '--';
+
+  // ── Condition text
+  const condEl = document.createElement('span');
+  condEl.className   = 'dial-weather-cond';
+  condEl.textContent = '';
+
+  // ── City / location label
+  const labelEl = document.createElement('span');
+  labelEl.className   = 'dial-label';
+  labelEl.textContent = dial.label || 'WEATHER';
+
+  tile.appendChild(iconEl);
+  tile.appendChild(tempEl);
+  tile.appendChild(condEl);
+  tile.appendChild(labelEl);
+
+  // ── Standard DnD + click events (same pattern as _createTileEl) ──────────
+  tile.addEventListener('click', e => {
+    if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
+    e.stopPropagation();
+  });
+
+  tile.addEventListener('dragstart', e => {
+    _isDraggingDial = true;
+    hideDropIndicator();
+    tile.classList.add('is-dragging');
+    dialGridEl.classList.add('is-dragging-dial');
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dial.alias); } catch { /* ignore */ }
+  });
+
+  tile.addEventListener('dragend', () => {
+    tile.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+  });
+
+  tile.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (tile.classList.contains('is-dragging')) return;
+    previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
+  });
+
+  tile.addEventListener('drop', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropIndicator();
+    dialGridEl.classList.remove('is-dragging-dial');
+    const fromAlias = e.dataTransfer?.getData('text/plain');
+    const toAlias   = dial.alias;
+    if (!fromAlias || fromAlias === toAlias) return;
+    const current = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === fromAlias);
+    const toIndex   = current.findIndex(d => d.alias === toAlias);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const rect   = tile.getBoundingClientRect();
+    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
+    let insertIndex = toIndex + (before ? 0 : 1);
+    if (fromIndex < insertIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+    const next = _arrayMove(current, fromIndex, insertIndex);
+    await saveDials(next);
+    await renderDials();
+  });
+
+  tile.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias, false, true);
+  });
+
+  tile._dialData = { ...dial };
+
+  // ── Bootstrap live data ───────────────────────────────────────────────────
+  // Show cached reading instantly, then kick off a live fetch.
+  chrome.storage.local.get({ weatherLast: null }).then(({ weatherLast }) => {
+    if (weatherLast && tile.isConnected) {
+      _setWeatherTileContent(tile, weatherLast);
+    }
+    _refreshWeatherTile(tile);
+  });
+
+  // Schedule automatic refresh every WEATHER_REFRESH_MS.
+  const intervalId = setInterval(() => _refreshWeatherTile(tile), WEATHER_REFRESH_MS);
+  _weatherIntervals.set(dial.alias, intervalId);
+
+  return tile;
+}
+
+/** Patch a cached weather tile's URL; live content continues auto-updating. */
+function _patchWeatherTileEl(tile, dial) {
+  const prev = tile._dialData ?? {};
+  if (prev.url !== dial.url) {
+    tile.href = dial.url || 'https://wttr.in';
+    tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://wttr.in'}`);
+  }
+  tile._dialData = { ...dial };
+}
+
 // ── renderDials (incremental / diffing) ───────────────────────────────────────
 
 /**
@@ -1280,12 +1552,16 @@ async function renderDials() {
     if (cached) {
       if (dial.type === 'divider') {
         _patchDividerEl(cached, dial);
+      } else if (dial.type === 'weather') {
+        _patchWeatherTileEl(cached, dial);
       } else {
         _patchTileEl(cached, dial);
       }
       return cached;
     }
-    const el = dial.type === 'divider' ? _createDividerEl(dial) : _createTileEl(dial);
+    const el = dial.type === 'divider' ? _createDividerEl(dial)
+             : dial.type === 'weather'  ? _createWeatherTileEl(dial)
+             : _createTileEl(dial);
     _dialNodeCache.set(dial.alias, el);
     return el;
   });
@@ -1296,6 +1572,11 @@ async function renderDials() {
     if (!desiredAliases.has(alias)) {
       el.remove();
       _dialNodeCache.delete(alias);
+      // Clear weather refresh timer if this was a weather tile.
+      if (_weatherIntervals.has(alias)) {
+        clearInterval(_weatherIntervals.get(alias));
+        _weatherIntervals.delete(alias);
+      }
     }
   }
 
@@ -1392,19 +1673,37 @@ const ctxMenuEl = (() => {
     await removeDial(alias);
   });
 
+  const refreshWeatherBtn = document.createElement('button');
+  refreshWeatherBtn.className = 'ctx-menu-item';
+  refreshWeatherBtn.dataset.action = 'refresh-weather';
+  refreshWeatherBtn.setAttribute('role', 'menuitem');
+  refreshWeatherBtn.setAttribute('tabindex', '-1');
+  refreshWeatherBtn.textContent = 'Refresh weather';
+  refreshWeatherBtn.style.display = 'none'; // shown only for weather tiles
+  refreshWeatherBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    const el = _dialNodeCache.get(alias);
+    if (el) _refreshWeatherTile(el);
+  });
+
   menu.appendChild(openTabBtn);
   menu.appendChild(editBtn);
+  menu.appendChild(refreshWeatherBtn);
   menu.appendChild(removeBtn);
   document.body.appendChild(menu);
   return menu;
 })();
 
-function showDialCtxMenu(x, y, alias, isDivider = false) {
+function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = false) {
   ctxMenuEl.dataset.target = alias;
-  const ctxEditBtn    = ctxMenuEl.querySelector('[data-action="edit"]');
-  const ctxOpenTabBtn = ctxMenuEl.querySelector('[data-action="open-tab"]');
-  if (ctxEditBtn)    ctxEditBtn.style.display    = isDivider ? 'none' : '';
-  if (ctxOpenTabBtn) ctxOpenTabBtn.style.display = isDivider ? 'none' : '';
+  const ctxEditBtn           = ctxMenuEl.querySelector('[data-action="edit"]');
+  const ctxOpenTabBtn        = ctxMenuEl.querySelector('[data-action="open-tab"]');
+  const ctxRefreshWeatherBtn = ctxMenuEl.querySelector('[data-action="refresh-weather"]');
+  if (ctxEditBtn)           ctxEditBtn.style.display           = isDivider ? 'none' : '';
+  if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = isDivider ? 'none' : '';
+  if (ctxRefreshWeatherBtn) ctxRefreshWeatherBtn.style.display = isWeather ? '' : 'none';
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
@@ -1536,37 +1835,63 @@ async function showDialEditDialog(alias) {
   const dial  = dials.find(d => d.alias === alias);
   if (!dial) return;
 
-  editDialogEl.dataset.target = alias;
-  document.getElementById('dial-edit-label').value = dial.label || dial.alias;
-  document.getElementById('dial-edit-url').value   = dial.url;
-  document.getElementById('dial-edit-icon').value  = dial.icon || '';
+  const isWeather = dial.type === 'weather';
+
+  // Title
+  const titleEl = editDialogEl.querySelector('.dial-edit-title');
+  if (titleEl) titleEl.textContent = isWeather ? 'EDIT WEATHER DIAL' : 'EDIT DIAL';
+
+  // For weather dials, hide the label and icon rows (auto-populated from live data).
+  const labelInput = document.getElementById('dial-edit-label');
+  const iconInput  = document.getElementById('dial-edit-icon');
+  labelInput.hidden = isWeather;
+  iconInput.hidden  = isWeather;
+
+  editDialogEl.dataset.target   = alias;
+  editDialogEl.dataset.isWeather = isWeather ? '1' : '';
+  labelInput.value = dial.label || dial.alias;
+  document.getElementById('dial-edit-url').value  = dial.url || '';
+  iconInput.value = dial.icon || '';
+
   editDialogEl.showModal();
-  document.getElementById('dial-edit-label').focus();
+  (isWeather ? document.getElementById('dial-edit-url') : labelInput).focus();
 }
 
 function hideDialEditDialog() {
   editDialogEl.close();
   delete editDialogEl.dataset.target;
+  delete editDialogEl.dataset.isWeather;
+  // Restore hidden fields so a regular dial edit opened next looks correct.
+  const labelInput = document.getElementById('dial-edit-label');
+  const iconInput  = document.getElementById('dial-edit-icon');
+  if (labelInput) labelInput.hidden = false;
+  if (iconInput)  iconInput.hidden  = false;
+  const titleEl = editDialogEl.querySelector('.dial-edit-title');
+  if (titleEl) titleEl.textContent = 'EDIT DIAL';
   document.getElementById('dial-edit-error').textContent = '';
   inputEl.focus();
 }
 
 async function commitDialEdit() {
-  const alias    = editDialogEl.dataset.target;
-  const newLabel = document.getElementById('dial-edit-label').value.trim();
-  let   newUrl   = document.getElementById('dial-edit-url').value.trim();
-  const newIconRaw = document.getElementById('dial-edit-icon').value;
+  const alias     = editDialogEl.dataset.target;
+  const isWeather = editDialogEl.dataset.isWeather === '1';
+  if (!alias) return;
+
+  // For weather tiles only the URL (click destination) is editable.
+  const labelInput = document.getElementById('dial-edit-label');
+  const urlInput   = document.getElementById('dial-edit-url');
+  const newLabel = isWeather ? labelInput.value.trim() : labelInput.value.trim();
+  let   newUrl   = urlInput.value.trim();
+  const newIconRaw = isWeather ? '' : document.getElementById('dial-edit-icon').value;
   const newIcon = normalizeDialIcon(newIconRaw);
 
   const errorEl = document.getElementById('dial-edit-error');
-  if (!newLabel && !newUrl) {
-    errorEl.textContent = 'Label and URL are required.';
-    return;
+  if (!isWeather) {
+    if (!newLabel && !newUrl) { errorEl.textContent = 'Label and URL are required.'; return; }
+    if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
   }
-  if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
-  if (!newUrl)   { errorEl.textContent = 'URL is required.';   return; }
+  if (!newUrl) { errorEl.textContent = 'URL is required.'; return; }
   errorEl.textContent = '';
-  if (!alias) return;
 
   // Auto-prefix scheme if missing
   if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
@@ -1580,9 +1905,12 @@ async function commitDialEdit() {
   const dials = await loadDials();
   const idx   = dials.findIndex(d => d.alias === alias);
   if (idx !== -1) {
-    const next = { ...dials[idx], alias, label: newLabel, url: newUrl };
-    if (!newIcon) delete next.icon;
-    else next.icon = newIcon;
+    const next = { ...dials[idx], alias, url: newUrl };
+    if (!isWeather) {
+      next.label = newLabel;
+      if (!newIcon) delete next.icon;
+      else next.icon = newIcon;
+    }
     dials[idx] = next;
     await saveDials(dials);
     await renderDials();
@@ -2127,6 +2455,7 @@ const commands = {
       } else {
         dials.forEach(d => {
           if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
+          if (d.type === 'weather') { printLine(`  [weather]       →  ${d.url}`, 'line-info'); return; }
           const labelCol = (d.label || d.alias).padEnd(14);
           printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
         });
@@ -2137,8 +2466,8 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial divider [row|col]',
-    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial divider [row|col]',
+    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial weather [url] | dial divider [row|col]',
+    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial weather [url]  |  dial divider [row|col]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -2220,6 +2549,21 @@ const commands = {
         const label = variant === 'col' ? 'Column divider' : 'Row divider';
         printLine(`✓ ${label} added. Drag to reorder, right-click to remove.`, 'line-ok');
 
+      } else if (sub === 'weather') {
+        // Add (or report existing) weather dial.
+        const dials = await loadDials();
+        const existing = dials.find(d => d.type === 'weather');
+        if (existing) {
+          printLine(`Weather dial already present (alias: "${existing.alias}"). Right-click it to edit the destination URL or remove it.`, 'line-info');
+          return;
+        }
+        const url = args[1] ? args[1] : 'https://wttr.in';
+        dials.push({ type: 'weather', alias: 'weather', label: 'WEATHER', url });
+        await saveDials(dials);
+        await renderDials();
+        printLine('✓ Weather dial added.  It will show live conditions using your browser location.', 'line-ok');
+        printLine('  Click the tile to open the weather site.  Right-click to change URL or remove.', 'line-info');
+
       } else {
         // No subcommand: list current dials
         const dials = await loadDials();
@@ -2236,6 +2580,10 @@ const commands = {
               printLine(`  ─── ${kind} ───`, 'line-info');
               return;
             }
+            if (d.type === 'weather') {
+              printLine(`  [weather]       →  ${d.url}`, 'line-info');
+              return;
+            }
             const labelCol = (d.label || d.alias).padEnd(14);
             printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
           });
@@ -2243,8 +2591,9 @@ const commands = {
         printBlank();
         printLine('  dial add     [alias ...] [url]  — add a new tile', 'line-info');
         printLine('  dial rm      [alias ...]        — remove a tile', 'line-info');
+        printLine('  dial weather [url]          — add a live weather tile', 'line-info');
         printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
-        printLine('  Right-click any tile        — Edit / Remove', 'line-info');
+        printLine('  Right-click any tile        — Edit / Refresh / Remove', 'line-info');
         printBlank();
       }
     },
