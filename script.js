@@ -276,8 +276,9 @@ const DEFAULT_PREFS = {
   terminalSize: 'medium',
   dialSize:     'medium',
   scanlines:    true,
-  bannerText:   DEFAULT_BANNER,
+  bannerText:   '',          // custom banner override; takes priority over greeting
   greetingMode: false,
+  greetingName: '',          // name shown in greeting (e.g. "good morning, Daniel")
   motd:         '',
   handle:       '',
   sessionCount: 0,
@@ -799,20 +800,22 @@ async function applyPrefs(prefs) {
 
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) {
+    // Priority: custom BANNER override > greeting > default
+    const bannerSource = prefs.bannerText
+      ? prefs.bannerText
+      : prefs.greetingMode
+        ? (prefs.greetingName
+            ? `${getGreetingPrefix()}, ${prefs.greetingName}`
+            : getGreetingPrefix())
+        : DEFAULT_BANNER;
     try {
-      const bannerSource = prefs.greetingMode && prefs.bannerText
-        ? `${getGreetingPrefix()}, ${prefs.bannerText}`
-        : (prefs.bannerText || DEFAULT_BANNER);
       const rendered = renderHeaderBanner(bannerSource);
       setAsciiArt(asciiArtEl, rendered.value, { asHtml: rendered.kind === 'html' });
       await fitBanner(asciiArtEl);
       // fitBanner() changes the header font-size; measure after it settles.
       await updateBannerMetrics();
     } catch {
-      const bannerFallback = prefs.greetingMode && prefs.bannerText
-        ? `${getGreetingPrefix()}, ${prefs.bannerText}`
-        : (prefs.bannerText || DEFAULT_BANNER);
-      setAsciiArt(asciiArtEl, bannerFallback, { asHtml: false });
+      setAsciiArt(asciiArtEl, bannerSource, { asHtml: false });
     }
   }
 
@@ -1655,30 +1658,34 @@ const settingsPanelEl = (() => {
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
 
+  // BANNER — custom override; if filled, greeting is ignored.
   const bannerInput = document.createElement('input');
-  bannerInput.id          = 's-banner';
-  bannerInput.className   = 'settings-input';
-  bannerInput.type        = 'text';
-  bannerInput.maxLength   = 24;
+  bannerInput.id           = 's-banner';
+  bannerInput.className    = 'settings-input';
+  bannerInput.type         = 'text';
+  bannerInput.maxLength    = 24;
   bannerInput.autocomplete = 'off';
-  bannerInput.spellcheck  = false;
-  bannerInput.placeholder = 'e.g. PHOSPHOR';
+  bannerInput.spellcheck   = false;
+  bannerInput.placeholder  = 'overrides greeting if set';
 
-  const scanSelect = makeSelect('s-scanlines', [
-    ['on', 'ON'], ['off', 'OFF'],
-  ]);
-
+  // GREETING toggle
   const greetingSelect = makeSelect('s-greeting', [
     ['off', 'OFF'], ['on', 'ON'],
   ]);
 
-  // When greeting mode toggles, relabel the BANNER field to NAME (and back).
-  greetingSelect.addEventListener('change', () => {
-    const isGreeting = greetingSelect.value === 'on';
-    bannerLabelEl.textContent  = isGreeting ? 'NAME'          : 'BANNER';
-    bannerInput.placeholder    = isGreeting ? 'e.g. DANIEL'   : 'e.g. PHOSPHOR';
-    bannerInput.maxLength      = isGreeting ? 32              : 24;
-  });
+  // NAME — used by the greeting (e.g. "good morning, Daniel")
+  const greetingNameInput = document.createElement('input');
+  greetingNameInput.id           = 's-greetingname';
+  greetingNameInput.className    = 'settings-input';
+  greetingNameInput.type         = 'text';
+  greetingNameInput.maxLength    = 32;
+  greetingNameInput.autocomplete = 'off';
+  greetingNameInput.spellcheck   = false;
+  greetingNameInput.placeholder  = 'e.g. DANIEL';
+
+  const scanSelect = makeSelect('s-scanlines', [
+    ['on', 'ON'], ['off', 'OFF'],
+  ]);
 
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
@@ -1696,22 +1703,13 @@ const settingsPanelEl = (() => {
   actionsEl.appendChild(saveBtn);
   actionsEl.appendChild(cancelBtn);
 
-  // Build banner row manually so we can hold a ref to the label element.
-  const bannerRow    = document.createElement('div');
-  bannerRow.className = 'settings-row';
-  const bannerLabelEl = document.createElement('label');
-  bannerLabelEl.className = 'settings-label';
-  bannerLabelEl.textContent = 'BANNER';
-  bannerLabelEl.htmlFor = bannerInput.id;
-  bannerRow.appendChild(bannerLabelEl);
-  bannerRow.appendChild(bannerInput);
-
   inner.appendChild(titleEl);
   inner.appendChild(makeRow('THEME',         themeSelect));
   inner.appendChild(makeRow('TERMINAL SIZE', terminalSizeSelect));
   inner.appendChild(makeRow('DIAL SIZE',     dialSizeSelect));
-  inner.appendChild(bannerRow);
+  inner.appendChild(makeRow('BANNER',        bannerInput));
   inner.appendChild(makeRow('GREETING',      greetingSelect));
+  inner.appendChild(makeRow('NAME',          greetingNameInput));
   inner.appendChild(makeRow('SCANLINES',     scanSelect));
   inner.appendChild(actionsEl);
 
@@ -1738,14 +1736,13 @@ const settingsPanelEl = (() => {
 
 async function openSettingsPanel() {
   const prefs = await loadPrefs();
-  document.getElementById('s-theme').value       = prefs.theme    || 'amber';
-  document.getElementById('s-terminalsize').value = prefs.terminalSize || prefs.fontSize || 'medium';
-  document.getElementById('s-dialsize').value    = prefs.dialSize || prefs.fontSize || 'medium';
-  document.getElementById('s-banner').value      = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
-  document.getElementById('s-greeting').value    = prefs.greetingMode ? 'on' : 'off';
-  document.getElementById('s-scanlines').value   = prefs.scanlines === false ? 'off' : 'on';
-  // Sync the banner label/placeholder to the persisted greeting state.
-  document.getElementById('s-greeting').dispatchEvent(new Event('change'));
+  document.getElementById('s-theme').value        = prefs.theme || 'amber';
+  document.getElementById('s-terminalsize').value  = prefs.terminalSize || prefs.fontSize || 'medium';
+  document.getElementById('s-dialsize').value      = prefs.dialSize || prefs.fontSize || 'medium';
+  document.getElementById('s-banner').value        = prefs.bannerText || '';
+  document.getElementById('s-greeting').value      = prefs.greetingMode ? 'on' : 'off';
+  document.getElementById('s-greetingname').value  = prefs.greetingName || '';
+  document.getElementById('s-scanlines').value     = prefs.scanlines === false ? 'off' : 'on';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -1756,13 +1753,13 @@ function closeSettingsPanel() {
 }
 
 async function commitSettings() {
-  const isGreeting = document.getElementById('s-greeting').value === 'on';
   const prefs = {
     theme:        document.getElementById('s-theme').value,
     terminalSize: document.getElementById('s-terminalsize').value,
     dialSize:     document.getElementById('s-dialsize').value,
-    bannerText:   document.getElementById('s-banner').value || (isGreeting ? '' : DEFAULT_BANNER),
-    greetingMode: isGreeting,
+    bannerText:   document.getElementById('s-banner').value.trim(),
+    greetingMode: document.getElementById('s-greeting').value === 'on',
+    greetingName: document.getElementById('s-greetingname').value.trim(),
     scanlines:    document.getElementById('s-scanlines').value === 'on',
   };
   await savePrefs(prefs);
