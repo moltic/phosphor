@@ -3657,39 +3657,8 @@ async function printBootSequence() {
   }
 }
 
-// ── Chrome's NTP always starts with the omnibar focused; JS cannot steal
-//    that focus directly.  Poll document.hasFocus() at a low rate — as soon
-//    as the user presses Escape (or clicks the page), the document gains
-//    focus and we immediately route it to the terminal input.
-//    Polling stops after 30 s or once focus is claimed.
-(function claimFocusWhenReady() {
-  if (document.hasFocus()) {
-    inputEl.focus();
-    return;
-  }
-  const INTERVAL = 150;   // ms between checks
-  const TIMEOUT  = 30_000; // give up after 30 s
-  let elapsed = 0;
-  const timer = setInterval(() => {
-    elapsed += INTERVAL;
-    if (document.hasFocus()) {
-      clearInterval(timer);
-      const overlayOpen =
-        settingsPanelEl?.classList.contains('visible') ||
-        document.getElementById('dial-edit-dialog')?.classList.contains('visible');
-      if (!overlayOpen) inputEl.focus();
-    } else if (elapsed >= TIMEOUT) {
-      clearInterval(timer);
-    }
-  }, INTERVAL);
-}());
-
 async function init() {
   sessionStart = Date.now();
-
-  // Grab focus immediately — before any async work — so keystrokes land in
-  // the terminal rather than the browser omnibar.
-  inputEl.focus();
 
   // Load prefs and render speed-dial concurrently; apply prefs before any painting
   const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
@@ -3728,8 +3697,7 @@ async function init() {
     printBlank();
   }
 
-  // Attempt to focus now; the claimFocusWhenReady() poller (above) will
-  // ensure focus lands here once Chrome yields it from the omnibar.
+  // Always focus the command input on load
   inputEl.focus();
 }
 
