@@ -353,11 +353,15 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 0.28em;
-  padding: 0.45em 0.6em;
+  /* Explicit 4-value padding so bottom always matches top. */
+  padding: 0.45em 0.6em 0.45em 0.6em;
   border: 1px solid var(--fg-dim);
   cursor: pointer;
   flex: 0 0 var(--dial-tile-width);
   width: var(--dial-tile-width);
+  /* Keep every tile the same size (square). */
+  height: var(--dial-tile-width);
+  aspect-ratio: 1 / 1;
   user-select: none;
   text-decoration: none;
   color: inherit;
