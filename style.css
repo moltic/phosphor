@@ -157,9 +157,9 @@ html, body {
 
 #logo {
   flex-shrink: 0;
-  height: 2.5rem;
+  height: 1.1em;
   width: auto;
-  margin-left: auto;
+  margin: 0;
   padding: 0;
   border: none;
   background: transparent;
@@ -963,8 +963,8 @@ html, body {
     margin-bottom: 0.35rem;
   }
   #logo {
-    height: 2rem;
-    padding: 0.12rem;
+    height: 1em;
+    padding: 0;
   }
   #ascii-art {
     padding: 0.24rem 0.34rem 0.18rem;
