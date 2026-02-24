@@ -353,7 +353,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 0.28em;
-  padding: 0.45em 0.6em 0.35em;
+  padding: 0.45em 0.6em;
   border: 1px solid var(--fg-dim);
   cursor: pointer;
   flex: 0 0 var(--dial-tile-width);
@@ -440,8 +440,6 @@ html, body {
      Extra vertical padding makes this tile — and therefore its entire
      flex row — slightly taller than the other rows. */
   align-items: stretch;
-  padding-top: 0.58em;
-  padding-bottom: 0.45em;
 }
 
 .dial-weather-row1 {
