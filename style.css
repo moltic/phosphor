@@ -434,14 +434,10 @@ html, body {
 }
 
 /* ── Weather Dial tile ──────────────────────────────────────── */
-.dial-tile--weather {
-  /* Tighter gap so the four content rows fit in the same height as a
-     regular tile (icon + label). No min-height override needed. */
-  gap: 0.05em;
-}
-
+/* Same gap/padding as a regular tile; 3 rows (icon + temp + city)
+   match the height of a regular tile's icon + 2-line label. */
 .dial-weather-icon {
-  font-size: 1.1em;
+  font-size: 1em;
   line-height: 1;
   display: block;
   text-align: center;
@@ -450,37 +446,22 @@ html, body {
 
 .dial-weather-temp {
   font-family: var(--font-stack);
-  font-size: 0.9em;
+  font-size: 0.88em;
   font-weight: 700;
   color: var(--fg-bright);
   text-shadow: 0 0 8px var(--glow);
-  line-height: 1;
+  line-height: 1.05;
   display: block;
   text-align: center;
   letter-spacing: 0.05em;
 }
 
-.dial-weather-cond {
-  font-family: var(--font-stack);
-  font-size: 0.65em;
-  color: var(--fg-dim);
-  line-height: 1;
-  display: block;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-/* Override label sizing for weather tile so city name stays compact */
+/* City name reuses .dial-label — only override min-height so it
+   doesn't reserve 2-line space. */
 .dial-tile--weather .dial-label {
-  font-size: 0.65em;
   min-height: unset;
-  line-height: 1;
   -webkit-line-clamp: 1;
   color: var(--fg-dim);
-  letter-spacing: 0.04em;
 }
 
 /* ── Speed-dial Divider ─────────────────────────────────────── */

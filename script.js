@@ -1367,14 +1367,12 @@ async function _getCityName(lat, lon) {
 }
 
 /** Push weather values into the tile's display elements. */
-function _setWeatherTileContent(tile, { icon, temp, symbol, city, condition }) {
+function _setWeatherTileContent(tile, { icon, temp, symbol, city }) {
   const iconEl  = tile.querySelector('.dial-weather-icon');
   const tempEl  = tile.querySelector('.dial-weather-temp');
-  const condEl  = tile.querySelector('.dial-weather-cond');
   const labelEl = tile.querySelector('.dial-label');
   if (iconEl)  iconEl.textContent  = icon ?? '☁';
   if (tempEl)  tempEl.textContent  = temp != null ? `${temp}${symbol}` : '--';
-  if (condEl)  condEl.textContent  = condition ?? '';
   if (labelEl && city) labelEl.textContent = city;
 }
 
@@ -1407,10 +1405,10 @@ function _createWeatherTileEl(dial) {
   tile.className     = 'dial-tile dial-tile--weather';
   tile.dataset.alias = dial.alias;
   tile.dataset.type  = 'weather';
-  tile.href          = dial.url || 'https://wttr.in';
+  tile.href          = dial.url || 'https://weather.com';
   tile.rel           = 'noopener noreferrer';
   tile.draggable     = true;
-  tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://wttr.in'}`);
+  tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://weather.com'}`);
 
   // ── Icon (condition emoji)
   const iconEl = document.createElement('span');
@@ -1423,11 +1421,6 @@ function _createWeatherTileEl(dial) {
   tempEl.className   = 'dial-weather-temp';
   tempEl.textContent = '--';
 
-  // ── Condition text
-  const condEl = document.createElement('span');
-  condEl.className   = 'dial-weather-cond';
-  condEl.textContent = '';
-
   // ── City / location label
   const labelEl = document.createElement('span');
   labelEl.className   = 'dial-label';
@@ -1435,7 +1428,6 @@ function _createWeatherTileEl(dial) {
 
   tile.appendChild(iconEl);
   tile.appendChild(tempEl);
-  tile.appendChild(condEl);
   tile.appendChild(labelEl);
 
   // ── Standard DnD + click events (same pattern as _createTileEl) ──────────
@@ -1516,8 +1508,8 @@ function _createWeatherTileEl(dial) {
 function _patchWeatherTileEl(tile, dial) {
   const prev = tile._dialData ?? {};
   if (prev.url !== dial.url) {
-    tile.href = dial.url || 'https://wttr.in';
-    tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://wttr.in'}`);
+    tile.href = dial.url || 'https://weather.com';
+    tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://weather.com'}`);
   }
   tile._dialData = { ...dial };
 }
@@ -2557,7 +2549,7 @@ const commands = {
           printLine(`Weather dial already present (alias: "${existing.alias}"). Right-click it to edit the destination URL or remove it.`, 'line-info');
           return;
         }
-        const url = args[1] ? args[1] : 'https://wttr.in';
+        const url = args[1] ? args[1] : 'https://weather.com';
         dials.push({ type: 'weather', alias: 'weather', label: 'WEATHER', url });
         await saveDials(dials);
         await renderDials();
