@@ -446,12 +446,17 @@ html, body {
   justify-content: space-between;
   width: 100%;
   line-height: 1;
+  min-height: 1em;
 }
 
 .dial-weather-icon {
   font-size: 1em;
   line-height: 1;
-  display: block;
+  width: 1em;
+  height: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   text-align: left;
   filter: drop-shadow(0 0 4px var(--glow-soft));
 }
@@ -462,8 +467,10 @@ html, body {
   font-weight: 700;
   color: var(--fg-bright);
   text-shadow: 0 0 8px var(--glow);
-  line-height: 1.05;
-  display: block;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   text-align: right;
   letter-spacing: 0.05em;
 }
