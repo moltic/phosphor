@@ -1367,13 +1367,19 @@ async function _getCityName(lat, lon) {
 }
 
 /** Push weather values into the tile's display elements. */
-function _setWeatherTileContent(tile, { icon, temp, symbol, city }) {
+function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon }) {
   const iconEl  = tile.querySelector('.dial-weather-icon');
   const tempEl  = tile.querySelector('.dial-weather-temp');
   const labelEl = tile.querySelector('.dial-label');
   if (iconEl)  iconEl.textContent  = icon ?? '☁';
   if (tempEl)  tempEl.textContent  = temp != null ? `${temp}${symbol}` : '--';
   if (labelEl && city) labelEl.textContent = city;
+  // Point the link at the user's exact location when coords are available.
+  if (lat != null && lon != null) {
+    const locUrl = `https://weather.com/weather/today/l/${lat.toFixed(4)},${lon.toFixed(4)}`;
+    tile.href = locUrl;
+    tile.setAttribute('aria-label', `Weather — ${city ?? 'local'}`);
+  }
 }
 
 /**
@@ -1388,8 +1394,8 @@ async function _refreshWeatherTile(tile) {
       _fetchWeatherData(lat, lon),
       _getCityName(lat, lon),
     ]);
-    await chrome.storage.local.set({ weatherLast: { ...weather, city } });
-    _setWeatherTileContent(tile, { ...weather, city });
+    await chrome.storage.local.set({ weatherLast: { ...weather, city, lat, lon } });
+    _setWeatherTileContent(tile, { ...weather, city, lat, lon });
   } catch (err) {
     console.warn('[Phosphor] Weather refresh failed:', err?.message ?? err);
     const iconEl = tile.querySelector('.dial-weather-icon');
