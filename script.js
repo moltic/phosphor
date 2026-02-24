@@ -27,8 +27,9 @@
 
 const APP_TITLE = 'PHOSPHOR TERMINAL V0.1';
 
-const outputEl  = document.getElementById('output');
-const inputEl   = document.getElementById('cmd-input');   // hidden real <input>
+const outputEl     = document.getElementById('output');
+const scrollMoreEl = document.getElementById('scroll-more');
+const inputEl      = document.getElementById('cmd-input');   // hidden real <input>
 
 // Active batch container — printLine writes here while a command is running;
 // the whole block is appended to outputEl in one shot so aria-live fires once.
@@ -594,6 +595,14 @@ function endBatch() {
     }
     _batchEl = null;
   }
+  updateScrollHint();
+}
+
+/** Show/hide the ▼ MORE ▼ hint based on whether #output has hidden content below. */
+function updateScrollHint() {
+  const hasOverflow = outputEl.scrollHeight > outputEl.clientHeight;
+  const atBottom    = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
+  scrollMoreEl.classList.toggle('visible', hasOverflow && !atBottom);
 }
 
 // ── Input mirror helpers ─────────────────────────────────────────
@@ -3356,6 +3365,9 @@ function dispatch(raw) {
 // ============================================================
 //  6. Input event wiring
 // ============================================================
+
+// Update the ▼ MORE hint whenever the user scrolls #output
+outputEl.addEventListener('scroll', updateScrollHint);
 
 // Keep visible display in sync with what's in the hidden input
 inputEl.addEventListener('input', () => {

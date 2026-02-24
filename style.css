@@ -750,6 +750,29 @@ html, body {
 #output::-webkit-scrollbar-track  { background: transparent; }
 #output::-webkit-scrollbar-thumb  { background: var(--fg-dim); border-radius: 3px; }
 
+/* ── Scroll-more hint ───────────────────────────────────────── */
+#scroll-more {
+  flex-shrink: 0;
+  display: none;
+  text-align: center;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+  padding: 0.15rem 0 0.05rem;
+  animation: scroll-hint-pulse 1.5s ease-in-out infinite;
+  user-select: none;
+}
+
+#scroll-more.visible {
+  display: block;
+}
+
+@keyframes scroll-hint-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.9;  }
+}
+
 /* Wrapper inserted once per command so aria-live fires a single announcement */
 .cmd-output-block {
   display: contents; /* no box of its own; children participate directly in #output layout */
