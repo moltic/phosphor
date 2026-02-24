@@ -277,6 +277,7 @@ const DEFAULT_PREFS = {
   dialSize:     'medium',
   scanlines:    true,
   bannerText:   DEFAULT_BANNER,
+  greetingMode: false,
   motd:         '',
   handle:       '',
   sessionCount: 0,
@@ -749,12 +750,37 @@ async function migrateLocalToSync() {
   await chrome.storage.local.set({ _syncMigrated: true });
 }
 
+/** Returns a time-of-day greeting prefix based on the current hour. */
+function getGreetingPrefix() {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 12) return 'good morning';
+  if (h >= 12 && h < 17) return 'good afternoon';
+  if (h >= 17 && h < 21) return 'good evening';
+  return 'good night';
+}
+
+/** Returns a numeric "bucket" (0-3) for the current greeting period.
+ *  Changes only at 05:00, 12:00, 17:00, and 21:00.
+ */
+function getGreetingBucket() {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 12) return 0;
+  if (h >= 12 && h < 17) return 1;
+  if (h >= 17 && h < 21) return 2;
+  return 3;
+}
+
+/** Current prefs cache — kept up-to-date by applyPrefs() so tickClock can
+ *  detect greeting-period transitions without hitting storage every second. */
+let _cachedPrefs = null;
+
 /**
  * Apply a prefs object immediately by setting CSS custom properties on :root
  * and updating the bannerText / scanline visibility.
- * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string}} prefs
+ * @param {{theme:string, terminalSize:string, dialSize:string, scanlines:boolean, bannerText:string, greetingMode:boolean}} prefs
  */
 async function applyPrefs(prefs) {
+  _cachedPrefs = prefs;
   const root    = document.documentElement;
   const palette = THEMES[prefs.theme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
@@ -774,13 +800,19 @@ async function applyPrefs(prefs) {
   const asciiArtEl = document.getElementById('ascii-art');
   if (asciiArtEl) {
     try {
-      const rendered = renderHeaderBanner(prefs.bannerText || DEFAULT_BANNER);
+      const bannerSource = prefs.greetingMode && prefs.bannerText
+        ? `${getGreetingPrefix()}, ${prefs.bannerText}`
+        : (prefs.bannerText || DEFAULT_BANNER);
+      const rendered = renderHeaderBanner(bannerSource);
       setAsciiArt(asciiArtEl, rendered.value, { asHtml: rendered.kind === 'html' });
       await fitBanner(asciiArtEl);
       // fitBanner() changes the header font-size; measure after it settles.
       await updateBannerMetrics();
     } catch {
-      setAsciiArt(asciiArtEl, prefs.bannerText || DEFAULT_BANNER, { asHtml: false });
+      const bannerFallback = prefs.greetingMode && prefs.bannerText
+        ? `${getGreetingPrefix()}, ${prefs.bannerText}`
+        : (prefs.bannerText || DEFAULT_BANNER);
+      setAsciiArt(asciiArtEl, bannerFallback, { asHtml: false });
     }
   }
 
@@ -1636,6 +1668,18 @@ const settingsPanelEl = (() => {
     ['on', 'ON'], ['off', 'OFF'],
   ]);
 
+  const greetingSelect = makeSelect('s-greeting', [
+    ['off', 'OFF'], ['on', 'ON'],
+  ]);
+
+  // When greeting mode toggles, relabel the BANNER field to NAME (and back).
+  greetingSelect.addEventListener('change', () => {
+    const isGreeting = greetingSelect.value === 'on';
+    bannerLabelEl.textContent  = isGreeting ? 'NAME'          : 'BANNER';
+    bannerInput.placeholder    = isGreeting ? 'e.g. DANIEL'   : 'e.g. PHOSPHOR';
+    bannerInput.maxLength      = isGreeting ? 32              : 24;
+  });
+
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
 
@@ -1652,14 +1696,23 @@ const settingsPanelEl = (() => {
   actionsEl.appendChild(saveBtn);
   actionsEl.appendChild(cancelBtn);
 
-  const bannerRow = makeRow('BANNER', bannerInput);
+  // Build banner row manually so we can hold a ref to the label element.
+  const bannerRow    = document.createElement('div');
+  bannerRow.className = 'settings-row';
+  const bannerLabelEl = document.createElement('label');
+  bannerLabelEl.className = 'settings-label';
+  bannerLabelEl.textContent = 'BANNER';
+  bannerLabelEl.htmlFor = bannerInput.id;
+  bannerRow.appendChild(bannerLabelEl);
+  bannerRow.appendChild(bannerInput);
 
   inner.appendChild(titleEl);
-  inner.appendChild(makeRow('THEME',     themeSelect));
+  inner.appendChild(makeRow('THEME',         themeSelect));
   inner.appendChild(makeRow('TERMINAL SIZE', terminalSizeSelect));
-  inner.appendChild(makeRow('DIAL SIZE', dialSizeSelect));
+  inner.appendChild(makeRow('DIAL SIZE',     dialSizeSelect));
   inner.appendChild(bannerRow);
-  inner.appendChild(makeRow('SCANLINES', scanSelect));
+  inner.appendChild(makeRow('GREETING',      greetingSelect));
+  inner.appendChild(makeRow('SCANLINES',     scanSelect));
   inner.appendChild(actionsEl);
 
   // Keyboard shortcuts inside the panel
@@ -1685,11 +1738,14 @@ const settingsPanelEl = (() => {
 
 async function openSettingsPanel() {
   const prefs = await loadPrefs();
-  document.getElementById('s-theme').value    = prefs.theme    || 'amber';
+  document.getElementById('s-theme').value       = prefs.theme    || 'amber';
   document.getElementById('s-terminalsize').value = prefs.terminalSize || prefs.fontSize || 'medium';
-  document.getElementById('s-dialsize').value = prefs.dialSize || prefs.fontSize || 'medium';
-  document.getElementById('s-banner').value   = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
-  document.getElementById('s-scanlines').value = prefs.scanlines === false ? 'off' : 'on';
+  document.getElementById('s-dialsize').value    = prefs.dialSize || prefs.fontSize || 'medium';
+  document.getElementById('s-banner').value      = prefs.bannerText != null ? prefs.bannerText : DEFAULT_BANNER;
+  document.getElementById('s-greeting').value    = prefs.greetingMode ? 'on' : 'off';
+  document.getElementById('s-scanlines').value   = prefs.scanlines === false ? 'off' : 'on';
+  // Sync the banner label/placeholder to the persisted greeting state.
+  document.getElementById('s-greeting').dispatchEvent(new Event('change'));
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -1700,12 +1756,14 @@ function closeSettingsPanel() {
 }
 
 async function commitSettings() {
+  const isGreeting = document.getElementById('s-greeting').value === 'on';
   const prefs = {
-    theme:      document.getElementById('s-theme').value,
+    theme:        document.getElementById('s-theme').value,
     terminalSize: document.getElementById('s-terminalsize').value,
     dialSize:     document.getElementById('s-dialsize').value,
-    bannerText: document.getElementById('s-banner').value || DEFAULT_BANNER,
-    scanlines:  document.getElementById('s-scanlines').value === 'on',
+    bannerText:   document.getElementById('s-banner').value || (isGreeting ? '' : DEFAULT_BANNER),
+    greetingMode: isGreeting,
+    scanlines:    document.getElementById('s-scanlines').value === 'on',
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);
@@ -3770,6 +3828,10 @@ document.addEventListener('visibilitychange', () => {
 //  7. Clock  (status-line, ticks every second)
 // ============================================================
 
+/** Tracks the last greeting bucket so we only re-render the banner when the
+ *  period actually changes (morning → afternoon → evening → night). */
+let _lastGreetingBucket = -1;
+
 /**
  * Format a Unix-ms timestamp into a human-readable locale string.
  * Used by the `n` and `ls` commands.
@@ -3800,6 +3862,15 @@ function tickClock() {
     second: '2-digit',
   });
   timeEl.textContent = `${datePart}  ${timePart}`;
+
+  // Refresh greeting banner whenever the time-of-day period changes.
+  if (_cachedPrefs?.greetingMode) {
+    const bucket = getGreetingBucket();
+    if (_lastGreetingBucket !== bucket) {
+      _lastGreetingBucket = bucket;
+      applyPrefs(_cachedPrefs);
+    }
+  }
 }
 
 // ============================================================
