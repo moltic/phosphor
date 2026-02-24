@@ -3365,6 +3365,31 @@ const commands = {
     },
   },
 
+  // ── syncstatus — show what's in chrome.storage.sync ──────────────
+  syncstatus: {
+    description: 'Show the current contents of chrome.storage.sync (dials, notes, prefs).',
+    usage: 'syncstatus',
+    async run(_args) {
+      const data = await chrome.storage.sync.get(null);
+      const dials = data.dials || [];
+      const notes = data.notes || [];
+      const prefs = data.prefs || {};
+
+      printBlank();
+      printLine('  chrome.storage.sync contents:', 'line-head');
+      printRule('─', 38);
+      printLine(`  Dials : ${dials.length} item(s)`, 'line-info');
+      dials.forEach(d => printLine(`    • ${d.alias}  →  ${d.url}`, 'line-out'));
+      printLine(`  Notes : ${notes.length} item(s)`, 'line-info');
+      printLine(`  Prefs : ${Object.keys(prefs).length > 0 ? JSON.stringify(prefs) : '(none)'}`, 'line-info');
+
+      // Also show the migration flag from local
+      const flag = await chrome.storage.local.get({ _syncMigrated: false });
+      printLine(`  Migration flag (_syncMigrated): ${flag._syncMigrated}`, 'line-info');
+      printBlank();
+    },
+  },
+
   // ── export — download a JSON backup of dials, notes & prefs ─────
   export: {
     description: 'Download a JSON backup of all dials, notes, and preferences.',
@@ -3475,6 +3500,26 @@ const commands = {
   },
 
 };
+
+// ============================================================
+//  4b. Sync change listener
+//  Re-render dials (and re-apply prefs) whenever chrome.storage.sync
+//  is updated — this fires on the *other* machine when sync propagates,
+//  so dials appear without requiring a manual page refresh.
+// ============================================================
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync') return;
+
+  if (changes.dials) {
+    const newDials = changes.dials.newValue || [];
+    renderDials(newDials);
+  }
+
+  if (changes.prefs) {
+    const newPrefs = { ...DEFAULT_PREFS, ...(changes.prefs.newValue || {}) };
+    applyPrefs(newPrefs);
+  }
+});
 
 // ============================================================
 //  5. Parser / Dispatcher
