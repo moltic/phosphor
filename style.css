@@ -335,7 +335,6 @@ html, body {
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
   font-size: var(--dial-font-size);
   gap: 0.45em;
   padding: 0.55em 0 0.65em;
@@ -435,13 +434,25 @@ html, body {
 }
 
 /* ── Weather Dial tile ──────────────────────────────────────── */
-/* Same gap/padding as a regular tile; 3 rows (icon + temp + city)
-   match the height of a regular tile's icon + 2-line label. */
+.dial-tile--weather {
+  /* Weather tile uses 2 rows: (icon + temp) and location label.
+     Stretch horizontally so row 1 can left/right align content. */
+  align-items: stretch;
+}
+
+.dial-weather-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  line-height: 1;
+}
+
 .dial-weather-icon {
   font-size: 1em;
   line-height: 1;
   display: block;
-  text-align: center;
+  text-align: left;
   filter: drop-shadow(0 0 4px var(--glow-soft));
 }
 
@@ -453,15 +464,13 @@ html, body {
   text-shadow: 0 0 8px var(--glow);
   line-height: 1.05;
   display: block;
-  text-align: center;
+  text-align: right;
   letter-spacing: 0.05em;
 }
 
 /* City name reuses .dial-label — only override min-height so it
    doesn't reserve 2-line space. */
 .dial-tile--weather .dial-label {
-  min-height: unset;
-  -webkit-line-clamp: 1;
   color: var(--fg-dim);
 }
 

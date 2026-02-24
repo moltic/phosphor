@@ -1416,6 +1416,10 @@ function _createWeatherTileEl(dial) {
   tile.draggable     = true;
   tile.setAttribute('aria-label', `Weather — ${dial.url || 'https://weather.com'}`);
 
+  // ── Row 1: icon (left) + temp (right)
+  const row1El = document.createElement('div');
+  row1El.className = 'dial-weather-row1';
+
   // ── Icon (condition emoji)
   const iconEl = document.createElement('span');
   iconEl.className   = 'dial-weather-icon';
@@ -1432,8 +1436,10 @@ function _createWeatherTileEl(dial) {
   labelEl.className   = 'dial-label';
   labelEl.textContent = dial.label || 'WEATHER';
 
-  tile.appendChild(iconEl);
-  tile.appendChild(tempEl);
+  row1El.appendChild(iconEl);
+  row1El.appendChild(tempEl);
+
+  tile.appendChild(row1El);
   tile.appendChild(labelEl);
 
   // ── Standard DnD + click events (same pattern as _createTileEl) ──────────
