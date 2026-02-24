@@ -335,6 +335,7 @@ html, body {
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   font-size: var(--dial-font-size);
   gap: 0.45em;
   padding: 0.55em 0 0.65em;
