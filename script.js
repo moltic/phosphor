@@ -587,7 +587,10 @@ function endBatch() {
   if (_batchEl) {
     if (_batchEl.hasChildNodes()) {
       outputEl.appendChild(_batchEl);
-      outputEl.scrollTop = outputEl.scrollHeight;
+      // Scroll to the TOP of the new block so the user always sees the
+      // beginning of the response — especially important for long outputs
+      // like `help` that would otherwise land at the bottom mid-paragraph.
+      _batchEl.scrollIntoView({ block: 'start', behavior: 'instant' });
     }
     _batchEl = null;
   }
