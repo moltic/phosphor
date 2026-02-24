@@ -371,7 +371,11 @@ function buildBannerHtml(raw, { preserveGlyphs = true } = {}) {
     let out = '';
     for (let x = 0; x < width; x += 1) {
       if (!(grid[y]?.[x])) {
-        out += ' ';
+        // Keep the banner on an explicit cell grid. Using raw text spaces here
+        // can reintroduce per-glyph font fallback metric drift (e.g. when the
+        // filled glyph falls back but the space does not). An invisible span
+        // keeps every column the same width.
+        out += '<span class="b-cell b-empty">&nbsp;</span>';
         continue;
       }
 
@@ -383,6 +387,35 @@ function buildBannerHtml(raw, { preserveGlyphs = true } = {}) {
   });
 
   return lineHtml.join('\n');
+}
+
+// Measure the actual rendered width of one banner cell character for the
+// `.banner-output` ruleset. This avoids column wobble when the banner glyphs
+// fall back to a different font than the surrounding VT323 text.
+async function updateBannerMetrics() {
+  try {
+    await document.fonts.ready;
+  } catch {
+    // Ignore; we'll still attempt to measure with whatever is available.
+  }
+
+  const root = document.documentElement;
+
+  const pre = document.createElement('pre');
+  pre.className = 'banner-output';
+  pre.style.cssText =
+    'position:absolute;top:-9999px;left:-9999px;visibility:hidden;' +
+    'margin:0;padding:0;border:0;white-space:pre;';
+
+  const span = document.createElement('span');
+  span.textContent = '█';
+  pre.appendChild(span);
+  document.body.appendChild(pre);
+
+  const rect = span.getBoundingClientRect();
+  document.body.removeChild(pre);
+
+  if (rect.width) root.style.setProperty('--banner-output-cell-w', rect.width + 'px');
 }
 
 /**
@@ -625,6 +658,9 @@ async function applyPrefs(prefs) {
 
   root.style.setProperty('--font-size', FONT_SIZES[terminalSize] || FONT_SIZES.medium);
   root.style.setProperty('--dial-font-size', FONT_SIZES[dialSize] || FONT_SIZES.medium);
+
+  // Keep neon banner output aligned after any font-size changes.
+  await updateBannerMetrics();
 
   const statusLabel = document.getElementById('status-label');
   if (statusLabel) statusLabel.textContent = APP_TITLE;
@@ -3544,6 +3580,7 @@ async function init() {
     _resizeTimer = setTimeout(() => {
       const el = document.getElementById('ascii-art');
       if (el) fitBanner(el);
+      updateBannerMetrics();
     }, 120);
   });
 

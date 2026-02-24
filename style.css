@@ -216,6 +216,10 @@ html, body {
   letter-spacing: 0;
   white-space: pre;
   display: block;
+  /* Cell width is measured in JS and stored on :root as --banner-output-cell-w.
+     Using px avoids drift when the filled glyph falls back to a different font
+     (1ch is based on the primary font's “0” width, not the fallback glyph). */
+  --banner-cell-w: var(--banner-output-cell-w, 1ch);
   margin: 0.3rem 0 0.5rem;
   overflow-x: auto;
 }
@@ -223,7 +227,7 @@ html, body {
 :is(#ascii-art, .banner-output) .b-cell {
   display: inline-block;
   position: relative;
-  width: 1ch;
+  width: var(--banner-cell-w, 1ch);
   height: 1em;
   line-height: 1;
   vertical-align: top;
@@ -231,6 +235,11 @@ html, body {
   text-shadow:
     0 0 3px var(--glow),
     0 0 7px var(--glow-soft);
+}
+
+:is(#ascii-art, .banner-output) .b-cell.b-empty {
+  color: transparent;
+  text-shadow: none;
 }
 
 :is(#ascii-art, .banner-output) .b-cell.b-core {
