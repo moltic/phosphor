@@ -342,8 +342,8 @@ html, body {
   margin-bottom: 0.6em;
 }
 
-/* Hide entirely when empty (no tiles added yet) */
-#speed-dial:not(:has(.dial-tile)) {
+/* Hide entirely when empty (no tiles or group headers yet) */
+#speed-dial:not(:has(.dial-tile, .dial-group-header)) {
   display: none;
 }
 
@@ -598,7 +598,63 @@ html, body {
   opacity: 0.4;
 }
 
-/* ── Drop insertion indicator ───────────────────────────────── */
+/* ── Speed-dial Group Header ───────────────────────────────── */
+.dial-group-header {
+  width: 100%;        /* full-width → always starts a new flex row */
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.18em 0.1em 0.12em;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--fg-dim);
+  margin-top: 0.25em;
+  color: var(--fg-dim);
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.dial-group-header:hover,
+.dial-group-header:focus-visible {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+  outline: none;
+}
+
+.dial-group-header:focus-visible {
+  outline: 1px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.dial-group-chevron {
+  font-size: 0.7em;
+  line-height: 1;
+  min-width: 0.8em;
+  text-align: center;
+  flex-shrink: 0;
+  transition: color 0.1s;
+}
+
+.dial-group-label {
+  flex: 1;
+  text-transform: uppercase;
+  font-family: var(--font-stack);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Faded look when the group is collapsed */
+.dial-group-header[data-collapsed="1"] {
+  opacity: 0.65;
+}
+
+.dial-group-header.is-dragging {
+  opacity: 0.4;
+}
+
+ ───────────────────────────────── */
 .dial-drop-indicator {
   position: fixed;
   z-index: 150;

@@ -5,7 +5,7 @@
 //
 //  Storage schema  (chrome.storage.sync):
 //    {
-//      dials: [ { alias, label, url, icon? } ],
+//      dials: [ { alias, label, url, icon? } | { type:'group-header', alias, label } ],
 //      notes: [ { id: string, text: string, ts: number } ],  // ts = Date.now()
 //      prefs: { theme, terminalSize, dialSize, scanlines, bannerText, … }
 //    }
@@ -1021,7 +1021,7 @@ function previewDropNearElement(toAlias, rect, clientX) {
 }
 
 function previewDropAtEnd() {
-  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-divider');
+  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-divider, .dial-group-header');
   const last = items.length ? items[items.length - 1] : null;
   if (!last) return;
   const rect = last.getBoundingClientRect();
@@ -1076,11 +1076,12 @@ async function _moveDialAliasToIndex(dials, alias, toIndex) {
  * @param {object} [opts]
  * @param {boolean} [opts.isDivider=false]    Forward to showDialCtxMenu.
  * @param {boolean} [opts.isWeather=false]    Forward to showDialCtxMenu.
+ * @param {boolean} [opts.isGroupHeader=false] Forward to showDialCtxMenu.
  * @param {boolean} [opts.suppressClick=false] Add click guard that blocks
  *   navigation while a drag is in progress (needed for <a> tiles).
  */
 function bindDragEvents(el, dial, opts = {}) {
-  const { isDivider = false, isWeather = false, suppressClick = false } = opts;
+  const { isDivider = false, isWeather = false, suppressClick = false, isGroupHeader = false } = opts;
 
   // ── Click guard (tiles only) ──────────────────────────────────────────────
   if (suppressClick) {
@@ -1142,7 +1143,7 @@ function bindDragEvents(el, dial, opts = {}) {
   el.addEventListener('contextmenu', e => {
     e.preventDefault();
     e.stopPropagation();
-    showDialCtxMenu(e.clientX, e.clientY, dial.alias, isDivider, isWeather);
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias, isDivider, isWeather, isGroupHeader);
   });
 
   // ── Touch: long-press (500 ms) → context menu; drag → reorder ────────────
@@ -1188,7 +1189,7 @@ function bindDragEvents(el, dial, opts = {}) {
       _lpTimer = null;
       // Haptic feedback when available.
       if (navigator.vibrate) navigator.vibrate(30);
-      showDialCtxMenu(_touchStartX, _touchStartY, dial.alias, isDivider, isWeather);
+      showDialCtxMenu(_touchStartX, _touchStartY, dial.alias, isDivider, isWeather, isGroupHeader);
     }, CONFIG.DIAL_LONGPRESS_MS);
   }, { passive: true });
 
@@ -1385,6 +1386,98 @@ function _patchTileEl(tile, dial) {
   }
 
   tile._dialData = { ...dial };
+}
+
+// ── Group-header element factories ───────────────────────────────────────────
+
+/** Create a brand-new group-header DOM element and bind its events. */
+function _createGroupHeaderEl(dial) {
+  const el = document.createElement('div');
+  el.className = 'dial-group-header';
+  el.dataset.alias = dial.alias;
+  el.draggable = true;
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-expanded', 'true');
+  el.setAttribute('tabindex', '0');
+  el.title = 'Click to collapse/expand — drag to reorder, right-click to rename/remove';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'dial-group-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '▼';
+  el.appendChild(chevron);
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'dial-group-label';
+  labelEl.textContent = dial.label || dial.alias;
+  el.appendChild(labelEl);
+
+  el.addEventListener('click', e => {
+    if (_isDraggingDial) return;
+    e.stopPropagation();
+    _toggleGroupCollapse(dial.alias);
+  });
+
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      _toggleGroupCollapse(dial.alias);
+    }
+  });
+
+  bindDragEvents(el, dial, { isGroupHeader: true });
+
+  el._dialData = { ...dial };
+  return el;
+}
+
+/** Patch a cached group-header element in-place when its label changed. */
+function _patchGroupHeaderEl(el, dial) {
+  const prev = el._dialData ?? {};
+  if (prev.label !== dial.label) {
+    const labelEl = el.querySelector('.dial-group-label');
+    if (labelEl) labelEl.textContent = dial.label || dial.alias;
+  }
+  el._dialData = { ...dial };
+}
+
+// ── Group collapse state ──────────────────────────────────────────────────────
+
+/**
+ * Toggle the collapsed state of a group and persist to
+ * chrome.storage.local under key `dialGroupCollapsed`.
+ */
+async function _toggleGroupCollapse(alias) {
+  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  const state  = stored.dialGroupCollapsed;
+  state[alias] = !state[alias];
+  await chrome.storage.local.set({ dialGroupCollapsed: state });
+  _applyGroupCollapse(state);
+}
+
+/**
+ * Walk the dial grid and hide/show tiles that belong to each collapsed group.
+ * Accepts a pre-loaded state object to avoid an extra storage round-trip.
+ * @param {Object} [collapseState]  alias → true meaning collapsed
+ */
+async function _applyGroupCollapse(collapseState) {
+  if (!collapseState) {
+    const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+    collapseState = stored.dialGroupCollapsed;
+  }
+  let collapsed = false;
+  for (const child of dialGridEl.children) {
+    if (child.classList.contains('dial-group-header')) {
+      const alias   = child.dataset.alias;
+      collapsed     = collapseState[alias] === true;
+      const chevron = child.querySelector('.dial-group-chevron');
+      if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
+      child.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      child.dataset.collapsed = collapsed ? '1' : '';
+    } else {
+      child.style.display = collapsed ? 'none' : '';
+    }
+  }
 }
 
 // ============================================================
@@ -1689,13 +1782,16 @@ async function renderDials() {
         _patchDividerEl(cached, dial);
       } else if (dial.type === 'weather') {
         _patchWeatherTileEl(cached, dial);
+      } else if (dial.type === 'group-header') {
+        _patchGroupHeaderEl(cached, dial);
       } else {
         _patchTileEl(cached, dial);
       }
       return cached;
     }
-    const el = dial.type === 'divider' ? _createDividerEl(dial)
-             : dial.type === 'weather'  ? _createWeatherTileEl(dial)
+    const el = dial.type === 'divider'     ? _createDividerEl(dial)
+             : dial.type === 'weather'      ? _createWeatherTileEl(dial)
+             : dial.type === 'group-header' ? _createGroupHeaderEl(dial)
              : _createTileEl(dial);
     _dialNodeCache.set(dial.alias, el);
     return el;
@@ -1735,14 +1831,14 @@ async function renderDials() {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       // Show indicator at end when hovering empty grid space.
-      if (!e.target.closest('.dial-tile, .dial-divider')) {
+      if (!e.target.closest('.dial-tile, .dial-divider, .dial-group-header')) {
         previewDropAtEnd();
       }
     });
 
     dialGridEl.addEventListener('drop', async e => {
-      const tile = e.target.closest('.dial-tile, .dial-divider');
-      if (tile) return; // handled by tile/divider drop
+      const tile = e.target.closest('.dial-tile, .dial-divider, .dial-group-header');
+      if (tile) return; // handled by tile/divider/group-header drop
 
       e.preventDefault();
       e.stopPropagation();
@@ -1758,6 +1854,9 @@ async function renderDials() {
       await _moveDialAliasToIndex(current, fromAlias, current.length - 1);
     });
   }
+
+  // Apply group-collapse visibility after DOM is reconciled.
+  await _applyGroupCollapse();
 }
 
 // ── Context menu ─────────────────────────────────────────────────
@@ -1831,13 +1930,13 @@ const ctxMenuEl = (() => {
   return menu;
 })();
 
-function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = false) {
+function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = false, isGroupHeader = false) {
   ctxMenuEl.dataset.target = alias;
   const ctxEditBtn           = ctxMenuEl.querySelector('[data-action="edit"]');
   const ctxOpenTabBtn        = ctxMenuEl.querySelector('[data-action="open-tab"]');
   const ctxRefreshWeatherBtn = ctxMenuEl.querySelector('[data-action="refresh-weather"]');
   if (ctxEditBtn)           ctxEditBtn.style.display           = isDivider ? 'none' : '';
-  if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = isDivider ? 'none' : '';
+  if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = (isDivider || isGroupHeader) ? 'none' : '';
   if (ctxRefreshWeatherBtn) ctxRefreshWeatherBtn.style.display = isWeather ? '' : 'none';
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
@@ -1970,36 +2069,44 @@ async function showDialEditDialog(alias) {
   const dial  = dials.find(d => d.alias === alias);
   if (!dial) return;
 
-  const isWeather = dial.type === 'weather';
+  const isWeather     = dial.type === 'weather';
+  const isGroupHeader = dial.type === 'group-header';
 
   // Title
   const titleEl = editDialogEl.querySelector('.dial-edit-title');
-  if (titleEl) titleEl.textContent = isWeather ? 'EDIT WEATHER DIAL' : 'EDIT DIAL';
+  if (titleEl) titleEl.textContent = isWeather ? 'EDIT WEATHER DIAL' : isGroupHeader ? 'RENAME GROUP' : 'EDIT DIAL';
 
-  // For weather dials, hide the label and icon rows (auto-populated from live data).
+  // For weather dials, hide label and icon (auto-populated from live data).
+  // For group-header dials, hide url and icon (no URL/icon).
   const labelInput = document.getElementById('dial-edit-label');
+  const urlInput   = document.getElementById('dial-edit-url');
   const iconInput  = document.getElementById('dial-edit-icon');
   labelInput.hidden = isWeather;
-  iconInput.hidden  = isWeather;
+  urlInput.hidden   = isGroupHeader;
+  iconInput.hidden  = isWeather || isGroupHeader;
 
-  editDialogEl.dataset.target   = alias;
-  editDialogEl.dataset.isWeather = isWeather ? '1' : '';
+  editDialogEl.dataset.target        = alias;
+  editDialogEl.dataset.isWeather     = isWeather     ? '1' : '';
+  editDialogEl.dataset.isGroupHeader = isGroupHeader ? '1' : '';
   labelInput.value = dial.label || dial.alias;
   document.getElementById('dial-edit-url').value  = dial.url || '';
   iconInput.value = dial.icon || '';
 
   editDialogEl.showModal();
-  (isWeather ? document.getElementById('dial-edit-url') : labelInput).focus();
+  labelInput.focus();
 }
 
 function hideDialEditDialog() {
   editDialogEl.close();
   delete editDialogEl.dataset.target;
   delete editDialogEl.dataset.isWeather;
+  delete editDialogEl.dataset.isGroupHeader;
   // Restore hidden fields so a regular dial edit opened next looks correct.
   const labelInput = document.getElementById('dial-edit-label');
+  const urlInput   = document.getElementById('dial-edit-url');
   const iconInput  = document.getElementById('dial-edit-icon');
   if (labelInput) labelInput.hidden = false;
+  if (urlInput)   urlInput.hidden   = false;
   if (iconInput)  iconInput.hidden  = false;
   const titleEl = editDialogEl.querySelector('.dial-edit-title');
   if (titleEl) titleEl.textContent = 'EDIT DIAL';
@@ -2008,43 +2115,51 @@ function hideDialEditDialog() {
 }
 
 async function commitDialEdit() {
-  const alias     = editDialogEl.dataset.target;
-  const isWeather = editDialogEl.dataset.isWeather === '1';
+  const alias         = editDialogEl.dataset.target;
+  const isWeather     = editDialogEl.dataset.isWeather     === '1';
+  const isGroupHeader = editDialogEl.dataset.isGroupHeader === '1';
   if (!alias) return;
 
-  // For weather tiles only the URL (click destination) is editable.
   const labelInput = document.getElementById('dial-edit-label');
   const urlInput   = document.getElementById('dial-edit-url');
-  const newLabel = isWeather ? labelInput.value.trim() : labelInput.value.trim();
-  let   newUrl   = urlInput.value.trim();
-  const newIconRaw = isWeather ? '' : document.getElementById('dial-edit-icon').value;
-  const newIcon = normalizeDialIcon(newIconRaw);
+  const newLabel   = labelInput.value.trim();
+  let   newUrl     = urlInput.value.trim();
+  const newIconRaw = (isWeather || isGroupHeader) ? '' : document.getElementById('dial-edit-icon').value;
+  const newIcon    = normalizeDialIcon(newIconRaw);
 
   const errorEl = document.getElementById('dial-edit-error');
-  if (!isWeather) {
+  if (isGroupHeader) {
+    if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
+  } else if (!isWeather) {
     if (!newLabel && !newUrl) { errorEl.textContent = 'Label and URL are required.'; return; }
     if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
   }
-  if (!newUrl) { errorEl.textContent = 'URL is required.'; return; }
+  if (!isGroupHeader && !newUrl) { errorEl.textContent = 'URL is required.'; return; }
   errorEl.textContent = '';
 
-  // Auto-prefix scheme if missing
-  if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
-
-  // Reject dangerous schemes
-  if (/^(javascript|data):/i.test(newUrl)) {
-    errorEl.textContent = 'URL scheme not allowed.';
-    return;
+  if (!isGroupHeader) {
+    // Auto-prefix scheme if missing
+    if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
+    // Reject dangerous schemes
+    if (/^(javascript|data):/i.test(newUrl)) {
+      errorEl.textContent = 'URL scheme not allowed.';
+      return;
+    }
   }
 
   const dials = await loadDials();
   const idx   = dials.findIndex(d => d.alias === alias);
   if (idx !== -1) {
-    const next = { ...dials[idx], alias, url: newUrl };
-    if (!isWeather) {
-      next.label = newLabel;
-      if (!newIcon) delete next.icon;
-      else next.icon = newIcon;
+    let next;
+    if (isGroupHeader) {
+      next = { ...dials[idx], label: newLabel };
+    } else {
+      next = { ...dials[idx], alias, url: newUrl };
+      if (!isWeather) {
+        next.label = newLabel;
+        if (!newIcon) delete next.icon;
+        else next.icon = newIcon;
+      }
     }
     dials[idx] = next;
     await saveDials(dials);
@@ -2060,6 +2175,12 @@ async function removeDial(alias) {
   const dials    = await loadDials();
   const filtered = dials.filter(d => d.alias !== alias);
   await saveDials(filtered);
+  // Clean up stored collapse state for removed group headers.
+  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  if (alias in stored.dialGroupCollapsed) {
+    delete stored.dialGroupCollapsed[alias];
+    await chrome.storage.local.set({ dialGroupCollapsed: stored.dialGroupCollapsed });
+  }
   await renderDials();
   printLine(`✓ Dial "${alias}" removed.`, 'line-ok');
 }
@@ -2698,6 +2819,7 @@ const commands = {
       } else {
         dials.forEach(d => {
           if (d.type === 'divider') { printLine('  ─── [divider] ───', 'line-info'); return; }
+          if (d.type === 'group-header') { printLine(`  ── ${d.label || d.alias} ──`, 'line-head'); return; }
           if (d.type === 'weather') { printLine(`  [weather]       →  ${d.url}`, 'line-info'); return; }
           const labelCol = (d.label || d.alias).padEnd(14);
           printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
@@ -2709,8 +2831,8 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial weather [url] | dial divider [row|col]',
-    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial weather [url]  |  dial divider [row|col]',
+    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial group [label ...] | dial weather [url] | dial divider [row|col]',
+    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial group [label ...]  |  dial weather [url]  |  dial divider [row|col]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -2792,6 +2914,22 @@ const commands = {
         const label = variant === 'col' ? 'Column divider' : 'Row divider';
         printLine(`✓ ${label} added. Drag to reorder, right-click to remove.`, 'line-ok');
 
+      } else if (sub === 'group') {
+        // Add a collapsible group-header section label.
+        const groupLabel = args.slice(1).join(' ').trim();
+        if (!groupLabel) {
+          printLine('Usage:   dial group [label ...]', 'line-info');
+          printLine('Example: dial group Work', 'line-info');
+          printLine('Example: dial group Social Media', 'line-info');
+          return;
+        }
+        const dials = await loadDials();
+        const alias  = `__grp_${Date.now()}__`;
+        dials.push({ type: 'group-header', alias, label: groupLabel });
+        await saveDials(dials);
+        await renderDials();
+        printLine(`✓ Group “${groupLabel}” added. Click to collapse, drag to reorder, right-click to rename/remove.`, 'line-ok');
+
       } else if (sub === 'weather') {
         // Add (or report existing) weather dial.
         const dials = await loadDials();
@@ -2823,6 +2961,10 @@ const commands = {
               printLine(`  ─── ${kind} ───`, 'line-info');
               return;
             }
+            if (d.type === 'group-header') {
+              printLine(`  ── ${d.label || d.alias} ──`, 'line-head');
+              return;
+            }
             if (d.type === 'weather') {
               printLine(`  [weather]       →  ${d.url}`, 'line-info');
               return;
@@ -2834,6 +2976,7 @@ const commands = {
         printBlank();
         printLine('  dial add     [alias ...] [url]  — add a new tile', 'line-info');
         printLine('  dial rm      [alias ...]        — remove a tile', 'line-info');
+        printLine('  dial group   [label ...]        — add a collapsible section header', 'line-info');
         printLine('  dial weather [url]          — add a live weather tile', 'line-info');
         printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
         printLine('  Right-click any tile        — Edit / Refresh / Remove', 'line-info');
