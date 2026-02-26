@@ -1019,6 +1019,221 @@ async function _moveDialAliasToIndex(dials, alias, toIndex) {
   await renderDials();
 }
 
+// ── Shared drag-and-drop / touch helper ──────────────────────────────────────
+
+/**
+ * Bind all drag-and-drop (mouse) and touch (drag + long-press) events to a
+ * dial element.  Extracted from _createDividerEl / _createTileEl /
+ * _createWeatherTileEl so the logic lives in exactly one place.
+ *
+ * @param {HTMLElement} el          The element to bind events to.
+ * @param {{ alias: string }} dial  The dial data object.
+ * @param {object} [opts]
+ * @param {boolean} [opts.isDivider=false]    Forward to showDialCtxMenu.
+ * @param {boolean} [opts.isWeather=false]    Forward to showDialCtxMenu.
+ * @param {boolean} [opts.suppressClick=false] Add click guard that blocks
+ *   navigation while a drag is in progress (needed for <a> tiles).
+ */
+function bindDragEvents(el, dial, opts = {}) {
+  const { isDivider = false, isWeather = false, suppressClick = false } = opts;
+
+  // ── Click guard (tiles only) ──────────────────────────────────────────────
+  if (suppressClick) {
+    el.addEventListener('click', e => {
+      if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
+      e.stopPropagation();
+    });
+  }
+
+  // ── Native HTML5 DnD ──────────────────────────────────────────────────────
+  el.addEventListener('dragstart', e => {
+    _isDraggingDial = true;
+    hideDropIndicator();
+    el.classList.add('is-dragging');
+    dialGridEl.classList.add('is-dragging-dial');
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dial.alias);
+    } catch { /* ignore */ }
+  });
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+  });
+
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (el.classList.contains('is-dragging')) return;
+    previewDropNearElement(dial.alias, el.getBoundingClientRect(), e.clientX);
+  });
+
+  el.addEventListener('drop', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropIndicator();
+    dialGridEl.classList.remove('is-dragging-dial');
+    const fromAlias = e.dataTransfer?.getData('text/plain');
+    const toAlias   = dial.alias;
+    if (!fromAlias || fromAlias === toAlias) return;
+    const current   = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === fromAlias);
+    const toIndex   = current.findIndex(d => d.alias === toAlias);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const rect   = el.getBoundingClientRect();
+    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
+    let insertIndex = toIndex + (before ? 0 : 1);
+    if (fromIndex < insertIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+    const next = _arrayMove(current, fromIndex, insertIndex);
+    await saveDials(next);
+    await renderDials();
+  });
+
+  // ── Context menu (right-click) ────────────────────────────────────────────
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias, isDivider, isWeather);
+  });
+
+  // ── Touch: long-press (500 ms) → context menu; drag → reorder ────────────
+  let _lpTimer       = null;  // long-press timeout handle
+  let _touchStartX   = 0;
+  let _touchStartY   = 0;
+  let _touchDragging = false;
+  let _ghostEl       = null;  // visual clone that follows the finger
+  let _ghostOffX     = 0;
+  let _ghostOffY     = 0;
+
+  function _cancelLongPress() {
+    if (_lpTimer !== null) { clearTimeout(_lpTimer); _lpTimer = null; }
+  }
+
+  function _createGhost(sourceEl, touchX, touchY) {
+    const ghost = sourceEl.cloneNode(true);
+    const rect  = sourceEl.getBoundingClientRect();
+    ghost.style.cssText = [
+      'position:fixed',
+      `width:${rect.width}px`,
+      `height:${rect.height}px`,
+      `left:${rect.left}px`,
+      `top:${rect.top}px`,
+      'opacity:0.75',
+      'pointer-events:none',
+      'z-index:9999',
+      'transition:none',
+    ].join(';');
+    document.body.appendChild(ghost);
+    _ghostOffX = touchX - rect.left;
+    _ghostOffY = touchY - rect.top;
+    return ghost;
+  }
+
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t      = e.touches[0];
+    _touchStartX = t.clientX;
+    _touchStartY = t.clientY;
+    _touchDragging = false;
+    _lpTimer = setTimeout(() => {
+      _lpTimer = null;
+      // Haptic feedback when available.
+      if (navigator.vibrate) navigator.vibrate(30);
+      showDialCtxMenu(_touchStartX, _touchStartY, dial.alias, isDivider, isWeather);
+    }, 500);
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if (e.touches.length !== 1) { _cancelLongPress(); return; }
+    const t  = e.touches[0];
+    const dx = t.clientX - _touchStartX;
+    const dy = t.clientY - _touchStartY;
+
+    // Cancel long-press the moment the finger moves more than 8 px.
+    if (!_touchDragging && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      _cancelLongPress();
+      _touchDragging  = true;
+      _isDraggingDial = true;
+      el.classList.add('is-dragging');
+      dialGridEl.classList.add('is-dragging-dial');
+      _ghostEl = _createGhost(el, _touchStartX, _touchStartY);
+    }
+
+    if (_touchDragging) {
+      e.preventDefault(); // prevent page scroll while reordering
+      _ghostEl.style.left = `${t.clientX - _ghostOffX}px`;
+      _ghostEl.style.top  = `${t.clientY - _ghostOffY}px`;
+
+      // Temporarily hide ghost so elementFromPoint sees the element below.
+      _ghostEl.style.visibility = 'hidden';
+      const below = document.elementFromPoint(t.clientX, t.clientY);
+      _ghostEl.style.visibility = '';
+
+      const targetEl = below?.closest('[data-alias]');
+      if (targetEl && targetEl !== el) {
+        previewDropNearElement(
+          targetEl.dataset.alias,
+          targetEl.getBoundingClientRect(),
+          t.clientX,
+        );
+      } else {
+        hideDropIndicator();
+      }
+    }
+  }, { passive: false });
+
+  async function _finishTouchDrag(changedTouch) {
+    if (_ghostEl) { _ghostEl.remove(); _ghostEl = null; }
+    el.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+
+    const below    = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+    const targetEl = below?.closest('[data-alias]');
+    _touchDragging = false;
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+
+    if (!targetEl || targetEl === el) return;
+    const fromAlias = dial.alias;
+    const toAlias   = targetEl.dataset.alias;
+    if (!fromAlias || fromAlias === toAlias) return;
+
+    const current   = await loadDials();
+    const fromIndex = current.findIndex(d => d.alias === fromAlias);
+    const toIndex   = current.findIndex(d => d.alias === toAlias);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const rect   = targetEl.getBoundingClientRect();
+    const before = getPreviewBeforeFor(toAlias, rect, changedTouch.clientX);
+    let insertIndex = toIndex + (before ? 0 : 1);
+    if (fromIndex < insertIndex) insertIndex -= 1;
+    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+    const next = _arrayMove(current, fromIndex, insertIndex);
+    await saveDials(next);
+    await renderDials();
+  }
+
+  el.addEventListener('touchend', e => {
+    _cancelLongPress();
+    if (!_touchDragging) return;
+    _finishTouchDrag(e.changedTouches[0]);
+  });
+
+  el.addEventListener('touchcancel', () => {
+    _cancelLongPress();
+    if (_ghostEl) { _ghostEl.remove(); _ghostEl = null; }
+    el.classList.remove('is-dragging');
+    dialGridEl.classList.remove('is-dragging-dial');
+    hideDropIndicator();
+    _touchDragging = false;
+    setTimeout(() => { _isDraggingDial = false; }, 0);
+  });
+}
+
 // ── Element factories ─────────────────────────────────────────────────────────
 
 /** Create a brand-new divider DOM element and bind all its events. */
@@ -1032,58 +1247,7 @@ function _createDividerEl(dial) {
     ? 'Column Divider — drag to reorder, right-click to remove'
     : 'Row Divider — drag to reorder, right-click to remove';
 
-  dividerEl.addEventListener('dragstart', e => {
-    _isDraggingDial = true;
-    hideDropIndicator();
-    dividerEl.classList.add('is-dragging');
-    dialGridEl.classList.add('is-dragging-dial');
-    try {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dial.alias);
-    } catch { /* ignore */ }
-  });
-
-  dividerEl.addEventListener('dragend', () => {
-    dividerEl.classList.remove('is-dragging');
-    dialGridEl.classList.remove('is-dragging-dial');
-    hideDropIndicator();
-    setTimeout(() => { _isDraggingDial = false; }, 0);
-  });
-
-  dividerEl.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dividerEl.classList.contains('is-dragging')) return;
-    previewDropNearElement(dial.alias, dividerEl.getBoundingClientRect(), e.clientX);
-  });
-
-  dividerEl.addEventListener('drop', async e => {
-    e.preventDefault();
-    e.stopPropagation();
-    hideDropIndicator();
-    dialGridEl.classList.remove('is-dragging-dial');
-    const fromAlias = e.dataTransfer?.getData('text/plain');
-    const toAlias   = dial.alias;
-    if (!fromAlias || fromAlias === toAlias) return;
-    const current = await loadDials();
-    const fromIndex = current.findIndex(d => d.alias === fromAlias);
-    const toIndex   = current.findIndex(d => d.alias === toAlias);
-    if (fromIndex === -1 || toIndex === -1) return;
-    const rect   = dividerEl.getBoundingClientRect();
-    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
-    let insertIndex = toIndex + (before ? 0 : 1);
-    if (fromIndex < insertIndex) insertIndex -= 1;
-    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-    const next = _arrayMove(current, fromIndex, insertIndex);
-    await saveDials(next);
-    await renderDials();
-  });
-
-  dividerEl.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    showDialCtxMenu(e.clientX, e.clientY, dial.alias, true);
-  });
+  bindDragEvents(dividerEl, dial, { isDivider: true });
 
   dividerEl._dialData = { ...dial };
   return dividerEl;
@@ -1124,81 +1288,9 @@ function _createTileEl(dial) {
   labelEl.textContent = dial.label || dial.alias;
   tile.appendChild(labelEl);
 
-  // Allow native link behaviour (middle-click, ctrl-click, etc.). We only stop
-  // propagation so the document focus handler doesn't steal focus.
-  tile.addEventListener('click', e => {
-    // Prevent accidental navigation when the user just finished dragging.
-    if (_isDraggingDial) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    e.stopPropagation();
-  });
-
-  tile.addEventListener('dragstart', e => {
-    _isDraggingDial = true;
-    hideDropIndicator();
-    tile.classList.add('is-dragging');
-    dialGridEl.classList.add('is-dragging-dial');
-    try {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dial.alias);
-    } catch {
-      // Some environments may restrict dataTransfer; reordering will just no-op.
-    }
-  });
-
-  tile.addEventListener('dragend', () => {
-    tile.classList.remove('is-dragging');
-    dialGridEl.classList.remove('is-dragging-dial');
-    hideDropIndicator();
-    // Delay reset so the subsequent click (if any) can be suppressed.
-    setTimeout(() => { _isDraggingDial = false; }, 0);
-  });
-
-  tile.addEventListener('dragover', e => {
-    // Required to allow dropping.
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (tile.classList.contains('is-dragging')) return;
-    previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
-  });
-
-  tile.addEventListener('drop', async e => {
-    e.preventDefault();
-    e.stopPropagation();
-    hideDropIndicator();
-    dialGridEl.classList.remove('is-dragging-dial');
-
-    const fromAlias = e.dataTransfer?.getData('text/plain');
-    const toAlias = dial.alias;
-    if (!fromAlias || fromAlias === toAlias) return;
-
-    const current = await loadDials();
-    const fromIndex = current.findIndex(d => d.alias === fromAlias);
-    const toIndex   = current.findIndex(d => d.alias === toAlias);
-    if (fromIndex === -1 || toIndex === -1) return;
-
-    const rect   = tile.getBoundingClientRect();
-    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
-
-    // Compute insertion index (before/after), then adjust for removal shift.
-    let insertIndex = toIndex + (before ? 0 : 1);
-    if (fromIndex < insertIndex) insertIndex -= 1;
-    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-
-    const next = _arrayMove(current, fromIndex, insertIndex);
-    await saveDials(next);
-    await renderDials();
-  });
-
-  // Right-click → context menu
-  tile.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    showDialCtxMenu(e.clientX, e.clientY, dial.alias);
-  });
+  // Allow native link behaviour (middle-click, ctrl-click, etc.).
+  // Click guard + all DnD / touch events are wired up by bindDragEvents.
+  bindDragEvents(tile, dial, { suppressClick: true });
 
   tile._dialData = { ...dial };
   return tile;
@@ -1483,61 +1575,8 @@ function _createWeatherTileEl(dial) {
   tile.appendChild(labelEl);
   tile.appendChild(updatedEl);
 
-  // ── Standard DnD + click events (same pattern as _createTileEl) ──────────
-  tile.addEventListener('click', e => {
-    if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
-    e.stopPropagation();
-  });
-
-  tile.addEventListener('dragstart', e => {
-    _isDraggingDial = true;
-    hideDropIndicator();
-    tile.classList.add('is-dragging');
-    dialGridEl.classList.add('is-dragging-dial');
-    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dial.alias); } catch { /* ignore */ }
-  });
-
-  tile.addEventListener('dragend', () => {
-    tile.classList.remove('is-dragging');
-    dialGridEl.classList.remove('is-dragging-dial');
-    hideDropIndicator();
-    setTimeout(() => { _isDraggingDial = false; }, 0);
-  });
-
-  tile.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (tile.classList.contains('is-dragging')) return;
-    previewDropNearElement(dial.alias, tile.getBoundingClientRect(), e.clientX);
-  });
-
-  tile.addEventListener('drop', async e => {
-    e.preventDefault();
-    e.stopPropagation();
-    hideDropIndicator();
-    dialGridEl.classList.remove('is-dragging-dial');
-    const fromAlias = e.dataTransfer?.getData('text/plain');
-    const toAlias   = dial.alias;
-    if (!fromAlias || fromAlias === toAlias) return;
-    const current = await loadDials();
-    const fromIndex = current.findIndex(d => d.alias === fromAlias);
-    const toIndex   = current.findIndex(d => d.alias === toAlias);
-    if (fromIndex === -1 || toIndex === -1) return;
-    const rect   = tile.getBoundingClientRect();
-    const before = getPreviewBeforeFor(toAlias, rect, e.clientX);
-    let insertIndex = toIndex + (before ? 0 : 1);
-    if (fromIndex < insertIndex) insertIndex -= 1;
-    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-    const next = _arrayMove(current, fromIndex, insertIndex);
-    await saveDials(next);
-    await renderDials();
-  });
-
-  tile.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    showDialCtxMenu(e.clientX, e.clientY, dial.alias, false, true);
-  });
+  // ── DnD + click + touch events (shared helper) ───────────────────────────
+  bindDragEvents(tile, dial, { isWeather: true, suppressClick: true });
 
   tile._dialData = { ...dial };
 
