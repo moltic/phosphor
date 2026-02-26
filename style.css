@@ -428,13 +428,12 @@ html, body {
   line-height: 1.05;
   max-width: 100%;
   text-align: center;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  min-height: 2.1em;
+  text-overflow: ellipsis;
+  min-height: 1.05em;
 }
 
 /* ── Weather Dial tile ──────────────────────────────────────── */
@@ -490,8 +489,7 @@ html, body {
   letter-spacing: 0.05em;
 }
 
-/* City name reuses .dial-label — only override min-height so it
-   doesn't reserve 2-line space. */
+/* City name reuses .dial-label */
 .dial-tile--weather .dial-label {
   color: var(--fg-dim);
 }
