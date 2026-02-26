@@ -63,7 +63,7 @@ const THEMES = {
   amber: {
     '--bg':          '#0a0800',
     '--fg':          '#ffb000',
-    '--fg-dim':      '#a06800',
+    '--fg-dim':      '#c08000',
     '--fg-bright':   '#ffd050',
     '--glow':        'rgba(255, 176, 0, 0.60)',
     '--glow-soft':   'rgba(255, 176, 0, 0.22)',
@@ -72,7 +72,7 @@ const THEMES = {
   green: {
     '--bg':          '#001408',
     '--fg':          '#33ff77',
-    '--fg-dim':      '#1a7a40',
+    '--fg-dim':      '#28a050',
     '--fg-bright':   '#80ffaa',
     '--glow':        'rgba(51, 255, 119, 0.55)',
     '--glow-soft':   'rgba(51, 255, 119, 0.20)',
@@ -81,7 +81,7 @@ const THEMES = {
   blue: {
     '--bg':          '#000a1a',
     '--fg':          '#40b4ff',
-    '--fg-dim':      '#206080',
+    '--fg-dim':      '#2880a0',
     '--fg-bright':   '#80d4ff',
     '--glow':        'rgba(64, 180, 255, 0.55)',
     '--glow-soft':   'rgba(64, 180, 255, 0.20)',
@@ -90,7 +90,7 @@ const THEMES = {
   white: {
     '--bg':          '#0a0a0a',
     '--fg':          '#cccccc',
-    '--fg-dim':      '#666666',
+    '--fg-dim':      '#808080',
     '--fg-bright':   '#eeeeee',
     '--glow':        'rgba(200, 200, 200, 0.30)',
     '--glow-soft':   'rgba(200, 200, 200, 0.12)',
