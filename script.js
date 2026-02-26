@@ -2234,6 +2234,40 @@ const commands = {
       printLine('  ↑ / ↓          Navigate command history', 'line-info');
       printLine('  Tab            Auto-complete command name', 'line-info');
       printLine('  Ctrl+L / ⌘L    Clear current input (not the screen)', 'line-info');
+      printLine('  (Run  keys  for a full shortcut reference)', 'line-info');
+      printBlank();
+    },
+  },
+
+  // ── keys — keyboard shortcut reference ──────────────────────────
+  keys: {
+    description: 'Print a formatted table of all keyboard shortcuts.',
+    usage: 'keys',
+    run(_args) {
+      const K = 16;   // inner width of key column (between ║ characters)
+      const A = 38;   // inner width of action column
+      const top = '╔' + '═'.repeat(K) + '╦' + '═'.repeat(A) + '╗';
+      const mid = '╠' + '═'.repeat(K) + '╬' + '═'.repeat(A) + '╣';
+      const bot = '╚' + '═'.repeat(K) + '╩' + '═'.repeat(A) + '╝';
+      const row = (k, a) =>
+        '║' + (' ' + k).padEnd(K) + '║' + (' ' + a).padEnd(A) + '║';
+
+      const shortcuts = [
+        ['↑ / ↓',        'Navigate command history'],
+        ['Tab',           'Auto-complete command name'],
+        ['Ctrl+L / ⌘L',   'Clear current input (not the screen)'],
+        ['Escape',        'Clear / cancel current input'],
+        ['Right-click',   'Paste or open browser context menu'],
+      ];
+
+      printBlank();
+      printLine(top, 'line-sep');
+      printLine(row('Shortcut', 'Action'), 'line-head');
+      printLine(mid, 'line-sep');
+      for (const [k, a] of shortcuts) {
+        printLine(row(k, a), 'line-out');
+      }
+      printLine(bot, 'line-sep');
       printBlank();
     },
   },
