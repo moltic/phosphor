@@ -4032,6 +4032,7 @@ inputEl.addEventListener('keydown', e => {
       if (val.trim() !== '') {
         cmdHistory.unshift(val);
         if (cmdHistory.length > 200) cmdHistory.pop();
+        chrome.storage.local.set({ cmdHistory });
       }
 
       // Reset history navigation state
@@ -4271,8 +4272,9 @@ async function init() {
   // Migrate any existing local data into sync (runs once per machine, no-op thereafter)
   await migrateLocalToSync();
 
-  // Load prefs and render speed-dial concurrently; apply prefs before any painting
-  const [prefs] = await Promise.all([loadPrefs(), renderDials()]);
+  // Load prefs, render speed-dial, and restore command history concurrently
+  const [prefs,, histResult] = await Promise.all([loadPrefs(), renderDials(), chrome.storage.local.get({ cmdHistory: [] })]);
+  cmdHistory = histResult.cmdHistory;
 
   // Bump session counter on every new page load
   prefs.sessionCount = (prefs.sessionCount || 0) + 1;
