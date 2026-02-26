@@ -2373,8 +2373,8 @@ const commands = {
 
   // ── n — save a note ─────────────────────────────────────────────
   n: {
-    description: 'Save a note, or manage notes.  n [text]  |  n rm [N]  |  n clear',
-    usage: 'n [text ...]  |  n rm [N]  |  n clear',
+    description: 'Save a note, or manage notes.  n [text]  |  n rm [N]  |  n clear  |  n find [query]  |  n edit [N] [text]',
+    usage: 'n [text ...]  |  n rm [N]  |  n clear  |  n find [query]  |  n edit [N] [text]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -2405,10 +2405,56 @@ const commands = {
         return;
       }
 
+      // ── n find [query] — case-insensitive substring filter ────────
+      if (sub === 'find') {
+        if (!args[1]) {
+          printLine('Usage: n find [query]  — filter notes by substring (case-insensitive)', 'line-info');
+          return;
+        }
+        const query = args.slice(1).join(' ').toLowerCase();
+        const notes = await loadNotes();
+        const reversed = [...notes].reverse();
+        const matches = reversed
+          .map((note, i) => ({ note, displayIndex: i + 1 }))
+          .filter(({ note }) => note.text.toLowerCase().includes(query));
+        if (matches.length === 0) {
+          printLine(`No notes matching "${args.slice(1).join(' ')}".`, 'line-info');
+          return;
+        }
+        printLine(`Notes matching "${args.slice(1).join(' ')}":`, 'line-info');
+        for (const { note, displayIndex } of matches) {
+          printLine(`  [${displayIndex}]  ${note.text}  (${formatTimestamp(note.ts)})`, 'line-out');
+        }
+        return;
+      }
+
+      // ── n edit [N] [new text] — replace text of note N ───────────
+      if (sub === 'edit') {
+        const N = parseInt(args[1], 10);
+        if (!args[1] || isNaN(N) || N < 1 || !args[2]) {
+          printLine('Usage: n edit [N] [new text]  — replace text of note N in-place', 'line-info');
+          return;
+        }
+        const notes = await loadNotes();
+        const reversed = [...notes].reverse();
+        if (N > reversed.length) {
+          printLine(`No note at index ${N}.`, 'line-err');
+          return;
+        }
+        const target = reversed[N - 1];
+        const idx = notes.findIndex(note => note.id === target.id);
+        notes[idx] = { ...notes[idx], text: args.slice(2).join(' ') };
+        await saveNotes(notes);
+        printLine(`✓ Note ${N} updated.`, 'line-ok');
+        return;
+      }
+
       if (args.length === 0) {
         printLine('Usage:   n [text ...]', 'line-info');
         printLine('         n rm [N]', 'line-info');
         printLine('         n clear', 'line-info');
+        printLine('         n find [query]', 'line-info');
+        printLine('         n edit [N] [new text]', 'line-info');
         printLine('Example: n review PR #42 before standup', 'line-info');
         return;
       }
