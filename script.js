@@ -26,6 +26,37 @@
 
 // (Banner rendering uses the in-code legacy font; FIGlet is not used.)
 
+// ── 0. Config ─────────────────────────────────────────────────────
+
+const CONFIG = {
+  /** Maximum entries stored in the command-history ring. */
+  HISTORY_MAX:         200,
+
+  /** Notes listed per page in the `ls` command. */
+  NOTES_PAGE_SIZE:     20,
+
+  /** Geolocation API hard timeout (ms). */
+  GEO_TIMEOUT_MS:      12_000,
+
+  /** Geolocation API maximum cached-position age (ms). */
+  GEO_MAX_AGE_MS:      5 * 60 * 1000,
+
+  /** Auto-refresh interval for weather tiles (ms). */
+  WEATHER_REFRESH_MS:  10 * 60 * 1000,
+
+  /** Tick interval for the "updated X min ago" label on weather tiles (ms). */
+  WEATHER_AGO_TICK_MS: 60_000,
+
+  /** Duration of the CRT-wipe animation used by `clear` (ms). */
+  CRT_WIPE_MS:         300,
+
+  /** Touch long-press duration to open the dial context menu (ms). */
+  DIAL_LONGPRESS_MS:   500,
+
+  /** Delay between characters in the `typewriter` command (ms). */
+  TYPEWRITER_CHAR_MS:  40,
+};
+
 // ── 1. DOM refs ────────────────────────────────────────────────────
 
 const APP_TITLE = 'PHOSPHOR TERMINAL V0.1';
@@ -599,7 +630,7 @@ function printBannerHtml(html) {
 function clearScreen() {
   const termEl = document.getElementById('terminal');
   termEl.classList.add('crt-wipe');
-  setTimeout(() => termEl.classList.remove('crt-wipe'), 300);
+  setTimeout(() => termEl.classList.remove('crt-wipe'), CONFIG.CRT_WIPE_MS);
   outputEl.innerHTML = '';
 }
 
@@ -1158,7 +1189,7 @@ function bindDragEvents(el, dial, opts = {}) {
       // Haptic feedback when available.
       if (navigator.vibrate) navigator.vibrate(30);
       showDialCtxMenu(_touchStartX, _touchStartY, dial.alias, isDivider, isWeather);
-    }, 500);
+    }, CONFIG.DIAL_LONGPRESS_MS);
   }, { passive: true });
 
   el.addEventListener('touchmove', e => {
@@ -1392,9 +1423,6 @@ const WMO_WEATHER = {
 };
 const WMO_FALLBACK = { icon: '☁', label: 'Unknown' };
 
-/** ms between automatic weather refreshes (10 min). */
-const WEATHER_REFRESH_MS = 10 * 60 * 1000;
-
 /** Returns true when the user's locale typically uses Fahrenheit. */
 function _useFahrenheit() {
   try {
@@ -1431,7 +1459,7 @@ function _getGeolocation() {
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
       err => reject(err),
-      { timeout: 12_000, maximumAge: 5 * 60 * 1000 }
+      { timeout: CONFIG.GEO_TIMEOUT_MS, maximumAge: CONFIG.GEO_MAX_AGE_MS }
     );
   });
 }
@@ -1604,17 +1632,17 @@ function _createWeatherTileEl(dial) {
     _refreshWeatherTile(tile);
   });
 
-  // Schedule automatic refresh every WEATHER_REFRESH_MS.
-  const intervalId = setInterval(() => _refreshWeatherTile(tile), WEATHER_REFRESH_MS);
+  // Schedule automatic refresh every CONFIG.WEATHER_REFRESH_MS.
+  const intervalId = setInterval(() => _refreshWeatherTile(tile), CONFIG.WEATHER_REFRESH_MS);
   _weatherIntervals.set(dial.alias, intervalId);
 
-  // Tick the "updated Xm ago" label every minute without re-fetching.
+  // Tick the "updated Xm ago" label every CONFIG.WEATHER_AGO_TICK_MS without re-fetching.
   const agoIntervalId = setInterval(() => {
     if (!tile.isConnected) { clearInterval(agoIntervalId); return; }
     const ts  = tile.dataset.weatherTs ? Number(tile.dataset.weatherTs) : null;
     const upd = tile.querySelector('.dial-weather-updated');
     if (upd && ts) upd.textContent = _formatAgo(ts);
-  }, 60_000);
+  }, CONFIG.WEATHER_AGO_TICK_MS);
 
   return tile;
 }
@@ -2594,7 +2622,7 @@ const commands = {
     description: 'List saved notes and speed-dial tiles.  Optionally paginate notes: ls [page] or ls notes [page].',
     usage: 'ls  |  ls [page]  |  ls notes [page]',
     async run(args) {
-      const PAGE_SIZE = 20;
+      const PAGE_SIZE = CONFIG.NOTES_PAGE_SIZE;
 
       // Parse optional page argument.
       // Accepted forms:  ls          → page 1, show dials
@@ -3358,12 +3386,12 @@ const commands = {
           if (i < message.length) {
             span.textContent += message[i++];
             outputEl.scrollTop = outputEl.scrollHeight;
-            setTimeout(typeNext, 40);
+            setTimeout(typeNext, CONFIG.TYPEWRITER_CHAR_MS);
           } else {
             resolve();
           }
         }
-        setTimeout(typeNext, 40);
+        setTimeout(typeNext, CONFIG.TYPEWRITER_CHAR_MS);
       });
     },
   },
@@ -4242,7 +4270,7 @@ inputEl.addEventListener('keydown', e => {
       // Push non-empty command into session history
       if (val.trim() !== '') {
         cmdHistory.unshift(val);
-        if (cmdHistory.length > 200) cmdHistory.pop();
+        if (cmdHistory.length > CONFIG.HISTORY_MAX) cmdHistory.pop();
         if (_cachedPrefs?.historyPersist !== false) {
           chrome.storage.local.set({ cmdHistory });
         }
