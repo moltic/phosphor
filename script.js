@@ -272,16 +272,20 @@ function renderHeaderBanner(text) {
 }
 
 const DEFAULT_PREFS = {
-  theme:        'amber',
-  terminalSize: 'medium',
-  dialSize:     'medium',
-  scanlines:    true,
-  bannerText:   '',          // custom banner override; takes priority over greeting
-  greetingMode: false,
-  greetingName: '',          // name shown in greeting (e.g. "good morning, Daniel")
-  motd:         '',
-  handle:       '',
-  sessionCount: 0,
+  theme:            'amber',
+  terminalSize:     'medium',
+  dialSize:         'medium',
+  scanlines:        true,
+  bannerText:       '',          // custom banner override; takes priority over greeting
+  greetingMode:     false,
+  greetingName:     '',          // name shown in greeting (e.g. "good morning, Daniel")
+  motd:             '',
+  handle:           '',
+  sessionCount:     0,
+  clockFormat:      'auto',      // 'auto' | '12h' | '24h'
+  tempUnit:         'auto',      // 'auto' | 'c' | 'f'
+  cursorBlinkSpeed: 'normal',    // 'slow' | 'normal' | 'fast'
+  historyPersist:   true,        // persist command history across sessions
 };
 
 function setAsciiArt(el, text, { asHtml = true } = {}) {
@@ -821,6 +825,16 @@ async function applyPrefs(prefs) {
 
   const scanlinesEl = document.getElementById('scanlines');
   if (scanlinesEl) scanlinesEl.style.display = prefs.scanlines === false ? 'none' : '';
+
+  // Apply cursor blink speed via CSS custom property.
+  const _blinkSpeeds = { slow: '1.8s', normal: '1.1s', fast: '0.5s' };
+  root.style.setProperty('--cursor-blink-speed', _blinkSpeeds[prefs.cursorBlinkSpeed] || '1.1s');
+
+  // When history persistence is turned off, wipe any previously-saved history.
+  if (prefs.historyPersist === false) {
+    chrome.storage.local.remove('cmdHistory');
+    cmdHistory = [];
+  }
 }
 
 // ============================================================
@@ -1427,7 +1441,8 @@ function _getGeolocation() {
  * Returns { temp, symbol, code, condition, icon }.
  */
 async function _fetchWeatherData(lat, lon) {
-  const useFahr = _useFahrenheit();
+  const prefUnit = _cachedPrefs?.tempUnit || 'auto';
+  const useFahr  = prefUnit === 'f' ? true : prefUnit === 'c' ? false : _useFahrenheit();
   const unitParam = useFahr ? 'fahrenheit' : 'celsius';
   const symbol    = useFahr ? '°F' : '°C';
   const resp = await fetch(
@@ -2107,6 +2122,22 @@ const settingsPanelEl = (() => {
     ['on', 'ON'], ['off', 'OFF'],
   ]);
 
+  const clockFormatSelect = makeSelect('s-clockformat', [
+    ['auto', 'AUTO (LOCALE)'], ['12h', '12H'], ['24h', '24H'],
+  ]);
+
+  const tempUnitSelect = makeSelect('s-tempunit', [
+    ['auto', 'AUTO (LOCALE)'], ['c', 'CELSIUS (°C)'], ['f', 'FAHRENHEIT (°F)'],
+  ]);
+
+  const cursorSpeedSelect = makeSelect('s-cursorspeed', [
+    ['slow', 'SLOW'], ['normal', 'NORMAL'], ['fast', 'FAST'],
+  ]);
+
+  const historyPersistSelect = makeSelect('s-historypersist', [
+    ['on', 'ON'], ['off', 'OFF'],
+  ]);
+
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
 
@@ -2130,7 +2161,11 @@ const settingsPanelEl = (() => {
   inner.appendChild(makeRow('BANNER',        bannerInput));
   inner.appendChild(makeRow('GREETING',      greetingSelect));
   inner.appendChild(makeRow('NAME',          greetingNameInput));
-  inner.appendChild(makeRow('SCANLINES',     scanSelect));
+  inner.appendChild(makeRow('SCANLINES',       scanSelect));
+  inner.appendChild(makeRow('CLOCK FORMAT',     clockFormatSelect));
+  inner.appendChild(makeRow('TEMPERATURE UNIT', tempUnitSelect));
+  inner.appendChild(makeRow('CURSOR SPEED',     cursorSpeedSelect));
+  inner.appendChild(makeRow('HISTORY PERSIST',  historyPersistSelect));
   inner.appendChild(actionsEl);
 
   // Keyboard shortcuts inside the panel
@@ -2163,6 +2198,10 @@ async function openSettingsPanel() {
   document.getElementById('s-greeting').value      = prefs.greetingMode ? 'on' : 'off';
   document.getElementById('s-greetingname').value  = prefs.greetingName || '';
   document.getElementById('s-scanlines').value     = prefs.scanlines === false ? 'off' : 'on';
+  document.getElementById('s-clockformat').value   = prefs.clockFormat || 'auto';
+  document.getElementById('s-tempunit').value      = prefs.tempUnit || 'auto';
+  document.getElementById('s-cursorspeed').value   = prefs.cursorBlinkSpeed || 'normal';
+  document.getElementById('s-historypersist').value = prefs.historyPersist === false ? 'off' : 'on';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -2174,13 +2213,17 @@ function closeSettingsPanel() {
 
 async function commitSettings() {
   const prefs = {
-    theme:        document.getElementById('s-theme').value,
-    terminalSize: document.getElementById('s-terminalsize').value,
-    dialSize:     document.getElementById('s-dialsize').value,
-    bannerText:   document.getElementById('s-banner').value.trim(),
-    greetingMode: document.getElementById('s-greeting').value === 'on',
-    greetingName: document.getElementById('s-greetingname').value.trim(),
-    scanlines:    document.getElementById('s-scanlines').value === 'on',
+    theme:            document.getElementById('s-theme').value,
+    terminalSize:     document.getElementById('s-terminalsize').value,
+    dialSize:         document.getElementById('s-dialsize').value,
+    bannerText:       document.getElementById('s-banner').value.trim(),
+    greetingMode:     document.getElementById('s-greeting').value === 'on',
+    greetingName:     document.getElementById('s-greetingname').value.trim(),
+    scanlines:        document.getElementById('s-scanlines').value === 'on',
+    clockFormat:      document.getElementById('s-clockformat').value,
+    tempUnit:         document.getElementById('s-tempunit').value,
+    cursorBlinkSpeed: document.getElementById('s-cursorspeed').value,
+    historyPersist:   document.getElementById('s-historypersist').value === 'on',
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);
@@ -4200,7 +4243,9 @@ inputEl.addEventListener('keydown', e => {
       if (val.trim() !== '') {
         cmdHistory.unshift(val);
         if (cmdHistory.length > 200) cmdHistory.pop();
-        chrome.storage.local.set({ cmdHistory });
+        if (_cachedPrefs?.historyPersist !== false) {
+          chrome.storage.local.set({ cmdHistory });
+        }
       }
 
       // Reset history navigation state
@@ -4375,11 +4420,11 @@ function tickClock() {
     day: 'numeric',
     year: 'numeric',
   });
-  const timePart = d.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  const clockFormat = _cachedPrefs?.clockFormat || 'auto';
+  const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+  if (clockFormat === '12h') timeOptions.hour12 = true;
+  else if (clockFormat === '24h') timeOptions.hour12 = false;
+  const timePart = d.toLocaleTimeString(undefined, timeOptions);
   timeEl.textContent = `${datePart}  ${timePart}`;
 
   // Refresh greeting banner whenever the time-of-day period changes.
@@ -4442,7 +4487,9 @@ async function init() {
 
   // Load prefs, render speed-dial, and restore command history concurrently
   const [prefs,, histResult] = await Promise.all([loadPrefs(), renderDials(), chrome.storage.local.get({ cmdHistory: [] })]);
-  cmdHistory = histResult.cmdHistory;
+  if (prefs.historyPersist !== false) {
+    cmdHistory = histResult.cmdHistory;
+  }
 
   // Bump session counter on every new page load
   prefs.sessionCount = (prefs.sessionCount || 0) + 1;
