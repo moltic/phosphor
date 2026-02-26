@@ -1303,6 +1303,19 @@ function _useFahrenheit() {
 const _weatherIntervals = new Map();
 
 /**
+ * Format a timestamp as a compact "updated Xm ago" string.
+ * @param {number} ts  - Date.now() value from last successful fetch.
+ */
+function _formatAgo(ts) {
+  if (!ts) return '';
+  const mins = Math.floor((Date.now() - ts) / 60_000);
+  if (mins < 1)  return 'updated just now';
+  if (mins < 60) return `updated ${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  return `updated ${hrs}h ago`;
+}
+
+/**
  * Resolve browser geolocation to {lat, lon}.
  * Resolves immediately from cache if a fresh fix is available.
  */
@@ -1367,13 +1380,16 @@ async function _getCityName(lat, lon) {
 }
 
 /** Push weather values into the tile's display elements. */
-function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon }) {
-  const iconEl  = tile.querySelector('.dial-weather-icon');
-  const tempEl  = tile.querySelector('.dial-weather-temp');
-  const labelEl = tile.querySelector('.dial-label');
+function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon, ts }) {
+  const iconEl    = tile.querySelector('.dial-weather-icon');
+  const tempEl    = tile.querySelector('.dial-weather-temp');
+  const labelEl   = tile.querySelector('.dial-label');
+  const updatedEl = tile.querySelector('.dial-weather-updated');
   if (iconEl)  iconEl.textContent  = icon ?? '☁';
   if (tempEl)  tempEl.textContent  = temp != null ? `${temp}${symbol}` : '--';
   if (labelEl && city) labelEl.textContent = city;
+  if (updatedEl) updatedEl.textContent = _formatAgo(ts);
+  if (ts) tile.dataset.weatherTs = String(ts);
   // Point the link at the user's exact location when coords are available.
   if (lat != null && lon != null) {
     const locUrl = `https://weather.com/weather/today/l/${lat.toFixed(4)},${lon.toFixed(4)}`;
@@ -1392,7 +1408,10 @@ function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon }) {
 async function _refreshWeatherTile(tile) {
   if (!tile.isConnected) return;
 
+  tile.classList.add('is-refreshing');
+
   if (!navigator.onLine) {
+    tile.classList.remove('is-refreshing');
     const iconEl = tile.querySelector('.dial-weather-icon');
     const tempEl = tile.querySelector('.dial-weather-temp');
     if (iconEl) iconEl.textContent = '✕';
@@ -1407,14 +1426,17 @@ async function _refreshWeatherTile(tile) {
       _fetchWeatherData(lat, lon),
       _getCityName(lat, lon),
     ]);
-    await chrome.storage.local.set({ weatherLast: { ...weather, city, lat, lon } });
-    _setWeatherTileContent(tile, { ...weather, city, lat, lon });
+    const ts = Date.now();
+    await chrome.storage.local.set({ weatherLast: { ...weather, city, lat, lon, ts } });
+    _setWeatherTileContent(tile, { ...weather, city, lat, lon, ts });
   } catch (err) {
     console.warn('[Phosphor] Weather refresh failed:', err?.message ?? err);
     const iconEl = tile.querySelector('.dial-weather-icon');
     const tempEl = tile.querySelector('.dial-weather-temp');
     if (iconEl) iconEl.textContent = '✕';
     if (tempEl) tempEl.textContent = 'ERR';
+  } finally {
+    tile.classList.remove('is-refreshing');
   }
 }
 
@@ -1449,11 +1471,17 @@ function _createWeatherTileEl(dial) {
   labelEl.className   = 'dial-label';
   labelEl.textContent = dial.label || 'WEATHER';
 
+  // ── "updated Xm ago" sub-label
+  const updatedEl = document.createElement('span');
+  updatedEl.className = 'dial-weather-updated';
+  updatedEl.setAttribute('aria-hidden', 'true');
+
   row1El.appendChild(iconEl);
   row1El.appendChild(tempEl);
 
   tile.appendChild(row1El);
   tile.appendChild(labelEl);
+  tile.appendChild(updatedEl);
 
   // ── Standard DnD + click events (same pattern as _createTileEl) ──────────
   tile.addEventListener('click', e => {
@@ -1525,6 +1553,14 @@ function _createWeatherTileEl(dial) {
   // Schedule automatic refresh every WEATHER_REFRESH_MS.
   const intervalId = setInterval(() => _refreshWeatherTile(tile), WEATHER_REFRESH_MS);
   _weatherIntervals.set(dial.alias, intervalId);
+
+  // Tick the "updated Xm ago" label every minute without re-fetching.
+  const agoIntervalId = setInterval(() => {
+    if (!tile.isConnected) { clearInterval(agoIntervalId); return; }
+    const ts  = tile.dataset.weatherTs ? Number(tile.dataset.weatherTs) : null;
+    const upd = tile.querySelector('.dial-weather-updated');
+    if (upd && ts) upd.textContent = _formatAgo(ts);
+  }, 60_000);
 
   return tile;
 }
