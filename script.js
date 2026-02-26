@@ -1385,9 +1385,22 @@ function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon }) {
 /**
  * Fetch fresh weather data and update the tile.
  * Silently no-ops if the tile has been removed from the DOM.
+ * Shows "OFFLINE" when the browser reports no network connectivity and
+ * registers a one-shot `online` listener to auto-retry when the connection
+ * is restored.  Shows "ERR" on any other fetch/geo failure.
  */
 async function _refreshWeatherTile(tile) {
   if (!tile.isConnected) return;
+
+  if (!navigator.onLine) {
+    const iconEl = tile.querySelector('.dial-weather-icon');
+    const tempEl = tile.querySelector('.dial-weather-temp');
+    if (iconEl) iconEl.textContent = '✕';
+    if (tempEl) tempEl.textContent = 'OFFLINE';
+    window.addEventListener('online', () => _refreshWeatherTile(tile), { once: true });
+    return;
+  }
+
   try {
     const { lat, lon } = await _getGeolocation();
     const [weather, city] = await Promise.all([
@@ -1400,8 +1413,8 @@ async function _refreshWeatherTile(tile) {
     console.warn('[Phosphor] Weather refresh failed:', err?.message ?? err);
     const iconEl = tile.querySelector('.dial-weather-icon');
     const tempEl = tile.querySelector('.dial-weather-temp');
-    if (iconEl && iconEl.textContent === '⏳') iconEl.textContent = '?';
-    if (tempEl && tempEl.textContent === '--') tempEl.textContent = '--';
+    if (iconEl) iconEl.textContent = '✕';
+    if (tempEl) tempEl.textContent = 'ERR';
   }
 }
 
