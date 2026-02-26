@@ -12,7 +12,8 @@
     "128": "phos.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "bookmarks"
   ],
   "host_permissions": [
     "https://api.open-meteo.com/",

@@ -2831,8 +2831,8 @@ const commands = {
 
   // ── dial — manage speed-dial tiles ─────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial group [label ...] | dial weather [url] | dial divider [row|col]',
-    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial group [label ...]  |  dial weather [url]  |  dial divider [row|col]',
+    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial group [label ...] | dial weather [url] | dial divider [row|col] | dial import',
+    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial group [label ...]  |  dial weather [url]  |  dial divider [row|col]  |  dial import',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
@@ -2945,6 +2945,118 @@ const commands = {
         printLine('✓ Weather dial added.  It will show live conditions using your browser location.', 'line-ok');
         printLine('  Click the tile to open the weather site.  Right-click to change URL or remove.', 'line-info');
 
+      } else if (sub === 'import') {
+        // ── dial import — pick from the browser bookmark tree ────
+        if (!chrome.bookmarks) {
+          printLine('Error: Bookmarks API not available. Check manifest permissions.', 'line-err');
+          return;
+        }
+
+        const tree = await chrome.bookmarks.getTree();
+
+        // Build a flat, numbered list of all nodes (folders + bookmarks).
+        // Root node (id "0") is invisible; its two children are the Bookmarks
+        // Bar and Other Bookmarks folders — we skip the phantom root itself.
+        const entries = [];
+        function traverseBookmarks(node, depth) {
+          if (node.id === '0') {
+            // invisible root — recurse without registering it
+            (node.children || []).forEach(c => traverseBookmarks(c, 0));
+            return;
+          }
+          const isFolder = Array.isArray(node.children);
+          entries.push({ node, depth, isFolder });
+          if (isFolder) {
+            node.children.forEach(c => traverseBookmarks(c, depth + 1));
+          }
+        }
+        tree.forEach(root => traverseBookmarks(root, 0));
+
+        if (entries.length === 0) {
+          printLine('No bookmarks found in your browser.', 'line-info');
+          return;
+        }
+
+        // ── Print the tree ──────────────────────────────────────
+        printBlank();
+        printRule('─');
+        printLine('  BROWSER BOOKMARKS', 'line-head');
+        printRule('─');
+        entries.forEach((e, i) => {
+          const num    = String(i + 1).padStart(4, ' ');
+          const indent = '  '.repeat(e.depth);
+          if (e.isFolder) {
+            const title = e.node.title || '(Untitled Folder)';
+            printLine(`${num}  ${indent}▸ ${title}`, 'line-head');
+          } else {
+            const title = (e.node.title || e.node.url || '').substring(0, 45);
+            printLine(`${num}  ${indent}  ${title.padEnd(46)}${e.node.url}`, 'line-out');
+          }
+        });
+        printBlank();
+        printLine('  Enter a NUMBER to import that bookmark, or a FOLDER number to', 'line-info');
+        printLine('  import ALL bookmarks inside it.  Press Enter to cancel.', 'line-info');
+        printBlank();
+        endBatch();
+
+        const answer = await new Promise(resolve => { _pendingConfirm = resolve; });
+        printLine(`> ${answer}`, 'line-cmd');
+
+        const trimmed = answer.trim();
+        if (!trimmed) {
+          printLine('Import cancelled.', 'line-info');
+          return;
+        }
+
+        const sel = parseInt(trimmed, 10);
+        if (isNaN(sel) || sel < 1 || sel > entries.length) {
+          printLine(`Invalid selection "${trimmed}". Enter a number between 1 and ${entries.length}.`, 'line-err');
+          return;
+        }
+
+        const selected = entries[sel - 1];
+        const dials = await loadDials();
+
+        // Helper: collect all bookmark URLs under a node (recursive).
+        function collectBookmarks(node) {
+          const out = [];
+          if (node.url) { out.push(node); return out; }
+          for (const child of (node.children || [])) {
+            out.push(...collectBookmarks(child));
+          }
+          return out;
+        }
+
+        const toImport = selected.isFolder
+          ? collectBookmarks(selected.node)
+          : [selected.node];
+
+        let added = 0, skipped = 0;
+        for (const bm of toImport) {
+          if (!bm.url || /^(javascript|data):/i.test(bm.url)) { skipped++; continue; }
+          const alias = (bm.title || bm.url).trim();
+          const alL   = alias.toLowerCase();
+          if (dials.find(d => d.alias != null && d.alias.toLowerCase() === alL)) { skipped++; continue; }
+          dials.push({ alias, label: alias, url: bm.url });
+          added++;
+        }
+
+        if (added > 0) {
+          await saveDials(dials);
+          await renderDials();
+          const src = selected.isFolder ? `folder "${selected.node.title}"` : `"${selected.node.title || selected.node.url}"`;
+          printLine(
+            `✓ Imported ${added} bookmark${added !== 1 ? 's' : ''} from ${src}.` +
+            (skipped ? `  (${skipped} skipped — duplicates or invalid URLs)` : ''),
+            'line-ok',
+          );
+        } else {
+          printLine(
+            `Nothing imported. ${skipped} item${skipped !== 1 ? 's' : ''} skipped (duplicates or invalid URLs).`,
+            'line-info',
+          );
+        }
+
       } else {
         // No subcommand: list current dials
         const dials = await loadDials();
@@ -2979,6 +3091,7 @@ const commands = {
         printLine('  dial group   [label ...]        — add a collapsible section header', 'line-info');
         printLine('  dial weather [url]          — add a live weather tile', 'line-info');
         printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
+        printLine('  dial import                 — import from browser bookmarks', 'line-info');
         printLine('  Right-click any tile        — Edit / Refresh / Remove', 'line-info');
         printBlank();
       }
