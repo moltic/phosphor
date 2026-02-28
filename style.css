@@ -421,6 +421,20 @@ html, body {
   box-shadow: 0 0 6px var(--glow);
 }
 
+/* ── Keyboard-reorder flash ─────────────────────────────────── */
+@keyframes dial-tile-move-flash {
+  0%   { outline: 2px solid var(--fg-bright); outline-offset: 3px;
+         box-shadow: 0 0 0 3px var(--fg-bright), 0 0 16px var(--glow); }
+  65%  { outline: 2px solid var(--fg-bright); outline-offset: 3px;
+         box-shadow: 0 0 0 3px var(--fg-bright), 0 0 16px var(--glow); }
+  100% { outline: 2px solid transparent;      outline-offset: 2px;
+         box-shadow: 0 0 6px var(--glow); }
+}
+
+.dial-tile--moved {
+  animation: dial-tile-move-flash 0.5s ease-out forwards;
+}
+
 /* ── "+" Add tile ────────────────────────────────────────────── */
 .dial-add-tile {
   display: flex;

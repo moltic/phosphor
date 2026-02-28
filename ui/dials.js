@@ -547,6 +547,33 @@ function _createTileEl(dial) {
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     showDialEditDialog(dial.alias);
   });
+
+  // ── Keyboard reordering: Shift+Alt+← / Shift+Alt+→ ──────────
+  tile.addEventListener('keydown', async e => {
+    if (!e.altKey || !e.shiftKey) return;
+    const isLeft  = e.key === 'ArrowLeft';
+    const isRight = e.key === 'ArrowRight';
+    if (!isLeft && !isRight) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const dials    = await loadDials();
+    const fromIdx  = dials.findIndex(d => d.alias === dial.alias);
+    if (fromIdx === -1) return;
+    const toIdx    = isLeft ? fromIdx - 1 : fromIdx + 1;
+    if (toIdx < 0 || toIdx >= dials.length) return;
+    await saveDials(_arrayMove(dials, fromIdx, toIdx));
+    await renderDials();
+    // Restore focus and show movement flash on the relocated tile
+    const movedEl = dialGridEl.querySelector(`.dial-tile[data-alias="${dial.alias}"]`);
+    if (movedEl) {
+      movedEl.focus();
+      movedEl.classList.remove('dial-tile--moved'); // reset if already animating
+      void movedEl.offsetWidth;                     // force reflow to restart animation
+      movedEl.classList.add('dial-tile--moved');
+      movedEl.addEventListener('animationend', () => movedEl.classList.remove('dial-tile--moved'), { once: true });
+    }
+  });
+
   tile._dialData = { ...dial };
   return tile;
 }
