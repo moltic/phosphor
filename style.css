@@ -2063,10 +2063,16 @@ html.dial-layout--compact .dial-divider.row-divider {
   color: var(--fg);
 }
 
-/* Error / warning */
+/* Error */
 .line-err {
   color: #ff6040;
   text-shadow: 0 0 8px rgba(255, 96, 64, 0.5);
+}
+
+/* Deprecation / soft warning */
+.line-warn {
+  color: #e8a030;
+  text-shadow: 0 0 8px rgba(232, 160, 48, 0.45);
 }
 
 /* Informational / dim (e.g., usage hints) */

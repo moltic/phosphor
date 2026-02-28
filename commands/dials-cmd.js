@@ -1,31 +1,91 @@
 // ── commands/dials-cmd.js ─────────────────────────────────────────────────────
-// dial command — add/remove/divider/group/weather/import speed-dial entries.
+// dial command — add/remove/divider/category/weather/import speed-dial entries.
+//
+// Sub-commands that target the versioned DialStore (v1) directly:
+//   dial add      [alias ...] [url] [--category <name>]
+//   dial move     <alias> <category>
+//   dial rename   <alias> <new-label>
+//   dial category [label ...]
+//
+// Compatibility shim (deprecated):
+//   dial group    [label ...]  →  alias for "dial category" (prints a warning)
+//
+// Remaining sub-commands (rm / divider) continue to use the loadDials / saveDials
+// shims; dial import and dial weather were also updated to use the store directly.
 
-import { loadDials, saveDials }                    from '../core/storage.js';
+import { loadDialStore, saveDialStore,
+         loadDials, saveDials }                    from '../core/storage.js';
 import {
   printLine, printBlank, printRule, endBatch,
 } from '../core/render.js';
 import { setPendingConfirm }                       from '../core/state.js';
 import { renderDials, removeDial }                 from '../ui/dials.js';
 
+// ── DialStore helpers (used by add / move / rename / category) ────────────────
+
+/** Find a category by label (case-insensitive). Returns the object or null. */
+function _findCategoryByLabel(store, label) {
+  const lo = label.toLowerCase();
+  return store.categories.find(c => c.label.toLowerCase() === lo) ?? null;
+}
+
+/** Return the implicit default category (first unlabelled, or first overall). */
+function _defaultCategory(store) {
+  return store.categories.find(c => c.label === '') ?? store.categories[0];
+}
+
+/**
+ * Generate a unique id not already used by any category id or item id.
+ * @param {string} base
+ * @param {{ categories: Array }} store
+ */
+function _uniqueId(base, store) {
+  const existing = new Set([
+    ...store.categories.map(c => c.id),
+    ...store.categories.flatMap(c => c.items.map(it => it.id)),
+  ]);
+  let id = base; let n = 2;
+  while (existing.has(id)) id = `${base}_${n++}`;
+  return id;
+}
+
+/** Slugify a display string into a safe id/alias base. */
+function _slugify(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || `item-${Date.now()}`;
+}
+
 export const dialsCommands = {
 
   // ── dial ──────────────────────────────────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] | dial rm [alias ...] | dial group [label ...] | dial weather [url] | dial divider [row|col] | dial import',
-    usage: 'dial add [alias ...] [url]  |  dial rm [alias ...]  |  dial group [label ...]  |  dial weather [url]  |  dial divider [row|col]  |  dial import',
+    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] [--category <name>] | dial rm [alias ...] | dial move <alias> <category> | dial rename <alias> <new-label> | dial category [label ...] | dial weather [url] | dial divider [row|col] | dial import',
+    usage: 'dial add [alias ...] [url] [--category <name>]  |  dial rm [alias ...]  |  dial move <alias> <category>  |  dial rename <alias> <new-label>  |  dial category [label ...]  |  dial group [label ...] (deprecated)  |  dial weather [url]  |  dial divider [row|col]  |  dial import',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
       // ── dial add ─────────────────────────────────────────────────
+      // Targets the DialStore (v1) directly.
+      // Optional flag:  --category <name>  or  -c <name>
       if (sub === 'add') {
-        const rawUrl = args.length >= 3 ? args[args.length - 1] : '';
-        const alias  = args.slice(1, -1).join(' ').trim();
+        // Strip --category / -c flag from args
+        let categoryArg = null;
+        const rest = [];
+        for (let i = 1; i < args.length; i++) {
+          if ((args[i] === '--category' || args[i] === '-c') && i + 1 < args.length) {
+            categoryArg = args[++i];
+          } else {
+            rest.push(args[i]);
+          }
+        }
+
+        const rawUrl = rest.length >= 2 ? rest[rest.length - 1] : '';
+        const alias  = rest.slice(0, -1).join(' ').trim();
 
         if (!alias || !rawUrl) {
-          printLine('Usage:   dial add [alias ...] [url]', 'line-info');
+          printLine('Usage:   dial add [alias ...] [url] [--category <name>]', 'line-info');
           printLine('Example: dial add hn https://news.ycombinator.com', 'line-info');
           printLine('Example: dial add Amazon Prime Video https://www.amazon.com/Amazon-Video/b?ie=UTF8', 'line-info');
+          printLine('Example: dial add Work Notes https://example.com --category Work', 'line-info');
           return;
         }
 
@@ -36,34 +96,179 @@ export const dialsCommands = {
           return;
         }
 
-        const dials      = await loadDials();
+        const store      = await loadDialStore();
         const aliasLower = alias.toLowerCase();
-        const collision  = dials.find(d => d.alias != null && d.alias.toLowerCase() === aliasLower);
+        const collision  = store.categories
+          .flatMap(c => c.items)
+          .find(it => it.alias != null && it.alias.toLowerCase() === aliasLower);
         if (collision) {
-          if (collision.type === 'divider') {
-            printLine(`"${alias}" clashes with an existing divider entry. Remove it first (right-click the divider tile).`, 'line-err');
-          } else {
-            printLine(`Alias "${collision.alias}" already exists. Use  dial rm ${collision.alias}  first.`, 'line-err');
-          }
+          printLine(`Alias "${collision.alias}" already exists. Use  dial rm ${collision.alias}  first.`, 'line-err');
           return;
         }
 
-        dials.push({ alias, label: alias, url });
-        await saveDials(dials);
+        // Resolve target category
+        let targetCat;
+        if (categoryArg) {
+          targetCat = _findCategoryByLabel(store, categoryArg);
+          if (!targetCat) {
+            printLine(`Category "${categoryArg}" not found. Use  dial category ${categoryArg}  to create it first.`, 'line-err');
+            return;
+          }
+        } else {
+          targetCat = _defaultCategory(store);
+        }
+
+        const id = _uniqueId(_slugify(alias), store);
+        targetCat.items.push({ id, type: 'link', alias, label: alias, url });
+        await saveDialStore(store);
         await renderDials();
-        printLine(`✓ Dial "${alias}"  →  ${url}`, 'line-ok');
+        const catNote = targetCat.label ? `  [${targetCat.label}]` : '';
+        printLine(`✓ Dial "${alias}"  →  ${url}${catNote}`, 'line-ok');
 
       // ── dial rm ──────────────────────────────────────────────────
       } else if (sub === 'rm') {
         const alias = args.slice(1).join(' ').trim();
         if (!alias) { printLine('Usage:   dial rm [alias ...]', 'line-info'); return; }
 
-        const dials = await loadDials();
-        if (!dials.some(d => d.alias === alias)) {
+        const store = await loadDialStore();
+        const found = store.categories.flatMap(c => c.items).find(it => it.alias === alias);
+        if (!found) {
           printLine(`Alias "${alias}" not found.`, 'line-err');
           return;
         }
         await removeDial(alias);
+
+      // ── dial move ────────────────────────────────────────────────
+      // Targets the DialStore (v1) directly.
+      // Usage: dial move <alias> <category>
+      // Because both alias and category can be multi-word, the split point is
+      // discovered by trying every left/right partition from right to left.
+      } else if (sub === 'move') {
+        const rest = args.slice(1);
+        if (rest.length < 2) {
+          printLine('Usage:   dial move <alias> <category>', 'line-info');
+          printLine('Example: dial move hn Work', 'line-info');
+          printLine('Example: dial move Hacker News Social Media', 'line-info');
+          return;
+        }
+
+        const store = await loadDialStore();
+        let resolvedItem = null;
+        let resolvedSrcCat = null;
+        let resolvedDstCat = null;
+        let resolvedAlias  = null;
+
+        // Try splits from right to left so multi-word alias is preferred.
+        for (let split = rest.length - 1; split >= 1; split--) {
+          const trialAlias = rest.slice(0, split).join(' ').trim();
+          const trialCat   = rest.slice(split).join(' ').trim();
+          const srcCat = store.categories.find(c => c.items.some(it => it.alias === trialAlias));
+          const dstCat = _findCategoryByLabel(store, trialCat);
+          if (srcCat && dstCat) {
+            resolvedItem     = srcCat.items.find(it => it.alias === trialAlias);
+            resolvedSrcCat   = srcCat;
+            resolvedDstCat   = dstCat;
+            resolvedAlias    = trialAlias;
+            break;
+          }
+        }
+
+        if (!resolvedItem) {
+          // Best-effort: detect which part failed for a helpful message.
+          const guessAlias = rest.slice(0, -1).join(' ').trim();
+          const guessCat   = rest[rest.length - 1];
+          const itemExists = store.categories.flatMap(c => c.items).find(it => it.alias === guessAlias);
+          if (!itemExists) {
+            printLine(`Dial "${guessAlias}" not found.`, 'line-err');
+          } else {
+            printLine(`Category "${guessCat}" not found. Use  dial category ${guessCat}  to create it first.`, 'line-err');
+          }
+          return;
+        }
+
+        if (resolvedSrcCat === resolvedDstCat) {
+          const catLabel = resolvedDstCat.label || '(default)';
+          printLine(`Dial "${resolvedAlias}" is already in category "${catLabel}".`, 'line-info');
+          return;
+        }
+
+        // Move: splice out of source, append to destination.
+        resolvedSrcCat.items = resolvedSrcCat.items.filter(it => it.alias !== resolvedAlias);
+        resolvedDstCat.items.push(resolvedItem);
+        await saveDialStore(store);
+        await renderDials();
+        printLine(`✓ Dial "${resolvedAlias}" moved to category "${resolvedDstCat.label || '(default)'}".`, 'line-ok');
+
+      // ── dial rename ───────────────────────────────────────────────
+      // Targets the DialStore (v1) directly.
+      // Usage: dial rename <alias> <new-label>
+      // Multi-word alias and label resolved by left–right partition scan.
+      } else if (sub === 'rename') {
+        const rest = args.slice(1);
+        if (rest.length < 2) {
+          printLine('Usage:   dial rename <alias> <new-label>', 'line-info');
+          printLine('Example: dial rename hn Hacker News', 'line-info');
+          return;
+        }
+
+        const store = await loadDialStore();
+        let resolvedItem  = null;
+        let resolvedAlias = null;
+        let resolvedLabel = null;
+
+        // Scan from left to right so the alias is matched as early (shortest) as possible.
+        for (let split = 1; split < rest.length; split++) {
+          const trialAlias = rest.slice(0, split).join(' ').trim();
+          const trialLabel = rest.slice(split).join(' ').trim();
+          const item = store.categories.flatMap(c => c.items).find(it => it.alias === trialAlias);
+          if (item && trialLabel) {
+            resolvedItem  = item;
+            resolvedAlias = trialAlias;
+            resolvedLabel = trialLabel;
+            break;
+          }
+        }
+
+        if (!resolvedItem) {
+          printLine(`Dial "${rest[0]}" not found.`, 'line-err');
+          return;
+        }
+
+        const oldLabel = resolvedItem.label;
+        resolvedItem.label = resolvedLabel;
+        await saveDialStore(store);
+        await renderDials();
+        printLine(`✓ Renamed "${oldLabel}"  →  "${resolvedLabel}".`, 'line-ok');
+
+      // ── dial category ─────────────────────────────────────────────
+      // Targets the DialStore (v1) directly.
+      // Creates a new named category (collapsible section).
+      } else if (sub === 'category') {
+        const categoryLabel = args.slice(1).join(' ').trim();
+        if (!categoryLabel) {
+          printLine('Usage:   dial category [label ...]', 'line-info');
+          printLine('Example: dial category Work', 'line-info');
+          printLine('Example: dial category Social Media', 'line-info');
+          return;
+        }
+        const store = await loadDialStore();
+        if (_findCategoryByLabel(store, categoryLabel)) {
+          printLine(`Category "${categoryLabel}" already exists.`, 'line-err');
+          return;
+        }
+        const id = _uniqueId(`cat_${_slugify(categoryLabel)}`, store);
+        store.categories.push({ id, label: categoryLabel, collapsed: false, items: [] });
+        await saveDialStore(store);
+        await renderDials();
+        printLine(`✓ Category "${categoryLabel}" added.`, 'line-ok');
+        printLine(`  Use  dial add [alias] [url] --category ${categoryLabel}  to add tiles to it.`, 'line-info');
+
+      // ── dial group (deprecated) ───────────────────────────────────
+      // Kept as a compatibility alias for "dial category".
+      // @deprecated Use "dial category" instead.
+      } else if (sub === 'group') {
+        printLine('⚠ "dial group" is deprecated — use "dial category" instead.', 'line-warn');
+        await dialsCommands.dial.run(['category', ...args.slice(1)]);
 
       // ── dial divider ─────────────────────────────────────────────
       } else if (sub === 'divider') {
@@ -83,34 +288,22 @@ export const dialsCommands = {
         await renderDials();
         const label = variant === 'col' ? 'Column divider' : 'Row divider';
         printLine(`✓ ${label} added. Drag to reorder, right-click to remove.`, 'line-ok');
-
-      // ── dial group ───────────────────────────────────────────────
-      } else if (sub === 'group') {
-        const groupLabel = args.slice(1).join(' ').trim();
-        if (!groupLabel) {
-          printLine('Usage:   dial group [label ...]', 'line-info');
-          printLine('Example: dial group Work', 'line-info');
-          printLine('Example: dial group Social Media', 'line-info');
-          return;
-        }
-        const dials = await loadDials();
-        const alias = `__grp_${Date.now()}__`;
-        dials.push({ type: 'group-header', alias, label: groupLabel });
-        await saveDials(dials);
-        await renderDials();
-        printLine(`✓ Group "${groupLabel}" added. Click to collapse, drag to reorder, right-click to rename/remove.`, 'line-ok');
+        printLine('  Note: dividers are a display hint only — use  dial category  for persistent grouping.', 'line-info');
 
       // ── dial weather ─────────────────────────────────────────────
+      // Targets the DialStore (v1) directly.
       } else if (sub === 'weather') {
-        const dials    = await loadDials();
-        const existing = dials.find(d => d.type === 'weather');
+        const store    = await loadDialStore();
+        const existing = store.categories.flatMap(c => c.items).find(it => it.type === 'weather');
         if (existing) {
           printLine(`Weather dial already present (alias: "${existing.alias}"). Right-click it to edit the destination URL or remove it.`, 'line-info');
           return;
         }
-        const url = args[1] ? args[1] : 'https://weather.com';
-        dials.push({ type: 'weather', alias: 'weather', label: 'WEATHER', url });
-        await saveDials(dials);
+        const url        = args[1] ? args[1] : 'https://weather.com';
+        const defaultCat = _defaultCategory(store);
+        const id         = _uniqueId('weather', store);
+        defaultCat.items.push({ id, type: 'weather', alias: 'weather', label: 'WEATHER', url });
+        await saveDialStore(store);
         await renderDials();
         printLine('✓ Weather dial added.  It will show live conditions using your browser location.', 'line-ok');
         printLine('  Click the tile to open the weather site.  Right-click to change URL or remove.', 'line-info');
@@ -168,7 +361,11 @@ export const dialsCommands = {
         }
 
         const selected = entries[sel - 1];
-        const dials    = await loadDials();
+        // Resolve deduplication against the live store.
+        const store = await loadDialStore();
+        const existingAliases = new Set(
+          store.categories.flatMap(c => c.items).map(it => (it.alias ?? '').toLowerCase()),
+        );
 
         function collectBookmarks(node) {
           const out = [];
@@ -177,20 +374,22 @@ export const dialsCommands = {
           return out;
         }
 
-        const toImport = selected.isFolder ? collectBookmarks(selected.node) : [selected.node];
-
+        const toImport    = selected.isFolder ? collectBookmarks(selected.node) : [selected.node];
+        const targetCat   = _defaultCategory(store);
         let added = 0, skipped = 0;
         for (const bm of toImport) {
           if (!bm.url || /^(javascript|data):/i.test(bm.url)) { skipped++; continue; }
           const alias = (bm.title || bm.url).trim();
           const alL   = alias.toLowerCase();
-          if (dials.find(d => d.alias != null && d.alias.toLowerCase() === alL)) { skipped++; continue; }
-          dials.push({ alias, label: alias, url: bm.url });
+          if (existingAliases.has(alL)) { skipped++; continue; }
+          const id = _uniqueId(_slugify(alias), store);
+          targetCat.items.push({ id, type: 'link', alias, label: alias, url: bm.url });
+          existingAliases.add(alL);
           added++;
         }
 
         if (added > 0) {
-          await saveDials(dials);
+          await saveDialStore(store);
           await renderDials();
           const src = selected.isFolder
             ? `folder "${selected.node.title}"`
@@ -209,34 +408,34 @@ export const dialsCommands = {
 
       // ── dial (no sub-command) ────────────────────────────────────
       } else {
-        const dials = await loadDials();
+        const store = await loadDialStore();
+        const totalItems = store.categories.reduce((n, c) => n + c.items.length, 0);
         printBlank();
         printRule('─');
         printLine('  SPEED DIAL', 'line-head');
         printRule('─');
-        if (dials.length === 0) {
+        if (totalItems === 0) {
           printLine('  (no dials — use:  dial add [alias ...] [url])', 'line-info');
         } else {
-          dials.forEach(d => {
-            if (d.type === 'divider') {
-              const kind = d.col ? '[col divider]' : '[row divider]';
-              printLine(`  ─── ${kind} ───`, 'line-info');
-              return;
+          for (const cat of store.categories) {
+            if (cat.label) printLine(`  ── ${cat.label} ──`, 'line-head');
+            for (const it of cat.items) {
+              if (it.type === 'weather') { printLine(`  [weather]       →  ${it.url}`, 'line-info'); continue; }
+              const labelCol = (it.label || it.alias).padEnd(14);
+              printLine(`  ${labelCol}  →  ${it.url}`, 'line-info');
             }
-            if (d.type === 'group-header') { printLine(`  ── ${d.label || d.alias} ──`, 'line-head'); return; }
-            if (d.type === 'weather')      { printLine(`  [weather]       →  ${d.url}`, 'line-info'); return; }
-            const labelCol = (d.label || d.alias).padEnd(14);
-            printLine(`  ${labelCol}  →  ${d.url}`, 'line-info');
-          });
+          }
         }
         printBlank();
-        printLine('  dial add     [alias ...] [url]  — add a new tile', 'line-info');
-        printLine('  dial rm      [alias ...]        — remove a tile', 'line-info');
-        printLine('  dial group   [label ...]        — add a collapsible section header', 'line-info');
-        printLine('  dial weather [url]          — add a live weather tile', 'line-info');
-        printLine('  dial divider [row|col]      — add a row or column divider', 'line-info');
-        printLine('  dial import                 — import from browser bookmarks', 'line-info');
-        printLine('  Right-click any tile        — Edit / Refresh / Remove', 'line-info');
+        printLine('  dial add      [alias ...] [url] [--category <name>]  — add a new tile', 'line-info');
+        printLine('  dial rm       [alias ...]                            — remove a tile', 'line-info');
+        printLine('  dial move     <alias> <category>                     — move a tile to another category', 'line-info');
+        printLine('  dial rename   <alias> <new-label>                    — rename a tile', 'line-info');
+        printLine('  dial category [label ...]                            — add a collapsible category', 'line-info');
+        printLine('  dial weather  [url]                                  — add a live weather tile', 'line-info');
+        printLine('  dial divider  [row|col]                              — add a display divider', 'line-info');
+        printLine('  dial import                                          — import from browser bookmarks', 'line-info');
+        printLine('  Right-click any tile                                 — Edit / Refresh / Remove', 'line-info');
         printBlank();
       }
     },
