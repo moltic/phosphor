@@ -10,8 +10,11 @@ import {
 } from './weather.js';
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
-const dialGridEl  = document.getElementById('speed-dial');
-const _editToggle = document.getElementById('dial-edit-toggle');
+const dialGridEl    = document.getElementById('speed-dial');
+const _editToggle   = document.getElementById('dial-edit-toggle');
+const _undoToastEl  = document.getElementById('dial-undo-toast');
+const _undoToastMsg = _undoToastEl?.querySelector('.dial-undo-toast-msg');
+const _undoToastBtn = _undoToastEl?.querySelector('.dial-undo-toast-btn');
 
 // ── Edit mode ─────────────────────────────────────────────────────────────────
 function _isEditMode()   { return dialGridEl.classList.contains('is-edit-mode'); }
@@ -1192,10 +1195,44 @@ async function commitDialEdit() {
   hideDialEditDialog();
 }
 
+// ── Undo-delete state ────────────────────────────────────────────────────────
+// Holds { dial, index, timer } for the most-recent deletion, or null.
+let _undoState = null;
+
+function _hideUndoToast() {
+  if (_undoState?.timer) clearTimeout(_undoState.timer);
+  _undoState = null;
+  if (_undoToastEl) _undoToastEl.classList.remove('visible');
+}
+
+function _showUndoToast(label) {
+  if (!_undoToastEl) return;
+  // Cancel any previous auto-dismiss timer before replacing the state.
+  if (_undoState?.timer) clearTimeout(_undoState.timer);
+  if (_undoToastMsg) _undoToastMsg.textContent = `Removed \u201c${label}\u201d \u2014\u00A0`;
+  _undoToastEl.classList.add('visible');
+  _undoState.timer = setTimeout(_hideUndoToast, 5000);
+}
+
+if (_undoToastBtn) {
+  _undoToastBtn.addEventListener('click', async () => {
+    if (!_undoState) return;
+    const { dial, index } = _undoState;
+    _hideUndoToast();
+    const dials = await loadDials();
+    const insertAt = Math.min(index, dials.length);
+    dials.splice(insertAt, 0, dial);
+    await saveDials(dials);
+    await renderDials();
+  });
+}
+
 // ── removeDial ────────────────────────────────────────────────────────────────
 
 export async function removeDial(alias) {
   const dials    = await loadDials();
+  const index    = dials.findIndex(d => d.alias === alias);
+  const dial     = index !== -1 ? { ...dials[index] } : null;
   const filtered = dials.filter(d => d.alias !== alias);
   await saveDials(filtered);
 
@@ -1205,5 +1242,10 @@ export async function removeDial(alias) {
     await chrome.storage.local.set({ dialGroupCollapsed: stored.dialGroupCollapsed });
   }
   await renderDials();
-  printLine(`✓ Dial "${alias}" removed.`, 'line-ok');
+
+  if (dial) {
+    _undoState = { dial, index };
+    _showUndoToast(dial.label || dial.alias);
+  }
+  printLine(`✓ Dial \u201c${alias}\u201d removed.`, 'line-ok');
 }

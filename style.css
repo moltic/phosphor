@@ -1428,3 +1428,52 @@ html.dial-size--large .dial-label {
     text-align: left;
   }
 }
+
+/* ── Undo Delete Toast ───────────────────────────────────────── */
+#dial-undo-toast {
+  position: fixed;
+  bottom: 2.4em;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  padding: 0.35em 1em;
+  z-index: 500;
+  display: none;
+  align-items: center;
+  white-space: nowrap;
+  box-shadow: 0 0 14px var(--glow-soft);
+  pointer-events: none;
+}
+
+#dial-undo-toast.visible {
+  display: flex;
+  pointer-events: auto;
+}
+
+.dial-undo-toast-msg {
+  color: var(--fg-dim);
+}
+
+.dial-undo-toast-btn {
+  background: none;
+  border: none;
+  color: var(--fg-bright);
+  font-family: var(--font-stack);
+  font-size: var(--font-size);
+  line-height: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.dial-undo-toast-btn:hover,
+.dial-undo-toast-btn:focus-visible {
+  color: var(--fg);
+  text-shadow: 0 0 6px var(--glow);
+  outline: none;
+}
