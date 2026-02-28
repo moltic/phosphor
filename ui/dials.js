@@ -9,8 +9,30 @@ import {
   _refreshWeatherTile, _weatherIntervals,
 } from './weather.js';
 
-// ── DOM ref ───────────────────────────────────────────────────────────────────
-const dialGridEl = document.getElementById('speed-dial');
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const dialGridEl  = document.getElementById('speed-dial');
+const _editToggle = document.getElementById('dial-edit-toggle');
+
+// ── Edit mode ─────────────────────────────────────────────────────────────────
+function _isEditMode()   { return dialGridEl.classList.contains('is-edit-mode'); }
+
+function _enterEditMode() {
+  dialGridEl.classList.add('is-edit-mode');
+  if (_editToggle) { _editToggle.textContent = '[DONE]'; _editToggle.classList.add('is-active'); }
+}
+
+function _exitEditMode() {
+  dialGridEl.classList.remove('is-edit-mode');
+  if (_editToggle) { _editToggle.textContent = '[EDIT]'; _editToggle.classList.remove('is-active'); }
+}
+
+if (_editToggle) {
+  _editToggle.addEventListener('click', () => _isEditMode() ? _exitEditMode() : _enterEditMode());
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && _isEditMode()) { e.preventDefault(); _exitEditMode(); }
+});
 
 // ── Letter-icon helpers ───────────────────────────────────────────────────────
 const _LETTER_ICON_COLORS = [
@@ -419,6 +441,20 @@ function _createTileEl(dial) {
   labelEl.className   = 'dial-label';
   labelEl.textContent = dial.label || dial.alias;
   tile.appendChild(labelEl);
+
+  // ✕ remove button (visible only when #speed-dial.is-edit-mode is active)
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'dial-tile-remove';
+  removeBtn.setAttribute('aria-label', `Remove ${dial.label || dial.alias}`);
+  removeBtn.setAttribute('tabindex', '-1');
+  removeBtn.textContent = '✕';
+  removeBtn.addEventListener('click', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!_isEditMode()) return;
+    await removeDial(dial.alias);
+  });
+  tile.appendChild(removeBtn);
 
   bindDragEvents(tile, dial);
   let _clickTimer = null;
