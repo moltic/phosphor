@@ -21,7 +21,7 @@ import {
 
 import { CONFIG, DEFAULT_PREFS }      from './core/config.js';
 import { migrateLocalToSync, migrateDialsToV1,
-         loadDials, loadPrefs,
+         loadPrefs,
          savePrefs }                  from './core/storage.js';
 import {
   getCachedPrefs, applyPrefs,
@@ -88,16 +88,6 @@ async function init() {
   if (_pendingTabDial) {
     await chrome.storage.local.remove('_pendingTabDial');
     openCurrentTabDial(_pendingTabDial);
-  }
-
-  // Hint for new users
-  const dials = await loadDials();
-  if (dials.length === 0) {
-    printLine(
-      '  No speed-dials yet.  Type  dial add <alias> <url>  to add one.',
-      'line-dim',
-    );
-    printBlank();
   }
 
   inputEl.focus();

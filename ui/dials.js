@@ -173,6 +173,45 @@ function _ensureAddTile() {
   return _addTileEl;
 }
 
+// ── Empty-state panel (first-run / zero dials) ────────────────────────────────
+let _emptyStateEl = null;
+
+function _ensureEmptyState() {
+  if (_emptyStateEl) return _emptyStateEl;
+
+  _emptyStateEl = document.createElement('div');
+  _emptyStateEl.className = 'dial-empty-state';
+  _emptyStateEl.setAttribute('role', 'status');
+
+  const heading = document.createElement('p');
+  heading.className = 'dial-empty-state__heading';
+  heading.textContent = 'NO SHORTCUTS YET';
+  _emptyStateEl.appendChild(heading);
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'dial-empty-state__btn';
+  addBtn.setAttribute('type', 'button');
+  addBtn.textContent = '[ + ADD LINK ]';
+  addBtn.addEventListener('click', () => openComposer({}));
+  _emptyStateEl.appendChild(addBtn);
+
+  const orEl = document.createElement('span');
+  orEl.className = 'dial-empty-state__or';
+  orEl.setAttribute('aria-hidden', 'true');
+  orEl.textContent = '── or ──';
+  _emptyStateEl.appendChild(orEl);
+
+  const kbdEl = document.createElement('p');
+  kbdEl.className = 'dial-empty-state__kbd';
+  const isMac = navigator.platform?.startsWith('Mac') ||
+                navigator.userAgentData?.platform === 'macOS';
+  const shortcut = isMac ? '⌘⇧S' : 'Ctrl+Shift+S';
+  kbdEl.innerHTML = `press <kbd>${shortcut}</kbd> on any tab to capture it here`;
+  _emptyStateEl.appendChild(kbdEl);
+
+  return _emptyStateEl;
+}
+
 function ensureDropIndicator() {
   if (_dropIndicator) return _dropIndicator;
   _dropIndicator = document.createElement('div');
@@ -1207,6 +1246,16 @@ export async function renderDials() {
   // If every category is named the add-tile has no unnamed body to live in;
   // append it standalone after all sections.
   if (store.categories.every(c => c.label)) dialGridEl.appendChild(_ensureAddTile());
+
+  // ── Empty state ──────────────────────────────────────────────────────────
+  const _totalItems = store.categories.reduce((n, c) => n + c.items.length, 0);
+  const _emptyEl    = _ensureEmptyState();
+  if (_totalItems === 0) {
+    if (!_emptyEl.parentElement) dialGridEl.appendChild(_emptyEl);
+    _emptyEl.style.display = '';
+  } else {
+    _emptyEl.style.display = 'none';
+  }
 
   // ── Grid-level DnD (one-time bind) ────────────────────────────────────────
   if (!dialGridEl.dataset.dndBound) {

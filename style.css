@@ -337,7 +337,8 @@ html, body {
 }
 
 /* Hide wrapper entirely when no tiles exist and the toolbar has not mounted */
-#speed-dial-wrap:not(:has(.dial-tile, .dial-group-header, .dial-add-tile, #dial-toolbar)) {
+#speed-dial-wrap:not(:has(.dial-tile, .dial-group-header, .dial-add-tile,
+                          #dial-toolbar, .dial-empty-state)) {
   display: none;
 }
 
@@ -667,6 +668,79 @@ html, body {
   font-size: 1.6em;
   line-height: 1;
   pointer-events: none;
+}
+
+/* ── Dial empty state (first-run onboarding) ─────────────────── */
+.dial-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65em;
+  padding: 1.1em 0.2em 1em;
+  width: 100%;
+}
+
+.dial-empty-state__heading {
+  font-family: var(--font-stack);
+  font-size: 0.7em;
+  letter-spacing: 0.2em;
+  color: var(--fg-dim);
+  opacity: 0.6;
+  margin: 0;
+  user-select: none;
+}
+
+.dial-empty-state__btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.82em;
+  line-height: 1;
+  padding: 0.36em 0.9em;
+  cursor: pointer;
+  letter-spacing: 0.07em;
+  opacity: 0.75;
+  transition: color 0.12s ease, border-color 0.12s ease,
+              opacity 0.12s ease, box-shadow 0.12s ease;
+  user-select: none;
+}
+
+.dial-empty-state__btn:hover,
+.dial-empty-state__btn:focus-visible {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 6px var(--glow);
+}
+
+.dial-empty-state__or {
+  font-family: var(--font-stack);
+  font-size: 0.62em;
+  color: var(--fg-dim);
+  opacity: 0.4;
+  user-select: none;
+  letter-spacing: 0.06em;
+}
+
+.dial-empty-state__kbd {
+  font-family: var(--font-stack);
+  font-size: 0.7em;
+  color: var(--fg-dim);
+  opacity: 0.7;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.dial-empty-state__kbd kbd {
+  font-family: var(--font-stack);
+  font-size: 1em;
+  color: var(--fg);
+  border: 1px solid var(--fg-dim);
+  padding: 0.1em 0.42em;
+  letter-spacing: 0.08em;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ── ✕ remove button (visible only in edit mode) ────────────── */
