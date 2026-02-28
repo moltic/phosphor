@@ -138,9 +138,13 @@ export function dialStoreToFlatArray(store) {
  * @returns {Promise<{ version:1, categories:Array }>}
  */
 export async function loadDialStore() {
-  const data = await chrome.storage.sync.get({ dialStore: null });
+  const data = await chrome.storage.sync.get({ dialStore: null, dials: [] });
   if (data.dialStore?.version === DIAL_STORE_VERSION) return data.dialStore;
-  // Nothing in new format yet — return a minimal default store.
+  // Nothing in new format yet — migrate from the legacy flat dials array if
+  // it exists, otherwise return a minimal default store.
+  if (Array.isArray(data.dials) && data.dials.length > 0) {
+    return flatArrayToDialStore(data.dials);
+  }
   return { version: DIAL_STORE_VERSION, categories: [{ id: 'cat_default', label: '', collapsed: false, items: [] }] };
 }
 
