@@ -1005,6 +1005,17 @@ html.dial-size--large .dial-label {
   margin-top: 0.2em;
 }
 
+.dial-edit-btn--delete {
+  margin-right: auto;
+  border-color: #7a2a2a;
+  color: #c97070;
+}
+
+.dial-edit-btn--delete:hover {
+  border-color: #e06c75;
+  color: #e06c75;
+}
+
 .dial-edit-btn {
   background: none;
   border: 1px solid var(--fg-dim);

@@ -1024,6 +1024,18 @@ export const editDialogEl = (() => {
   const actions   = document.createElement('div');
   actions.className = 'dial-edit-actions';
 
+  const deleteBtn = document.createElement('button');
+  deleteBtn.id = 'dial-edit-delete';
+  deleteBtn.className = 'dial-edit-btn dial-edit-btn--delete'; deleteBtn.textContent = 'DELETE';
+  deleteBtn.hidden = true;
+  deleteBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const alias = editDialogEl.dataset.target;
+    if (!alias || alias === '__new__') return;
+    hideDialEditDialog();
+    await removeDial(alias);
+  });
+
   const saveBtn = document.createElement('button');
   saveBtn.className = 'dial-edit-btn'; saveBtn.textContent = 'SAVE';
   saveBtn.addEventListener('click', e => { e.stopPropagation(); commitDialEdit(); });
@@ -1035,6 +1047,7 @@ export const editDialogEl = (() => {
   const errorMsg = document.createElement('div');
   errorMsg.id = 'dial-edit-error';
 
+  actions.appendChild(deleteBtn);
   actions.appendChild(saveBtn);
   actions.appendChild(cancelBtn);
   inner.appendChild(title); inner.appendChild(labelInput); inner.appendChild(urlInput);
@@ -1083,6 +1096,7 @@ export async function showDialEditDialog(alias) {
     urlInput.value   = '';
     iconInput.value  = '';
     document.getElementById('dial-edit-error').textContent = '';
+    document.getElementById('dial-edit-delete').hidden = true;
     editDialogEl.showModal();
     labelInput.focus();
     return;
@@ -1112,12 +1126,13 @@ export async function showDialEditDialog(alias) {
   labelInput.value = dial.label || dial.alias;
   document.getElementById('dial-edit-url').value  = dial.url  || '';
   iconInput.value = dial.icon || '';
+  document.getElementById('dial-edit-delete').hidden = false;
 
   editDialogEl.showModal();
   labelInput.focus();
 }
 
-// ── Open-current-tab shortcut (Ctrl+Shift+D via background SW) ───────────────
+// ── Open-current-tab shortcut (Ctrl+Shift+S via background SW) ───────────────
 // Called from main.js init() after the background service worker has stored
 // the source tab’s data in chrome.storage.local as _pendingTabDial.
 export async function openCurrentTabDial({ url = '', title = '' } = {}) {
@@ -1155,6 +1170,7 @@ export async function openCurrentTabDial({ url = '', title = '' } = {}) {
   urlInput.value   = url;
   iconInput.value  = '';
   document.getElementById('dial-edit-error').textContent = '';
+  document.getElementById('dial-edit-delete').hidden = true;
   editDialogEl.showModal();
   labelInput.select();
 }
