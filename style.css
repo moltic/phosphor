@@ -23,7 +23,7 @@
 :root {
   --bg:          #0a0800;          /* near-black with warm tint  */
   --fg:          #ffb000;          /* amber phosphor             */
-  --fg-dim:      #a06800;          /* dimmed amber for secondary */
+  --fg-dim:      #c08000;          /* dimmed amber for secondary */
   --fg-bright:   #ffd050;          /* highlights / headings      */
   --glow:        rgba(255, 176, 0, 0.60);
   --glow-soft:   rgba(255, 176, 0, 0.22);
@@ -34,6 +34,19 @@
   --dial-font-size: var(--font-size);
   --line-height: 1.45;
   --dial-tile-width: 4.8em;
+}
+
+/* ── Themed text selection ───────────────────────────────────── */
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+  text-shadow: none;
+}
+
+::-moz-selection {
+  background: var(--fg);
+  color: var(--bg);
+  text-shadow: none;
 }
 
 /* ── Reset / Base ───────────────────────────────────────────── */
@@ -125,6 +138,21 @@ html, body {
   );
 }
 
+/* ── CRT Vignette ───────────────────────────────────────────── */
+/* Dark edges fading inwards — simulates CRT screen curvature.  */
+#scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent            55%,
+    rgba(0, 0, 0, 0.18)   75%,
+    rgba(0, 0, 0, 0.42)   100%
+  );
+}
+
 /* ── Terminal Container ─────────────────────────────────────── */
 #terminal {
   display: flex;
@@ -133,6 +161,20 @@ html, body {
   max-width: 960px;
   margin: 0 auto;
   padding: 1rem 1.5rem 0.75rem;
+  /* Subtle CRT flicker — near-imperceptible brightness wobble adds life */
+  animation: crt-flicker 8s linear infinite;
+}
+
+/* ── CRT Subtle Flicker ─────────────────────────────────────── */
+@keyframes crt-flicker {
+  0%   { opacity: 1;      }
+  4%   { opacity: 0.983;  }
+  8%   { opacity: 1;      }
+  42%  { opacity: 0.99;   }
+  44%  { opacity: 1;      }
+  78%  { opacity: 0.986;  }
+  80%  { opacity: 1;      }
+  100% { opacity: 1;      }
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
@@ -144,7 +186,8 @@ html, body {
   border: none;
   border-bottom: 1px solid var(--fg-dim);
   box-shadow:
-    inset 0 0 18px rgba(0, 0, 0, 0.22);
+    inset 0 0 18px rgba(0, 0, 0, 0.22),
+    0 1px 8px var(--glow-soft);
   margin-bottom: 0.6rem;
 }
 
@@ -689,17 +732,20 @@ html, body {
   user-select: none;
   text-decoration: none;
   color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease,
+              box-shadow 0.15s ease;
 }
 
 .dial-tile:hover {
   border-color: var(--fg);
-  background: rgba(255, 176, 0, 0.07);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  box-shadow: 0 0 8px var(--glow-soft);
 }
 
 .dial-tile:focus-visible {
-  outline: 2px solid #ffb000;
+  outline: 2px solid var(--fg);
   outline-offset: 2px;
-  box-shadow: 0 0 6px rgba(255, 176, 0, 0.60);
+  box-shadow: 0 0 6px var(--glow);
 }
 
 /* ── Keyboard-reorder flash ─────────────────────────────────── */
@@ -741,7 +787,7 @@ html, body {
   border-color: var(--fg);
   color: var(--fg);
   opacity: 1;
-  background: rgba(255, 176, 0, 0.07);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
 }
 
 .dial-add-tile:focus-visible {
@@ -1239,7 +1285,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 .dial-section-body.is-drop-target {
   outline: 1px dashed var(--fg);
   outline-offset: 3px;
-  background: rgba(255, 176, 0, 0.05);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
 }
 
 /* ── Manage mode: empty-category drop slot ─────────────────── */
@@ -1272,7 +1318,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 .dial-section-empty-slot.is-over {
   border-color: var(--fg-bright);
   color: var(--fg-bright);
-  background: rgba(255, 176, 0, 0.10);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
   opacity: 1;
   box-shadow: 0 0 6px var(--glow-soft);
 }
@@ -1450,7 +1496,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 }
 
 .dial-divider:hover {
-  background: rgba(255, 176, 0, 0.06);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 .dial-divider.row-divider:hover {
   border-top-color: var(--fg);
@@ -1537,7 +1583,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   width: var(--dial-tile-width);
   height: var(--dial-tile-width);
   border: 2px dashed var(--fg-dim);
-  background: rgba(255, 176, 0, 0.06);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
   box-sizing: border-box;
   /* The placeholder is a real drop target during live reordering. */
   pointer-events: auto;
@@ -1588,7 +1634,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   box-shadow: 0 0 4px var(--glow-soft);
 }
 
- ───────────────────────────────── */
+/* ── Drop Indicator ─────────────────────────────────────────── */
 .dial-drop-indicator {
   position: fixed;
   z-index: 150;
@@ -1615,6 +1661,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   background: var(--bg);
   border: 1px solid var(--fg);
   min-width: 120px;
+  box-shadow: 0 0 16px var(--glow-soft), 0 4px 16px rgba(0, 0, 0, 0.55);
 }
 
 #dial-ctx-menu.visible {
@@ -1631,11 +1678,12 @@ html.dial-layout--compact .dial-divider.row-divider {
   text-align: left;
   cursor: pointer;
   line-height: var(--line-height);
+  transition: background 0.1s ease, color 0.1s ease;
 }
 
 .ctx-menu-item:hover,
 .ctx-menu-item--has-sub:hover {
-  background: rgba(255, 176, 0, 0.13);
+  background: color-mix(in srgb, var(--fg) 13%, transparent);
   color: var(--fg-bright);
 }
 
@@ -1717,7 +1765,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 
 .dial-move-picker__item:hover,
 .dial-move-picker__item:focus-visible {
-  background: rgba(255, 176, 0, 0.13);
+  background: color-mix(in srgb, var(--fg) 13%, transparent);
   color: var(--fg-bright);
   outline: none;
 }
@@ -2122,6 +2170,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   flex-direction: column;
   gap: 0.45rem;
   min-width: 22em;
+  box-shadow: 0 0 24px var(--glow-soft), 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .settings-title {
@@ -2162,8 +2211,12 @@ html.dial-layout--compact .dial-divider.row-divider {
 }
 
 .settings-select:focus,
-.settings-input:focus {
+.settings-select:focus-visible,
+.settings-input:focus,
+.settings-input:focus-visible {
   border-color: var(--fg);
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
 }
 
 .settings-input {
@@ -2189,9 +2242,12 @@ html.dial-layout--compact .dial-divider.row-divider {
   letter-spacing: 0.05em;
 }
 
-.settings-btn:hover {
+.settings-btn:hover,
+.settings-btn:focus-visible {
   border-color: var(--fg);
   color: var(--fg-bright);
+  outline: none;
+  box-shadow: 0 0 6px var(--glow-soft);
 }
 
 /* ── Output Area ────────────────────────────────────────────── */
@@ -2206,7 +2262,14 @@ html.dial-layout--compact .dial-divider.row-divider {
 
 #output::-webkit-scrollbar        { width: 6px; }
 #output::-webkit-scrollbar-track  { background: transparent; }
-#output::-webkit-scrollbar-thumb  { background: var(--fg-dim); border-radius: 3px; }
+#output::-webkit-scrollbar-thumb  {
+  background: var(--fg-dim);
+  border-radius: 3px;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+#output::-webkit-scrollbar-thumb:hover {
+  background: var(--fg);
+}
 
 /* ── Scroll-more hint ───────────────────────────────────────── */
 #scroll-more {
@@ -2336,6 +2399,12 @@ html.dial-layout--compact .dial-divider.row-divider {
   color: var(--fg-bright);
   white-space: pre;
   overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+/* Lift the top-border when the input is focused */
+#input-row:focus-within {
+  border-top-color: var(--fg);
 }
 
 /* The ">" prompt glyph */
@@ -2380,6 +2449,9 @@ html.dial-layout--compact .dial-divider.row-divider {
   }
   #scanlines {
     display: none;          /* no scanlines */
+  }
+  #terminal {
+    animation: none;        /* no CRT flicker */
   }
 }
 
@@ -2543,6 +2615,11 @@ html.dial-layout--compact .dial-divider.row-divider {
 }
 
 /* ── Undo Delete Toast ───────────────────────────────────────── */
+@keyframes toast-slide-in {
+  from { transform: translateX(-50%) translateY(1.5em); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
+}
+
 #dial-undo-toast {
   position: fixed;
   bottom: 2.4em;
@@ -2565,6 +2642,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 #dial-undo-toast.visible {
   display: flex;
   pointer-events: auto;
+  animation: toast-slide-in 0.22s ease-out;
 }
 
 .dial-undo-toast-msg {
