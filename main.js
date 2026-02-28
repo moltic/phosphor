@@ -28,7 +28,8 @@ import {
   openSettingsPanel, closeSettingsPanel, settingsPanelEl,
 } from './ui/settings.js';
 import { renderDials,
-         ctxMenuEl, hideDialCtxMenu } from './ui/dials.js';
+         ctxMenuEl, hideDialCtxMenu,
+         openCurrentTabDial }          from './ui/dials.js';
 import { tickClock }                  from './core/clock.js';
 import { commands, dispatch }         from './commands/index.js';
 import { printBootSequence }          from './commands/system.js';
@@ -196,6 +197,16 @@ inputEl.addEventListener('keydown', e => {
         } else {
           openSettingsPanel();
         }
+      }
+      break;
+    }
+
+    case 'd':
+    case 'D': {
+      // Ctrl+D / ⌘D — add current tab as a new speed-dial tile
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        openCurrentTabDial();
       }
       break;
     }

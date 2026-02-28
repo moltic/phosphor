@@ -1117,6 +1117,67 @@ export async function showDialEditDialog(alias) {
   labelInput.focus();
 }
 
+// ── Open-current-tab shortcut (Ctrl+D) ──────────────────────────────────────
+export async function openCurrentTabDial() {
+  let tab;
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    tab = tabs[0];
+  } catch (_) {
+    printLine('  Error: could not query current tab.', 'line-err');
+    return;
+  }
+
+  if (!tab) {
+    printLine('  Error: no active tab found.', 'line-err');
+    return;
+  }
+
+  const url   = tab.url   || '';
+  const title = tab.title || '';
+
+  if (/^(chrome|chrome-extension|about|data|javascript):/i.test(url)) {
+    printLine('  Cannot create a dial for a Chrome internal page.', 'line-err');
+    return;
+  }
+
+  // Duplicate-URL check
+  const dials = await loadDials();
+  const dup   = dials.find(d => d.url && d.url === url);
+  if (dup) {
+    printLine(`  Dial \u201c${dup.label || dup.alias}\u201d already exists for this URL.`, 'line-info');
+    return;
+  }
+
+  // Auto-generate a short alias from the title (lowercase, strip special chars, max 12)
+  const autoLabel = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 12)
+    .replace(/-+$/, '') || `tab-${Date.now()}`.slice(-12);
+
+  // Open the edit dialog pre-filled with the current tab's details
+  const titleEl = editDialogEl.querySelector('.dial-edit-title');
+  if (titleEl) titleEl.textContent = 'ADD CURRENT TAB';
+  const labelInput = document.getElementById('dial-edit-label');
+  const urlInput   = document.getElementById('dial-edit-url');
+  const iconInput  = document.getElementById('dial-edit-icon');
+  labelInput.hidden = false;
+  urlInput.hidden   = false;
+  iconInput.hidden  = false;
+  editDialogEl.dataset.target        = '__new__';
+  editDialogEl.dataset.isWeather     = '';
+  editDialogEl.dataset.isGroupHeader = '';
+  labelInput.value = title || autoLabel;
+  urlInput.value   = url;
+  iconInput.value  = '';
+  document.getElementById('dial-edit-error').textContent = '';
+  editDialogEl.showModal();
+  labelInput.select();
+}
+
 export function hideDialEditDialog() {
   editDialogEl.close();
   delete editDialogEl.dataset.target;
