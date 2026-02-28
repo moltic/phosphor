@@ -4641,7 +4641,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
   // Re-focus command input unless the user is interacting with dial overlays
-  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, #settings-panel, .dial-tile')) {
+  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, #settings-panel, .dial-tile, .dial-composer, #dial-move-picker')) {
     inputEl.focus();
   }
 });
