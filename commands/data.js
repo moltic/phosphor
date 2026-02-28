@@ -4,9 +4,10 @@
 import { DEFAULT_PREFS }                             from '../core/config.js';
 import { loadDials, loadNotes, loadPrefs,
          saveDials, saveNotes, savePrefs }           from '../core/storage.js';
-import { printLine }                                 from '../core/render.js';
+import { printLine, beginBatch, endBatch }            from '../core/render.js';
 import { renderDials }                               from '../ui/dials.js';
 import { applyPrefs }                                from '../ui/settings.js';
+import { setPendingConfirm }                         from '../core/state.js';
 
 export const dataCommands = {
 
@@ -53,14 +54,6 @@ export const dataCommands = {
           const file = fileInput.files[0];
           if (!file) { printLine('No file selected.', 'line-err'); resolve(); return; }
 
-          // Warn the user that import is destructive
-          const proceed = confirm(
-            'Importing will replace all your current dials, notes, and preferences.\n\n'
-            + 'Consider running "export" first to back up your data.\n\n'
-            + 'Continue?'
-          );
-          if (!proceed) { printLine('Import cancelled.', 'line-info'); resolve(); return; }
-
           let payload;
           try {
             const text = await file.text();
@@ -72,6 +65,21 @@ export const dataCommands = {
 
           if (!payload._phosphor) {
             printLine('✗ File does not look like a Phosphor backup.', 'line-err');
+            resolve(); return;
+          }
+
+          // Warn the user that import is destructive (terminal-style confirmation)
+          printLine('Importing will replace all your current dials, notes, and preferences.', 'line-err');
+          printLine('Consider running "export" first to back up your data.', 'line-info');
+          printLine('Type  CONFIRM  to proceed, or anything else to abort:', 'line-info');
+          endBatch();
+
+          const answer = await new Promise(r => setPendingConfirm(r));
+          beginBatch();
+          printLine(`> ${answer}`, 'line-cmd');
+
+          if (answer.trim().toUpperCase() !== 'CONFIRM') {
+            printLine('Import cancelled.', 'line-info');
             resolve(); return;
           }
 

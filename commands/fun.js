@@ -313,14 +313,39 @@ export const funCommands = {
         printLine('Example: cow moo from the terminal', 'line-info');
         return;
       }
-      const msg    = args.join(' ');
-      const len    = msg.length;
-      const top    = ' ' + '_'.repeat(len + 2);
-      const bottom = ' ' + '-'.repeat(len + 2);
-      const bubble = '< ' + msg + ' >';
+      const msg      = args.join(' ');
+      const MAX_W    = 48;
+      const lines    = [];
+
+      if (msg.length <= MAX_W) {
+        lines.push(msg);
+      } else {
+        // Word-wrap long messages
+        const words = msg.split(' ');
+        let cur = '';
+        for (const word of words) {
+          if (!cur) { cur = word; }
+          else if (cur.length + 1 + word.length <= MAX_W) { cur += ' ' + word; }
+          else { lines.push(cur); cur = word; }
+        }
+        if (cur) lines.push(cur);
+      }
+
+      const boxW  = Math.max(...lines.map(l => l.length));
+      const top    = ' ' + '_'.repeat(boxW + 2);
+      const bottom = ' ' + '-'.repeat(boxW + 2);
+
       printBlank();
-      printLine(top,    'line-out');
-      printLine(bubble, 'line-out');
+      printLine(top, 'line-out');
+      if (lines.length === 1) {
+        printLine('< ' + lines[0].padEnd(boxW) + ' >', 'line-out');
+      } else {
+        printLine('/ ' + lines[0].padEnd(boxW) + ' \\', 'line-out');
+        for (let i = 1; i < lines.length - 1; i++) {
+          printLine('| ' + lines[i].padEnd(boxW) + ' |', 'line-out');
+        }
+        printLine('\\ ' + lines[lines.length - 1].padEnd(boxW) + ' /', 'line-out');
+      }
       printLine(bottom, 'line-out');
       printLine('        \\   ^__^',           'line-out');
       printLine('         \\  (oo)\\_______',   'line-out');
@@ -520,11 +545,11 @@ export const funCommands = {
             pre.remove();
 
             const grantedLines = [
-              '╔══════════════════════════════════════════╗',
-              '║                                          ║',
-              '║     ░░░  A C C E S S   G R A N T E D  ░░░     ║',
-              '║                                          ║',
-              '╚══════════════════════════════════════════╝',
+              '╔═══════════════════════════════════════════════╗',
+              '║                                               ║',
+              '║    ░░░  A C C E S S   G R A N T E D  ░░░      ║',
+              '║                                               ║',
+              '╚═══════════════════════════════════════════════╝',
             ];
             const out = document.createElement('pre');
             out.className = 'banner-output';

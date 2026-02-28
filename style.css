@@ -2287,11 +2287,19 @@ html.dial-layout--compact .dial-divider.row-divider {
 
 #scroll-more.visible {
   display: block;
+  cursor: pointer;
 }
 
 @keyframes scroll-hint-pulse {
   0%, 100% { opacity: 0.35; }
   50%       { opacity: 0.9;  }
+}
+
+#scroll-more:hover {
+  opacity: 1;
+  animation: none;
+  color: var(--fg);
+  text-shadow: 0 0 6px var(--glow-soft);
 }
 
 /* Wrapper inserted once per command so aria-live fires a single announcement */
@@ -2620,6 +2628,11 @@ html.dial-layout--compact .dial-divider.row-divider {
   to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
 }
 
+@keyframes toast-slide-out {
+  from { transform: translateX(-50%) translateY(0);     opacity: 1; }
+  to   { transform: translateX(-50%) translateY(1.5em); opacity: 0; }
+}
+
 #dial-undo-toast {
   position: fixed;
   bottom: 2.4em;
@@ -2643,6 +2656,12 @@ html.dial-layout--compact .dial-divider.row-divider {
   display: flex;
   pointer-events: auto;
   animation: toast-slide-in 0.22s ease-out;
+}
+
+#dial-undo-toast.toast-hiding {
+  display: flex;
+  pointer-events: none;
+  animation: toast-slide-out 0.25s ease-in forwards;
 }
 
 .dial-undo-toast-msg {

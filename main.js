@@ -97,8 +97,11 @@ async function init() {
 //  Event wiring
 // ============================================================
 
-// Scroll hint
+// Scroll hint — clicking the hint scrolls to the bottom
 outputEl.addEventListener('scroll', updateScrollHint);
+document.getElementById('scroll-more')?.addEventListener('click', () => {
+  outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'smooth' });
+});
 
 // Keep visible display in sync with hidden input
 inputEl.addEventListener('input', () => {
@@ -203,6 +206,18 @@ inputEl.addEventListener('keydown', e => {
         } else {
           openSettingsPanel();
         }
+      }
+      break;
+    }
+
+    case 'Escape': {
+      // Clear current input (or cancel pending confirm)
+      if (_pendingConfirm) break;  // let the confirm system handle it
+      if (inputEl.value !== '') {
+        e.preventDefault();
+        setInput('');
+        updateHistoryIndex(-1);
+        setPendingInput('');
       }
       break;
     }

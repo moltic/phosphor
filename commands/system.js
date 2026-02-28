@@ -9,8 +9,9 @@ import {
   clearScreen, printLine, printBlank, printRule,
   printBannerHtml, renderBanner,
   inputEl, cursorEl,
+  beginBatch, endBatch,
 } from '../core/render.js';
-import { cmdHistory, sessionStart }         from '../core/state.js';
+import { cmdHistory, sessionStart, setPendingConfirm } from '../core/state.js';
 import { formatTimestamp }                  from '../core/clock.js';
 import { applyPrefs, openSettingsPanel } from '../ui/settings.js';
 
@@ -374,8 +375,20 @@ export const systemCommands = {
   shutdown: {
     description: 'Power off the terminal with a CRT shutdown animation. Reload the tab to restart.',
     usage: 'shutdown',
-    run(_args) {
-      if (!confirm('Shut down the terminal? You will need to reload the tab to restart.')) return;
+    async run(_args) {
+      printLine('Shut down the terminal? Reload the tab to restart.', 'line-err');
+      printLine('Type  CONFIRM  to proceed, or anything else to abort:', 'line-info');
+      endBatch();
+
+      const answer = await new Promise(resolve => setPendingConfirm(resolve));
+      beginBatch();
+      printLine(`> ${answer}`, 'line-cmd');
+
+      if (answer.trim().toUpperCase() !== 'CONFIRM') {
+        printLine('Shutdown aborted.', 'line-info');
+        return;
+      }
+
       printLine('SYSTEM HALTED.', 'line-err');
       printLine('Powering down...', 'line-out');
 

@@ -217,7 +217,7 @@ export const settingsPanelEl = (() => {
   // ── Live preview: apply changes instantly as the user adjusts controls ────
   const livePreviewFields = [
     themeSelect, terminalSizeSelect, dialLayoutSelect, dialSizeSelect,
-    scanSelect, cursorSpeedSelect,
+    scanSelect, cursorSpeedSelect, greetingSelect,
   ];
   function _livePreview() {
     const previewPrefs = {
@@ -237,11 +237,31 @@ export const settingsPanelEl = (() => {
     applyPrefs(previewPrefs);
   }
   livePreviewFields.forEach(el => el.addEventListener('change', _livePreview));
+  // Text inputs use a debounced 'input' event for live banner preview
+  let _bannerPreviewTimer = null;
+  [bannerInput, greetingNameInput].forEach(el => el.addEventListener('input', () => {
+    clearTimeout(_bannerPreviewTimer);
+    _bannerPreviewTimer = setTimeout(_livePreview, 300);
+  }));
 
   inner.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
     if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
       e.preventDefault(); commitSettings();
+    }
+    // Focus trap — cycle Tab / Shift+Tab within the panel
+    if (e.key === 'Tab') {
+      const focusable = [...inner.querySelectorAll(
+        'select, input, button, [tabindex]:not([tabindex="-1"])'
+      )].filter(el => !el.disabled && el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last  = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     }
   });
   panel.addEventListener('click', e => {

@@ -2144,7 +2144,14 @@ let _undoState = null;
 function _hideUndoToast() {
   if (_undoState?.timer) clearTimeout(_undoState.timer);
   _undoState = null;
-  if (_undoToastEl) _undoToastEl.classList.remove('visible');
+  if (_undoToastEl) {
+    // Animate out, then remove classes after animation ends
+    _undoToastEl.classList.add('toast-hiding');
+    _undoToastEl.classList.remove('visible');
+    _undoToastEl.addEventListener('animationend', () => {
+      _undoToastEl.classList.remove('toast-hiding');
+    }, { once: true });
+  }
 }
 
 function _showUndoToast(label) {
