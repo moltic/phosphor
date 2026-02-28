@@ -1230,7 +1230,10 @@ async function commitDialEdit() {
     while (dials.some(d => d.alias === newAlias)) newAlias = `${base}-${n++}`;
     const entry = { alias: newAlias, label: newLabel, url: newUrl };
     if (newIcon) entry.icon = newIcon;
-    dials.push(entry);
+    // Insert into the ungrouped area (before the first group-header), not at the end.
+    const firstGroupIdx = dials.findIndex(d => d.type === 'group-header');
+    if (firstGroupIdx !== -1) dials.splice(firstGroupIdx, 0, entry);
+    else dials.push(entry);
     await saveDials(dials);
     await renderDials();
   }
