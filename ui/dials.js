@@ -247,7 +247,81 @@ function previewDropNearElement(toAlias, rect, clientX) {
   const prior  = _dropPreview?.toAlias === toAlias && !_dropPreview.end ? _dropPreview.before : undefined;
   const before = chooseBeforeWithDeadzone(rect, clientX, prior);
   _dropPreview = { toAlias, before, end: false };
-  showDropIndicatorAt(before ? rect.left : rect.right, rect.top, rect.height);
+  return before; // used by callers for live DOM rearrange
+}
+
+/**
+ * Move the currently-dragged tile element to a new DOM position so the grid
+ * shows a live preview of the final layout.  Surrounding tiles animate into
+ * their new positions using the FLIP technique (First/Last/Invert/Play).
+ *
+ * @param {Element} overEl   The tile the pointer is currently over.
+ * @param {boolean} before   Insert before (true) or after (false) overEl.
+ */
+function _moveDragSourceInDOM(overEl, before) {
+  const src = _dragSourceEl;
+  if (!src || overEl === src || overEl === null) return;
+
+  const targetBody = overEl.closest('.dial-section-body');
+  if (!targetBody) return;
+
+  // Determine the exact insertion reference node up-front so we can detect
+  // no-ops (same position) without touching the DOM.
+  const insertRef = before ? overEl : (overEl.nextSibling ?? null);
+  const currentNext = src.parentNode === targetBody ? src.nextSibling : null;
+  if (src.parentNode === targetBody && currentNext === insertRef) return; // already there
+
+  // ── FLIP – record First positions ────────────────────────────────────────
+  // Tiles from both the source body and the target body (they may differ on
+  // cross-category drags).
+  const srcBody   = src.parentNode;
+  const bodies    = srcBody && srcBody !== targetBody
+    ? [srcBody, targetBody] : [targetBody];
+  const animated  = [];
+  for (const body of bodies) {
+    for (const tile of body.querySelectorAll('.dial-tile, .dial-group-header')) {
+      if (tile === src) continue; // dragged tile doesn't animate
+      // Cancel any in-progress FLIP transform so First is the true DOM rect.
+      if (tile._flipCancel) { tile._flipCancel(); delete tile._flipCancel; }
+      animated.push({ tile, first: tile.getBoundingClientRect() });
+    }
+  }
+
+  // ── Move the source element ───────────────────────────────────────────────
+  if (insertRef) targetBody.insertBefore(src, insertRef);
+  else           targetBody.appendChild(src);
+
+  // ── FLIP – compute delta and schedule Play ────────────────────────────────
+  for (const entry of animated) {
+    const { tile, first } = entry;
+    const last = tile.getBoundingClientRect();
+    const dx   = first.left - last.left;
+    const dy   = first.top  - last.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue; // tile didn't move
+
+    // Invert: snap to the old position instantly.
+    tile.style.transition = 'none';
+    tile.style.transform  = `translate(${dx}px,${dy}px)`;
+
+    // Play: one rAF later, transition back to the real position.
+    let rafId;
+    const cancel = () => {
+      cancelAnimationFrame(rafId);
+      tile.style.transition = '';
+      tile.style.transform  = '';
+    };
+    tile._flipCancel = cancel;
+    rafId = requestAnimationFrame(() => {
+      tile.style.transition = 'transform 0.14s ease';
+      tile.style.transform  = '';
+      tile.addEventListener('transitionend', () => {
+        if (tile._flipCancel === cancel) {
+          tile.style.transition = '';
+          delete tile._flipCancel;
+        }
+      }, { once: true });
+    });
+  }
 }
 
 function previewDropAtEnd() {
@@ -265,7 +339,9 @@ function getPreviewBeforeFor(toAlias, fallbackRect, clientX) {
 }
 
 // ── Shared drag-and-drop / touch helper ──────────────────────────────────────
-let _isDraggingDial = false;
+let _isDraggingDial    = false;
+let _dragSourceEl      = null;   // the tile element currently being dragged
+let _dragDropCommitted = false;  // true once drop has been handled (prevents double-render)
 
 // Hover-to-expand: when dragging a tile over a collapsed category header,
 // expand it automatically after a short delay (mouse & touch).
@@ -444,7 +520,9 @@ export function bindDragEvents(el, dial, opts = {}) {
 
   // ── Native HTML5 DnD ──────────────────────────────────────────────────────
   el.addEventListener('dragstart', e => {
-    _isDraggingDial = true;
+    _isDraggingDial    = true;
+    _dragSourceEl      = el;
+    _dragDropCommitted = false;
     hideDropIndicator();
     el.classList.add('is-dragging');
     dialGridEl.classList.add('is-dragging-dial');
@@ -462,6 +540,11 @@ export function bindDragEvents(el, dial, opts = {}) {
     document.querySelectorAll('.dial-section-body.is-drop-target, .dial-section-empty-slot.is-over')
       .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
     _cancelHoverExpand();
+    // If the drop was cancelled (no valid target), restore the grid to its
+    // original order by re-rendering from storage.
+    if (!_dragDropCommitted) renderDials();
+    _dragSourceEl      = null;
+    _dragDropCommitted = false;
     setTimeout(() => { _isDraggingDial = false; }, 0);
   });
 
@@ -469,12 +552,14 @@ export function bindDragEvents(el, dial, opts = {}) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (el.classList.contains('is-dragging')) return;
-    previewDropNearElement(dial.alias, el.getBoundingClientRect(), e.clientX);
+    const before = previewDropNearElement(dial.alias, el.getBoundingClientRect(), e.clientX);
+    _moveDragSourceInDOM(el, before);
   });
 
   el.addEventListener('drop', async e => {
     e.preventDefault();
     e.stopPropagation();
+    _dragDropCommitted = true;  // sync — must be set before dragend fires
     hideDropIndicator();
     dialGridEl.classList.remove('is-dragging-dial');
     const fromAlias = e.dataTransfer?.getData('text/plain');
@@ -542,6 +627,7 @@ export function bindDragEvents(el, dial, opts = {}) {
       _cancelLongPress();
       _touchDragging  = true;
       _isDraggingDial = true;
+      _dragSourceEl   = el;
       el.classList.add('is-dragging');
       dialGridEl.classList.add('is-dragging-dial');
       _ghostEl = _createGhost(el, _touchStartX, _touchStartY);
@@ -556,7 +642,8 @@ export function bindDragEvents(el, dial, opts = {}) {
       _ghostEl.style.visibility = '';
       const targetEl = below?.closest('[data-alias]');
       if (targetEl && targetEl !== el) {
-        previewDropNearElement(targetEl.dataset.alias, targetEl.getBoundingClientRect(), t.clientX);
+        const tBefore = previewDropNearElement(targetEl.dataset.alias, targetEl.getBoundingClientRect(), t.clientX);
+        _moveDragSourceInDOM(targetEl, tBefore);
         // Tile takes priority — clear section-body highlights and any hover timer.
         document.querySelectorAll('.dial-section-body.is-drop-target')
           .forEach(b => b.classList.remove('is-drop-target'));
@@ -598,6 +685,7 @@ export function bindDragEvents(el, dial, opts = {}) {
     document.querySelectorAll('.dial-section-body.is-drop-target, .dial-section-empty-slot.is-over')
       .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
     _cancelHoverExpand();
+    _dragSourceEl = null;
     const below        = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
     const targetEl     = below?.closest('[data-alias]');
     const targetBodyEl = below?.closest('.dial-section-body');
@@ -608,11 +696,11 @@ export function bindDragEvents(el, dial, opts = {}) {
       // The DialStore conversion layer keeps the item in whichever category
       // its new flat-array position belongs to, so cross-category moves work.
       const fromAlias = dial.alias, toAlias = targetEl.dataset.alias;
-      if (!fromAlias || fromAlias === toAlias) return;
+      if (!fromAlias || fromAlias === toAlias) { await renderDials(); return; }
       const current   = await loadDials();
       const fromIndex = current.findIndex(d => d.alias === fromAlias);
       const toIndex   = current.findIndex(d => d.alias === toAlias);
-      if (fromIndex === -1 || toIndex === -1) return;
+      if (fromIndex === -1 || toIndex === -1) { await renderDials(); return; }
       const rect   = targetEl.getBoundingClientRect();
       const before = getPreviewBeforeFor(toAlias, rect, changedTouch.clientX);
       let insertIndex = toIndex + (before ? 0 : 1);
@@ -624,6 +712,10 @@ export function bindDragEvents(el, dial, opts = {}) {
       // Drop on a section body (between tiles / empty space) — move to that category.
       const catId = targetBodyEl.closest('.dial-section')?.dataset.catId;
       if (catId) await _moveDialToCategory(dial.alias, catId);
+      else await renderDials();
+    } else {
+      // Drag cancelled / no valid target — restore the live-rearranged DOM.
+      await renderDials();
     }
   }
 
@@ -643,6 +735,8 @@ export function bindDragEvents(el, dial, opts = {}) {
     dialGridEl.classList.remove('is-dragging-dial');
     hideDropIndicator();
     _touchDragging = false;
+    _dragSourceEl  = null;
+    renderDials(); // restore any live-rearranged DOM order
     setTimeout(() => { _isDraggingDial = false; }, 0);
   });
 }
