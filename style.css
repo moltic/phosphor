@@ -378,6 +378,39 @@ html, body {
   box-shadow: 0 0 6px var(--glow);
 }
 
+/* ── URL tooltip on hover ───────────────────────────────────── */
+.dial-tile[data-url]:not(.dial-tile--weather) {
+  position: relative;
+}
+
+.dial-tile[data-url]:not(.dial-tile--weather)::after {
+  content: attr(data-url);
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.62em;
+  line-height: 1.35;
+  padding: 0.18em 0.55em;
+  white-space: nowrap;
+  max-width: 28em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+.dial-tile[data-url]:not(.dial-tile--weather):hover::after {
+  opacity: 1;
+}
+
 .dial-favicon {
   width: 1em;
   height: 1em;

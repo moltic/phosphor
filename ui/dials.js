@@ -372,6 +372,7 @@ function _createTileEl(dial) {
   tile.className     = 'dial-tile';
   tile.dataset.alias = dial.alias;
   tile.title         = dial.url;
+  tile.dataset.url   = dial.url;
   tile.href          = dial.url;
   tile.rel           = 'noopener noreferrer';
   tile.draggable     = true;
@@ -392,7 +393,7 @@ function _createTileEl(dial) {
 
 function _patchTileEl(tile, dial) {
   const prev = tile._dialData ?? {};
-  if (prev.url !== dial.url) { tile.href = dial.url; tile.title = dial.url; }
+  if (prev.url !== dial.url) { tile.href = dial.url; tile.title = dial.url; tile.dataset.url = dial.url; }
   const label     = dial.label  || dial.alias;
   const prevLabel = prev.label  || prev.alias;
   if (prevLabel !== label) {
