@@ -41,19 +41,8 @@ function generateBBSHandle() {
 // ── Shared boot-sequence printer (also used by the `boot` command) ────────────
 export async function printBootSequence() {
   const prefs = await loadPrefs();
-  const d = new Date();
-  const dateLine =
-    d.toLocaleDateString(undefined, {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-    }) +
-    '  ' +
-    d.toLocaleTimeString(undefined, {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
-
   printRule('═');
   printLine('  SYSTEM READY.', 'line-head');
-  printLine(`  ${dateLine}`, 'line-info');
   printLine('  Type  help  for a list of commands.', 'line-info');
   if (prefs.motd) {
     printRule('─');
