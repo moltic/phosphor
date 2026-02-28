@@ -437,8 +437,13 @@ function _createGroupHeaderEl(dial) {
   labelEl.className   = 'dial-group-label';
   labelEl.textContent = dial.label || dial.alias;
 
+  const countEl = document.createElement('span');
+  countEl.className = 'dial-group-count';
+  countEl.setAttribute('aria-hidden', 'true');
+
   el.appendChild(chevron);
   el.appendChild(labelEl);
+  el.appendChild(countEl);
 
   el.addEventListener('click', e => {
     if (_isDraggingDial) return;
@@ -478,6 +483,20 @@ async function _applyGroupCollapse(collapseState) {
     const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
     collapseState = stored.dialGroupCollapsed;
   }
+
+  // First pass: count tiles belonging to each group
+  const groupSizes = new Map();
+  let currentGroupAlias = null;
+  for (const child of dialGridEl.children) {
+    if (child.classList.contains('dial-group-header')) {
+      currentGroupAlias = child.dataset.alias;
+      if (!groupSizes.has(currentGroupAlias)) groupSizes.set(currentGroupAlias, 0);
+    } else if (currentGroupAlias !== null) {
+      groupSizes.set(currentGroupAlias, (groupSizes.get(currentGroupAlias) || 0) + 1);
+    }
+  }
+
+  // Second pass: apply collapse state and update count labels
   let collapsed = false;
   for (const child of dialGridEl.children) {
     if (child.classList.contains('dial-group-header')) {
@@ -487,6 +506,8 @@ async function _applyGroupCollapse(collapseState) {
       if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
       child.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       child.dataset.collapsed = collapsed ? '1' : '';
+      const countSpan = child.querySelector('.dial-group-count');
+      if (countSpan) countSpan.textContent = collapsed ? ` (${groupSizes.get(alias) ?? 0})` : '';
     } else {
       child.style.display = collapsed ? 'none' : '';
     }
