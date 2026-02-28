@@ -242,7 +242,7 @@ document.addEventListener('keydown', e => {
 // ── Dismiss context menu on click outside ────────────────────────────────────
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
-  if (!e.target.closest('#dial-ctx-menu, #dial-edit-dialog, #settings-panel, .dial-tile')) {
+  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, .dial-tile')) {
     inputEl.focus();
   }
 });

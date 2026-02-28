@@ -734,6 +734,20 @@ function _createTileEl(dial) {
   });
   tile.appendChild(moveBtn);
 
+  // [···] advanced button (edit mode only) — opens side sheet for icon/URL/delete
+  const advBtn = document.createElement('button');
+  advBtn.className = 'dial-tile-advanced';
+  advBtn.setAttribute('aria-label', `Advanced options for ${dial.label || dial.alias}`);
+  advBtn.setAttribute('tabindex', '-1');
+  advBtn.textContent = '[···]';
+  advBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!_isEditMode()) return;
+    showDialSideSheet(dial.alias);
+  });
+  tile.appendChild(advBtn);
+
   bindDragEvents(tile, dial);
   let _clickTimer = null;
   tile.addEventListener('click', e => {
@@ -756,7 +770,7 @@ function _createTileEl(dial) {
     e.stopPropagation();
     if (_isEditMode()) return; // inline-first: single click already triggered rename
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
-    showDialEditDialog(dial.alias);
+    showDialSideSheet(dial.alias);
   });
 
   // ── Keyboard reordering: Shift+Alt+← / Shift+Alt+→ ──────────
@@ -973,6 +987,19 @@ function _createSectionHeaderEl(cat) {
   el.appendChild(countEl);
   el.appendChild(addBtn);
 
+  // [···] advanced button (edit mode only) — opens side sheet for category danger actions
+  const catAdvBtn = document.createElement('button');
+  catAdvBtn.className = 'dial-group-advanced';
+  catAdvBtn.setAttribute('aria-label', `Advanced options for category ${cat.label}`);
+  catAdvBtn.setAttribute('tabindex', '-1');
+  catAdvBtn.textContent = '[···]';
+  catAdvBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showDialSideSheet(cat.id);
+  });
+  el.appendChild(catAdvBtn);
+
   el.addEventListener('click', e => {
     if (_isDraggingDial) return;
     e.stopPropagation();
@@ -996,7 +1023,7 @@ function _createSectionHeaderEl(cat) {
     if (_isDraggingDial) return;
     e.stopPropagation();
     if (_isEditMode()) return; // inline-first: single click already triggered rename
-    showDialEditDialog(cat.id);
+    showDialSideSheet(cat.id);
   });
 
   bindDragEvents(el, _fakeDial, { isGroupHeader: true });
@@ -1274,12 +1301,12 @@ export const ctxMenuEl = (() => {
     if (dial?.url) window.open(dial.url, '_blank');
   });
 
-  const editBtn = makeBtn('Edit', 'edit');
+  const editBtn = makeBtn('Advanced\u2026', 'edit');
   editBtn.addEventListener('click', e => {
     e.stopPropagation();
     const alias = menu.dataset.target;
     hideDialCtxMenu();
-    showDialEditDialog(alias);
+    showDialSideSheet(alias);
   });
 
   const removeBtn = makeBtn('Remove');
@@ -1468,147 +1495,247 @@ async function _updateUngroupBtn(alias, isDivider, isGroupHeader, btnEl) {
   btnEl.style.display = (firstGrpIdx !== -1 && dialIdx > firstGrpIdx) ? '' : 'none';
 }
 
-// ── Edit dialog ───────────────────────────────────────────────────────────────
+// ── Advanced side-sheet ───────────────────────────────────────────────────────
+// Lightweight right-side panel for non-primary fields:
+//   link tile    → icon override, URL
+//   weather tile → URL
+//   category     → destructive delete-category action
+// Primary flows (add, rename, move) remain fully inline.
 
-export const editDialogEl = (() => {
-  const overlay = document.createElement('dialog');
-  overlay.id = 'dial-edit-dialog';
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-labelledby', 'dial-edit-title');
+const _sideSheetEl = (() => {
+  const wrap = document.createElement('div');
+  wrap.id        = 'dial-side-sheet';
+  wrap.className = 'dial-side-sheet';
+  wrap.setAttribute('aria-modal', 'true');
+  wrap.style.display = 'none';
 
-  const inner = document.createElement('div');
-  inner.className = 'dial-edit-inner';
+  const backdrop = document.createElement('div');
+  backdrop.className = 'dial-sheet-backdrop';
+  backdrop.addEventListener('click', () => hideDialSideSheet());
 
-  const title = document.createElement('div');
-  title.id = 'dial-edit-title'; title.className = 'dial-edit-title'; title.textContent = 'EDIT DIAL';
+  const panel = document.createElement('div');
+  panel.className = 'dial-sheet-panel';
 
-  const labelInput = document.createElement('input');
-  labelInput.id = 'dial-edit-label'; labelInput.placeholder = 'Label';
-  labelInput.autocomplete = 'off'; labelInput.spellcheck = false;
+  const header = document.createElement('div');
+  header.className = 'dial-sheet-header';
 
-  const urlInput = document.createElement('input');
-  urlInput.id = 'dial-edit-url'; urlInput.placeholder = 'URL';
-  urlInput.autocomplete = 'off'; urlInput.spellcheck = false; urlInput.type = 'url';
+  const titleEl = document.createElement('span');
+  titleEl.className   = 'dial-sheet-title';
+  titleEl.textContent = '· · · ADVANCED';
 
-  const iconInput = document.createElement('input');
-  iconInput.id = 'dial-edit-icon';
-  iconInput.placeholder = 'Icon (emoji/text or image URL — blank = letter box)';
-  iconInput.autocomplete = 'off'; iconInput.spellcheck = false;
+  const closeBtn = document.createElement('button');
+  closeBtn.className   = 'dial-sheet-close';
+  closeBtn.textContent = '[×]';
+  closeBtn.setAttribute('aria-label', 'Close advanced panel');
+  closeBtn.addEventListener('click', () => hideDialSideSheet());
 
-  const actions   = document.createElement('div');
-  actions.className = 'dial-edit-actions';
+  header.appendChild(titleEl);
+  header.appendChild(closeBtn);
 
-  const deleteBtn = document.createElement('button');
-  deleteBtn.id = 'dial-edit-delete';
-  deleteBtn.className = 'dial-edit-btn dial-edit-btn--delete'; deleteBtn.textContent = 'DELETE';
-  deleteBtn.hidden = true;
-  deleteBtn.addEventListener('click', async e => {
-    e.stopPropagation();
-    const alias = editDialogEl.dataset.target;
-    if (!alias || alias === '__new__') return;
-    hideDialEditDialog();
-    await removeDial(alias);
+  const body = document.createElement('div');
+  body.className = 'dial-sheet-body';
+
+  panel.appendChild(header);
+  panel.appendChild(body);
+  wrap.appendChild(backdrop);
+  wrap.appendChild(panel);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && wrap.style.display !== 'none') {
+      e.preventDefault();
+      hideDialSideSheet();
+    }
   });
 
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'dial-edit-btn'; saveBtn.textContent = 'SAVE';
-  saveBtn.addEventListener('click', e => { e.stopPropagation(); commitDialEdit(); });
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'dial-edit-btn'; cancelBtn.textContent = 'CANCEL';
-  cancelBtn.addEventListener('click', e => { e.stopPropagation(); hideDialEditDialog(); });
-
-  const errorMsg = document.createElement('div');
-  errorMsg.id = 'dial-edit-error';
-
-  actions.appendChild(deleteBtn);
-  actions.appendChild(saveBtn);
-  actions.appendChild(cancelBtn);
-  inner.appendChild(title); inner.appendChild(labelInput); inner.appendChild(urlInput);
-  inner.appendChild(iconInput); inner.appendChild(errorMsg); inner.appendChild(actions);
-  overlay.appendChild(inner);
-
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) { e.stopPropagation(); hideDialEditDialog(); }
-  });
-  inner.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); commitDialEdit(); }
-  });
-  overlay.addEventListener('keydown', e => {
-    if (e.key !== 'Tab') return;
-    const focusable = Array.from(
-      overlay.querySelectorAll(
-        'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )
-    ).filter(el => !el.closest('[hidden]') && el.offsetParent !== null);
-    if (!focusable.length) return;
-    const first = focusable[0], last = focusable[focusable.length - 1];
-    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-    else            { if (document.activeElement === last)  { e.preventDefault(); first.focus();} }
-  });
-  overlay.addEventListener('cancel', e => { e.preventDefault(); hideDialEditDialog(); });
-
-  document.body.appendChild(overlay);
-  return overlay;
+  document.body.appendChild(wrap);
+  return wrap;
 })();
 
-export async function showDialEditDialog(alias) {
-  // null / undefined  →  "Add new dial" mode.
-  if (alias == null) {
-    const titleEl    = editDialogEl.querySelector('.dial-edit-title');
-    if (titleEl) titleEl.textContent = 'ADD DIAL';
-    const labelInput = document.getElementById('dial-edit-label');
-    const urlInput   = document.getElementById('dial-edit-url');
-    const iconInput  = document.getElementById('dial-edit-icon');
-    labelInput.hidden = false;
-    urlInput.hidden   = false;
-    iconInput.hidden  = false;
-    editDialogEl.dataset.target        = '__new__';
-    editDialogEl.dataset.isWeather     = '';
-    editDialogEl.dataset.isGroupHeader = '';
-    labelInput.value = '';
-    urlInput.value   = '';
-    iconInput.value  = '';
-    document.getElementById('dial-edit-error').textContent = '';
-    document.getElementById('dial-edit-delete').hidden = true;
-    editDialogEl.showModal();
-    labelInput.focus();
-    return;
-  }
+export function hideDialSideSheet() {
+  _sideSheetEl.classList.remove('is-open');
+  // Wait for the slide-out transition before hiding entirely
+  _sideSheetEl.addEventListener('transitionend', () => {
+    if (!_sideSheetEl.classList.contains('is-open')) _sideSheetEl.style.display = 'none';
+  }, { once: true });
+  inputEl?.focus();
+}
 
+/** Backward-compat alias — nothing in the new code calls this but external
+ *  callers (e.g. script.js) that import it will still get a safe no-op. */
+export const hideDialEditDialog = hideDialSideSheet;
+
+export async function showDialSideSheet(alias) {
+  if (!alias) return;
   const dials = await loadDials();
   const dial  = dials.find(d => d.alias === alias);
   if (!dial) return;
 
   const isWeather     = dial.type === 'weather';
   const isGroupHeader = dial.type === 'group-header';
+  const isLink        = !isWeather && !isGroupHeader;
 
-  const titleEl    = editDialogEl.querySelector('.dial-edit-title');
-  if (titleEl) titleEl.textContent =
-    isWeather ? 'EDIT WEATHER DIAL' : isGroupHeader ? 'RENAME GROUP' : 'EDIT DIAL';
+  // Set header title
+  const titleEl = _sideSheetEl.querySelector('.dial-sheet-title');
+  if (isGroupHeader) titleEl.textContent = '· CATEGORY';
+  else if (isWeather) titleEl.textContent = '· WEATHER';
+  else titleEl.textContent = '· · · ADVANCED';
 
-  const labelInput = document.getElementById('dial-edit-label');
-  const urlInput   = document.getElementById('dial-edit-url');
-  const iconInput  = document.getElementById('dial-edit-icon');
-  labelInput.hidden = isWeather;
-  urlInput.hidden   = isGroupHeader;
-  iconInput.hidden  = isWeather || isGroupHeader;
+  // Rebuild body
+  const body = _sideSheetEl.querySelector('.dial-sheet-body');
+  body.innerHTML = '';
 
-  editDialogEl.dataset.target        = alias;
-  editDialogEl.dataset.isWeather     = isWeather     ? '1' : '';
-  editDialogEl.dataset.isGroupHeader = isGroupHeader ? '1' : '';
-  labelInput.value = dial.label || dial.alias;
-  document.getElementById('dial-edit-url').value  = dial.url  || '';
-  iconInput.value = dial.icon || '';
-  document.getElementById('dial-edit-delete').hidden = false;
+  // ── Editable fields (link and weather tiles) ──────────────────────────────
+  if (isLink || isWeather) {
+    let errorEl;
 
-  editDialogEl.showModal();
-  labelInput.focus();
+    if (isLink) {
+      // Icon override field
+      const iconField = document.createElement('div');
+      iconField.className = 'dial-sheet-field';
+      const iconLbl = document.createElement('label');
+      iconLbl.className = 'dial-sheet-label';
+      iconLbl.htmlFor   = 'dial-sheet-icon';
+      iconLbl.textContent = 'ICON OVERRIDE';
+      const iconInput = document.createElement('input');
+      iconInput.id          = 'dial-sheet-icon';
+      iconInput.className   = 'dial-sheet-input';
+      iconInput.placeholder = 'emoji · short text · image URL — blank = auto';
+      iconInput.autocomplete = 'off';
+      iconInput.spellcheck   = false;
+      iconInput.value        = dial.icon || '';
+      iconField.appendChild(iconLbl);
+      iconField.appendChild(iconInput);
+      body.appendChild(iconField);
+    }
+
+    // URL field
+    const urlField = document.createElement('div');
+    urlField.className = 'dial-sheet-field';
+    const urlLbl = document.createElement('label');
+    urlLbl.className    = 'dial-sheet-label';
+    urlLbl.htmlFor      = 'dial-sheet-url';
+    urlLbl.textContent  = 'URL';
+    const urlInput = document.createElement('input');
+    urlInput.id          = 'dial-sheet-url';
+    urlInput.type        = 'url';
+    urlInput.className   = 'dial-sheet-input';
+    urlInput.placeholder = 'https://…';
+    urlInput.autocomplete = 'off';
+    urlInput.spellcheck   = false;
+    urlInput.value        = dial.url || '';
+    urlField.appendChild(urlLbl);
+    urlField.appendChild(urlInput);
+    body.appendChild(urlField);
+
+    errorEl = document.createElement('div');
+    errorEl.className = 'dial-sheet-error';
+    errorEl.setAttribute('aria-live', 'assertive');
+    body.appendChild(errorEl);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'dial-sheet-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className   = 'dial-edit-btn';
+    saveBtn.textContent = '[SAVE]';
+    saveBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      let url = urlInput.value.trim();
+      if (!url) { errorEl.textContent = 'URL is required.'; urlInput.focus(); return; }
+      if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(url)) url = `https://${url}`;
+      if (/^(javascript|data):/i.test(url)) {
+        errorEl.textContent = 'URL scheme not allowed.'; return;
+      }
+      const currentDials = await loadDials();
+      const idx = currentDials.findIndex(d => d.alias === alias);
+      if (idx === -1) { errorEl.textContent = 'Dial not found.'; return; }
+      currentDials[idx].url = url;
+      if (isLink) {
+        const iconInput = body.querySelector('#dial-sheet-icon');
+        const rawIcon   = iconInput ? iconInput.value.trim() : '';
+        if (!rawIcon) delete currentDials[idx].icon;
+        else currentDials[idx].icon = normalizeDialIcon(rawIcon);
+      }
+      await saveDials(currentDials);
+      await renderDials();
+      hideDialSideSheet();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className   = 'dial-edit-btn';
+    cancelBtn.textContent = '[CANCEL]';
+    cancelBtn.addEventListener('click', () => hideDialSideSheet());
+
+    // Enter in any input → save
+    urlField.querySelector('input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+    });
+    if (isLink) {
+      body.querySelector('#dial-sheet-icon')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+      });
+    }
+
+    actionsRow.appendChild(saveBtn);
+    actionsRow.appendChild(cancelBtn);
+    body.appendChild(actionsRow);
+  }
+
+  // ── Danger zone ────────────────────────────────────────────────────────────
+  const danger = document.createElement('div');
+  danger.className = 'dial-sheet-danger';
+
+  if (isGroupHeader) {
+    const store    = await loadDialStore();
+    const cat      = store.categories.find(c => c.id === alias);
+    const count    = cat ? cat.items.length : 0;
+    const descEl   = document.createElement('div');
+    descEl.className   = 'dial-sheet-danger-desc';
+    descEl.textContent = count
+      ? `Permanently removes this category and its ${count} dial${count === 1 ? '' : 's'}.`
+      : 'Permanently removes this empty category.';
+
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'dial-edit-btn dial-edit-btn--delete';
+    delBtn.textContent = '[DELETE CATEGORY]';
+    delBtn.addEventListener('click', async () => {
+      const s = await loadDialStore();
+      s.categories = s.categories.filter(c => c.id !== alias);
+      await saveDialStore(s);
+      await renderDials();
+      hideDialSideSheet();
+    });
+
+    danger.appendChild(descEl);
+    danger.appendChild(delBtn);
+  } else {
+    const delBtn = document.createElement('button');
+    delBtn.className   = 'dial-edit-btn dial-edit-btn--delete';
+    delBtn.textContent = '[DELETE DIAL]';
+    delBtn.addEventListener('click', async () => {
+      hideDialSideSheet();
+      await removeDial(alias);
+    });
+    danger.appendChild(delBtn);
+  }
+
+  body.appendChild(danger);
+
+  // Open the sheet with animation
+  _sideSheetEl.style.display = '';
+  requestAnimationFrame(() => _sideSheetEl.classList.add('is-open'));
+
+  // Focus first input, or the close button as fallback
+  const firstInput = body.querySelector('input');
+  requestAnimationFrame(() =>
+    (firstInput || _sideSheetEl.querySelector('.dial-sheet-close'))?.focus()
+  );
 }
 
 // ── Open-current-tab shortcut (Ctrl+Shift+S via background SW) ───────────────
 // Called from main.js init() after the background service worker has stored
-// the source tab’s data in chrome.storage.local as _pendingTabDial.
+// the source tab's data in chrome.storage.local as _pendingTabDial.
+// Routes through the inline composer (same flow as [+ LINK]).
 export async function openCurrentTabDial({ url = '', title = '' } = {}) {
   if (!url) {
     printLine('  Error: no URL found for this tab.', 'line-err');
@@ -1628,111 +1755,14 @@ export async function openCurrentTabDial({ url = '', title = '' } = {}) {
     return;
   }
 
-  // Open the edit dialog pre-filled with the captured tab’s details
-  const titleEl = editDialogEl.querySelector('.dial-edit-title');
-  if (titleEl) titleEl.textContent = 'ADD CURRENT TAB';
-  const labelInput = document.getElementById('dial-edit-label');
-  const urlInput   = document.getElementById('dial-edit-url');
-  const iconInput  = document.getElementById('dial-edit-icon');
-  labelInput.hidden = false;
-  urlInput.hidden   = false;
-  iconInput.hidden  = false;
-  editDialogEl.dataset.target        = '__new__';
-  editDialogEl.dataset.isWeather     = '';
-  editDialogEl.dataset.isGroupHeader = '';
-  labelInput.value = title || url;
-  urlInput.value   = url;
-  iconInput.value  = '';
-  document.getElementById('dial-edit-error').textContent = '';
-  document.getElementById('dial-edit-delete').hidden = true;
-  editDialogEl.showModal();
-  labelInput.select();
-}
-
-export function hideDialEditDialog() {
-  editDialogEl.close();
-  delete editDialogEl.dataset.target;
-  delete editDialogEl.dataset.isWeather;
-  delete editDialogEl.dataset.isGroupHeader;
-  const labelInput = document.getElementById('dial-edit-label');
-  const urlInput   = document.getElementById('dial-edit-url');
-  const iconInput  = document.getElementById('dial-edit-icon');
-  if (labelInput) labelInput.hidden = false;
-  if (urlInput)   urlInput.hidden   = false;
-  if (iconInput)  iconInput.hidden  = false;
-  const titleEl = editDialogEl.querySelector('.dial-edit-title');
-  if (titleEl) titleEl.textContent = 'EDIT DIAL';
-  document.getElementById('dial-edit-error').textContent = '';
-  inputEl.focus();
-}
-
-async function commitDialEdit() {
-  const alias         = editDialogEl.dataset.target;
-  const isWeather     = editDialogEl.dataset.isWeather     === '1';
-  const isGroupHeader = editDialogEl.dataset.isGroupHeader === '1';
-  if (!alias) return;
-
-  const labelInput = document.getElementById('dial-edit-label');
-  const urlInput   = document.getElementById('dial-edit-url');
-  const newLabel   = labelInput.value.trim();
-  let   newUrl     = urlInput.value.trim();
-  const newIconRaw = (isWeather || isGroupHeader) ? '' : document.getElementById('dial-edit-icon').value;
-  const newIcon    = normalizeDialIcon(newIconRaw);
-  const errorEl    = document.getElementById('dial-edit-error');
-
-  if (isGroupHeader) {
-    if (!newLabel) { errorEl.textContent = 'Label is required.'; return; }
-  } else if (!isWeather) {
-    if (!newLabel && !newUrl) { errorEl.textContent = 'Label and URL are required.'; return; }
-    if (!newLabel)            { errorEl.textContent = 'Label is required.'; return; }
-  }
-  if (!isGroupHeader && !newUrl) { errorEl.textContent = 'URL is required.'; return; }
-  errorEl.textContent = '';
-
-  if (!isGroupHeader) {
-    if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(newUrl)) newUrl = `https://${newUrl}`;
-    if (/^(javascript|data):/i.test(newUrl)) { errorEl.textContent = 'URL scheme not allowed.'; return; }
-  }
-
-  const dials = await loadDials();
-  const idx   = dials.findIndex(d => d.alias === alias);
-  if (idx !== -1) {
-    let next;
-    if (isGroupHeader) {
-      next = { ...dials[idx], label: newLabel };
-    } else {
-      next = { ...dials[idx], alias, url: newUrl };
-      if (!isWeather) {
-        next.label = newLabel;
-        if (!newIcon) delete next.icon;
-        else next.icon = newIcon;
-      }
-    }
-    dials[idx] = next;
-    await saveDials(dials);
-    await renderDials();
-  } else if (alias === '__new__') {
-    // Create a new dial from the add-tile form.
-    const base = newLabel.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 32)
-               || `dial-${Date.now()}`;
-    let newAlias = base;
-    let n = 2;
-    while (dials.some(d => d.alias === newAlias)) newAlias = `${base}-${n++}`;
-    const entry = { alias: newAlias, label: newLabel, url: newUrl };
-    if (newIcon) entry.icon = newIcon;
-    // Insert into the ungrouped area (before the first group-header), not at the end.
-    const firstGroupIdx = dials.findIndex(d => d.type === 'group-header');
-    if (firstGroupIdx !== -1) dials.splice(firstGroupIdx, 0, entry);
-    else dials.push(entry);
-    await saveDials(dials);
-    await renderDials();
-  }
-  hideDialEditDialog();
+  // Open the inline composer pre-filled with the captured tab's details
+  await openComposer({ url, label: title || '' });
 }
 
 // ── Undo-delete state ────────────────────────────────────────────────────────
 // Holds { dial, index, timer } for the most-recent deletion, or null.
 let _undoState = null;
+
 
 function _hideUndoToast() {
   if (_undoState?.timer) clearTimeout(_undoState.timer);
@@ -1790,7 +1820,7 @@ export async function removeDial(alias) {
 // back into this module without a circular import.
 setDialToolbarDeps({
   renderDials,
-  showDialEditDialog,
+  showDialEditDialog: showDialSideSheet,
   toggleDialEditMode,
   isDialEditMode,
   openComposer,

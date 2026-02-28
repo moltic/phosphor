@@ -169,9 +169,10 @@ function _refreshPreview(previewWrap, urlVal, iconVal, labelVal) {
  *
  * @param {{ categories: Array }} store
  * @param {string | null} targetCatId
+ * @param {{ url?: string, label?: string }} [initial]
  * @returns {HTMLElement}
  */
-function _buildCard(store, targetCatId) {
+function _buildCard(store, targetCatId, { url: initUrl = '', label: initLabel = '' } = {}) {
   const card = document.createElement('div');
   card.className = 'dial-composer';
   card.setAttribute('role', 'form');
@@ -192,6 +193,7 @@ function _buildCard(store, targetCatId) {
   urlInput.placeholder = 'URL';
   urlInput.autocomplete = 'off';
   urlInput.spellcheck  = false;
+  if (initUrl) urlInput.value = initUrl;
 
   const labelInput = document.createElement('input');
   labelInput.type        = 'text';
@@ -199,6 +201,7 @@ function _buildCard(store, targetCatId) {
   labelInput.placeholder = 'Label';
   labelInput.autocomplete = 'off';
   labelInput.spellcheck  = false;
+  if (initLabel) labelInput.value = initLabel;
 
   const row1 = document.createElement('div');
   row1.className = 'dial-composer-row';
@@ -338,8 +341,8 @@ function _buildCard(store, targetCatId) {
   // Prevent search/cmd-input events from bleeding out of the card
   card.addEventListener('keydown', e => e.stopPropagation(), true);
 
-  // Initial preview (empty state → '?' letter box)
-  _refreshPreview(previewWrap, '', '', '');
+  // Initial preview
+  _refreshPreview(previewWrap, initUrl, '', initLabel);
 
   return card;
 }
@@ -379,24 +382,26 @@ function _mountComposer(categoryId) {
 /**
  * Open (or toggle) the inline composer card.
  *
- * @param {{ categoryId?: string | null }} [opts]
+ * @param {{ categoryId?: string | null, url?: string, label?: string }} [opts]
  *   categoryId — pre-select this category and mount inside it.
  *                null / omitted → defaults to the active filter category
  *                or the first category in the store.
+ *   url / label — pre-fill the corresponding fields (e.g. from openCurrentTabDial).
  */
-export async function openComposer({ categoryId = null } = {}) {
+export async function openComposer({ categoryId = null, url = '', label = '' } = {}) {
   // Resolve which category to target
   const filterCat  = getDialFilter().category;
   const resolvedId = categoryId ?? filterCat;  // null is fine (→ first/default cat)
   const stableId   = resolvedId ?? '__default__';
 
-  // Toggle: a second click on the same entry-point closes the composer.
-  if (_composerEl && _currentCatId === stableId) {
+  // Toggle: a second click on the same entry-point closes the composer
+  // (only when no initial data is provided — pre-fill always opens fresh).
+  if (_composerEl && _currentCatId === stableId && !url && !label) {
     closeComposer();
     return;
   }
 
-  // Re-opening for a different category: remove the old card first.
+  // Re-opening for a different category or with fresh data: remove first.
   if (_composerEl) {
     _composerEl.remove();
     _composerEl = null;
@@ -405,11 +410,13 @@ export async function openComposer({ categoryId = null } = {}) {
   const store = await loadDialStore();
   _currentCatId = stableId;
 
-  _composerEl = _buildCard(store, resolvedId);
+  _composerEl = _buildCard(store, resolvedId, { url, label });
   _mountComposer(resolvedId);
 
-  // Focus the URL field after the card is mounted
-  _composerEl.querySelector('.dial-composer-url')?.focus();
+  // Focus URL field if empty; otherwise focus label (for pre-filled URL like openCurrentTabDial)
+  const urlField   = _composerEl.querySelector('.dial-composer-url');
+  const labelField = _composerEl.querySelector('.dial-composer-label');
+  (url && !label ? labelField : urlField)?.focus();
 }
 
 /**

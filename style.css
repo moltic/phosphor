@@ -1694,65 +1694,150 @@ html.dial-layout--compact .dial-divider.row-divider {
   box-shadow: 0 0 8px var(--glow);
 }
 
-/* ── Speed-dial Edit Dialog ──────────────────────────────────── */
-#dial-edit-dialog {
-  /* Reset UA <dialog> defaults */
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: auto;
-  overflow: visible;
-  /* z-index is handled by the top-layer; keep one here as fallback */
+/* ── Advanced side-sheet ─────────────────────────────────────────────────── */
+.dial-side-sheet {
+  position: fixed;
+  inset: 0;
   z-index: 300;
+  pointer-events: none;
 }
 
-#dial-edit-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+.dial-side-sheet.is-open {
+  pointer-events: auto;
 }
 
-.dial-edit-inner {
+.dial-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.dial-side-sheet.is-open .dial-sheet-backdrop {
+  opacity: 1;
+}
+
+.dial-sheet-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 22em;
+  max-width: 88vw;
   background: var(--bg);
-  border: 1px solid var(--fg);
-  padding: 1.1em 1.3em 1em;
+  border-left: 1px solid var(--fg);
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
-  min-width: 16em;
+  transform: translateX(100%);
+  transition: transform 0.18s ease;
+  overflow-y: auto;
 }
 
-.dial-edit-title {
+.dial-side-sheet.is-open .dial-sheet-panel {
+  transform: translateX(0);
+}
+
+.dial-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7em 1em;
+  border-bottom: 1px solid var(--fg-dim);
+  gap: 0.5em;
+}
+
+.dial-sheet-title {
   color: var(--fg-bright);
   font-family: var(--font-stack);
   font-size: var(--dial-font-size);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-shadow: 0 0 8px var(--glow);
-  margin-bottom: 0.15rem;
+  flex: 1;
 }
 
-.dial-edit-inner input {
+.dial-sheet-close {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--dial-font-size);
+  cursor: pointer;
+  padding: 0.15em 0.55em;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.dial-sheet-close:hover {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+}
+
+.dial-sheet-body {
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  flex: 1;
+}
+
+.dial-sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.dial-sheet-label {
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+}
+
+.dial-sheet-input {
   background: var(--bg);
   border: 1px solid var(--fg-dim);
   color: var(--fg);
   font-family: var(--font-stack);
   font-size: var(--dial-font-size);
-  padding: 0.3rem 0.5rem;
+  padding: 0.3em 0.5em;
   outline: none;
   width: 100%;
+  box-sizing: border-box;
 }
 
-.dial-edit-inner input:focus {
+.dial-sheet-input:focus {
   border-color: var(--fg);
 }
 
-.dial-edit-actions {
+.dial-sheet-actions {
   display: flex;
-  gap: 0.55em;
-  justify-content: flex-end;
-  margin-top: 0.2em;
+  gap: 0.5em;
 }
 
+.dial-sheet-error {
+  color: #e06c75;
+  font-size: 0.78em;
+  min-height: 1em;
+}
+
+.dial-sheet-danger {
+  margin-top: auto;
+  padding-top: 1em;
+  border-top: 1px solid #7a2a2a;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.dial-sheet-danger-desc {
+  color: var(--fg-dim);
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+
+/* Shared button styles used by both the side sheet and old helper fns */
 .dial-edit-btn--delete {
-  margin-right: auto;
   border-color: #7a2a2a;
   color: #c97070;
 }
@@ -1778,10 +1863,47 @@ html.dial-layout--compact .dial-divider.row-divider {
   color: var(--fg-bright);
 }
 
-#dial-edit-error {
-  color: #e06c75;
-  font-size: 0.78em;
-  min-height: 1em;
+/* ── Tile / header advanced button ([···]) ──────────────────────────────── */
+.dial-tile-advanced {
+  display: none;
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.62em;
+  line-height: 1;
+  padding: 0.1em 0.3em;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.dial-group-advanced {
+  display: none;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  padding: 0.15em 0.45em;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+#speed-dial.is-edit-mode .dial-tile-advanced,
+#speed-dial.is-edit-mode .dial-group-advanced {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dial-tile-advanced:hover,
+.dial-group-advanced:hover {
+  color: var(--fg);
+  border-color: var(--fg-dim);
 }
 
 /* ── Settings Panel (modal overlay — matches #dial-edit-dialog) ── */
