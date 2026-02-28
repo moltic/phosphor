@@ -263,6 +263,33 @@ function _ensureDragPlaceholder(w, h) {
     _dragPlaceholder = document.createElement('div');
     _dragPlaceholder.className = 'dial-drag-placeholder';
     _dragPlaceholder.setAttribute('aria-hidden', 'true');
+
+    // Accept drops that land directly on the placeholder (the most common case
+    // when the user releases the mouse over the highlighted slot).
+    _dragPlaceholder.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    });
+
+    _dragPlaceholder.addEventListener('drop', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      _dragDropCommitted = true; // must be set before dragend fires
+      dialGridEl.classList.remove('is-dragging-dial');
+      const fromAlias = e.dataTransfer?.getData('text/plain');
+      if (!fromAlias) return;
+      const newOrder = _getNewOrderFromPlaceholder(fromAlias);
+      const current  = await loadDials();
+      if (newOrder && newOrder.length) {
+        const byAlias = Object.fromEntries(current.map(d => [d.alias, d]));
+        const sorted  = newOrder.map(a => byAlias[a]).filter(Boolean);
+        const inOrder = new Set(newOrder);
+        for (const d of current) if (!inOrder.has(d.alias)) sorted.push(d);
+        await saveDials(sorted);
+      }
+      await renderDials();
+    });
   }
   if (w) _dragPlaceholder.style.width  = `${w}px`;
   if (h) _dragPlaceholder.style.height = `${h}px`;
