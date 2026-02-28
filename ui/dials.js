@@ -428,11 +428,11 @@ export function bindDragEvents(el, dial, opts = {}) {
  * dial in place.  Works for both regular tiles (.dial-label) and group
  * headers (.dial-group-label).  Call only when edit-mode is active.
  */
-function _startInlineLabelEdit(labelEl, dial) {
+function _startInlineLabelEdit(labelEl, dial, anchorEl = null) {
   if (labelEl.dataset.editing === '1') return;
   labelEl.dataset.editing = '1';
   const currentText = labelEl.textContent;
-  const tileEl      = labelEl.closest('.dial-tile, .dial-group-header');
+  const tileEl      = anchorEl ?? labelEl.closest('.dial-tile, .dial-group-header');
 
   const input = document.createElement('input');
   input.type      = 'text';
@@ -452,7 +452,7 @@ function _startInlineLabelEdit(labelEl, dial) {
 
   let _done = false;
 
-  async function _commit() {
+  async function _commit(refocus = false) {
     if (_done) return;
     _done = true;
     delete labelEl.dataset.editing;
@@ -460,7 +460,10 @@ function _startInlineLabelEdit(labelEl, dial) {
     // Always tear down the input immediately — don't leave it in the DOM
     // while async storage operations are in flight.
     labelEl.textContent = newLabel || currentText;
-    if (!newLabel) return;
+    if (!newLabel) {
+      if (refocus) anchorEl?.focus();
+      return;
+    }
     const dials = await loadDials();
     const idx   = dials.findIndex(d => d.alias === dial.alias);
     if (idx !== -1) {
@@ -468,6 +471,13 @@ function _startInlineLabelEdit(labelEl, dial) {
       await saveDials(dials);
     }
     await renderDials();
+    // Restore keyboard focus to the tile / header after the grid re-syncs.
+    if (refocus) {
+      const selector = dial.type === 'group-header'
+        ? `.dial-group-header[data-alias="${dial.alias}"]`
+        : `.dial-tile[data-alias="${dial.alias}"]`;
+      (dialGridEl.querySelector(selector) ?? anchorEl)?.focus();
+    }
   }
 
   function _cancel() {
@@ -475,15 +485,16 @@ function _startInlineLabelEdit(labelEl, dial) {
     _done = true;
     delete labelEl.dataset.editing;
     labelEl.textContent = currentText;
+    anchorEl?.focus();
   }
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter')  { e.preventDefault(); e.stopPropagation(); _commit(); }
+    if (e.key === 'Enter')  { e.preventDefault(); e.stopPropagation(); _commit(true); }
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); _cancel(); }
   });
 
-  // Blur commits unless already handled by Enter or Escape.
-  input.addEventListener('blur', () => setTimeout(() => _commit(), 80));
+  // Blur commits (no refocus — user clicked elsewhere intentionally).
+  input.addEventListener('blur', () => setTimeout(() => _commit(false), 80));
 }
 
 function _createTileEl(dial) {
@@ -507,7 +518,7 @@ function _createTileEl(dial) {
     if (!_isEditMode()) return;
     e.preventDefault();
     e.stopPropagation();
-    _startInlineLabelEdit(labelEl, dial);
+    _startInlineLabelEdit(labelEl, dial, tile);
   });
   tile.appendChild(labelEl);
 
@@ -531,6 +542,11 @@ function _createTileEl(dial) {
     if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
     e.preventDefault();
     e.stopPropagation();
+    if (_isEditMode()) {
+      // Inline-first rename: single click anywhere on the tile in manage mode.
+      _startInlineLabelEdit(labelEl, dial, tile);
+      return;
+    }
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; return; }
     _clickTimer = setTimeout(() => {
       _clickTimer = null;
@@ -540,6 +556,7 @@ function _createTileEl(dial) {
   tile.addEventListener('dblclick', e => {
     e.preventDefault();
     e.stopPropagation();
+    if (_isEditMode()) return; // inline-first: single click already triggered rename
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     showDialEditDialog(dial.alias);
   });
@@ -653,7 +670,7 @@ function _createSectionHeaderEl(cat) {
     if (!_isEditMode()) return;
     e.preventDefault();
     e.stopPropagation();
-    _startInlineLabelEdit(labelEl, _fakeDial);
+    _startInlineLabelEdit(labelEl, _fakeDial, el);
   });
 
   const countEl = document.createElement('span');
@@ -680,6 +697,11 @@ function _createSectionHeaderEl(cat) {
   el.addEventListener('click', e => {
     if (_isDraggingDial) return;
     e.stopPropagation();
+    if (_isEditMode()) {
+      // Inline-first rename: single click on the header in manage mode.
+      _startInlineLabelEdit(labelEl, _fakeDial, el);
+      return;
+    }
     _toggleGroupCollapse(cat.id);
   });
   el.addEventListener('keydown', e => {
@@ -688,6 +710,7 @@ function _createSectionHeaderEl(cat) {
   el.addEventListener('dblclick', e => {
     if (_isDraggingDial) return;
     e.stopPropagation();
+    if (_isEditMode()) return; // inline-first: single click already triggered rename
     showDialEditDialog(cat.id);
   });
 
