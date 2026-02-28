@@ -743,6 +743,19 @@ html, body {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* ── Search / filter “no results” placeholder ─────────────── */
+.dial-no-results {
+  flex: 0 0 100%;
+  width: 100%;
+  padding: 0.65em 0.2em 0.8em;
+  font-family: var(--font-stack);
+  font-size: 0.7em;
+  color: var(--fg-dim);
+  letter-spacing: 0.2em;
+  opacity: 0.55;
+  user-select: none;
+}
+
 /* ── ✕ remove button (visible only in edit mode) ────────────── */
 .dial-tile-remove {
   display: none;
@@ -2388,6 +2401,41 @@ html.dial-layout--compact .dial-divider.row-divider {
   }
 }
 
+/* ── Very small phones / narrow viewports (≤ 480 px) ────────── */
+@media (max-width: 480px) {
+  /* The toolbar switches to a two-row layout:
+     row 1 — action buttons + search (stretch)
+     row 2 — density control (hidden label, just the stepper buttons)
+     row 3 — category chips (unchanged, already flex-wrap)
+  */
+  #dial-toolbar {
+    gap: 0.28em 0.45em;
+    padding: 0.35em 0 0.35em;
+  }
+
+  /* Search grows to take the remaining first-row width */
+  .dial-toolbar-search {
+    flex: 1 1 5em;
+    max-width: none;
+  }
+
+  /* Density label: hide the text on very narrow viewports to save space.
+     The stepper buttons’ aria-label attributes already convey the action. */
+  .dial-toolbar-density-label {
+    display: none;
+  }
+
+  /* Ensure the density group doesn’t push buttons onto orphaned lines */
+  .dial-toolbar-group--density {
+    gap: 0.18em;
+  }
+
+  /* Category chips: allow the chips to wrap naturally, but reduce gap */
+  .dial-toolbar-chips {
+    gap: 0.22em;
+  }
+}
+
 /* ── Undo Delete Toast ───────────────────────────────────────── */
 #dial-undo-toast {
   position: fixed;
@@ -2435,4 +2483,16 @@ html.dial-layout--compact .dial-divider.row-divider {
   color: var(--fg);
   text-shadow: 0 0 6px var(--glow);
   outline: none;
+}
+
+/* Prevent the toast from overflowing on small screens */
+@media (max-width: 600px) {
+  #dial-undo-toast {
+    max-width: calc(100vw - 2rem);
+    white-space: normal;
+    text-align: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.2em 0.5em;
+  }
 }

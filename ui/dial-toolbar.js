@@ -84,6 +84,7 @@ export function syncManageBtnExternal() {
   const active = _isDialEditMode();
   _manageBtn.textContent = active ? '[DONE]' : '[MANAGE]';
   _manageBtn.classList.toggle('is-active', active);
+  _manageBtn.setAttribute('aria-pressed', String(active));
 }
 
 // ── Toolbar builder ───────────────────────────────────────────────────────────

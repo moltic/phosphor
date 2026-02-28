@@ -429,7 +429,16 @@ export function bindDragEvents(el, dial, opts = {}) {
   if (suppressClick) {
     el.addEventListener('click', e => {
       if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
+      // Always prevent the default <a> navigation so the current tab is never
+      // redirected (weather tiles use <a href> for semantic reasons but should
+      // open in a new tab — consistent with regular dial tiles).
+      e.preventDefault();
       e.stopPropagation();
+      // In normal (non-edit) mode open the URL in a new tab.
+      if (!_isEditMode() && !isDivider && !isGroupHeader) {
+        const href = (el instanceof HTMLAnchorElement ? el.href : '') || dial.url;
+        if (href) window.open(href, '_blank', 'noopener,noreferrer');
+      }
     });
   }
 
@@ -1156,6 +1165,19 @@ async function _applyGroupCollapse(collapseState) {
 // ── Keyed node cache ──────────────────────────────────────────────────────────
 const _dialNodeCache = new Map(); // alias → tile element
 
+// ── Search no-results placeholder ────────────────────────────────────────────
+let _noResultsEl = null;
+
+function _ensureNoResults() {
+  if (_noResultsEl) return _noResultsEl;
+  _noResultsEl = document.createElement('div');
+  _noResultsEl.className = 'dial-no-results';
+  _noResultsEl.setAttribute('role', 'status');
+  _noResultsEl.setAttribute('aria-live', 'polite');
+  _noResultsEl.style.display = 'none';
+  return _noResultsEl;
+}
+
 // ── renderDials (incremental / diffing) ──────────────────────────────────────
 
 /**
@@ -1307,18 +1329,39 @@ function _applyDialFilter() {
     sectionEl.style.display = hidden ? 'none' : '';
   }
 
+  // Hide the persistent "+" add-tile during an active search so it doesn't
+  // appear as a phantom result when every real tile is filtered out.
+  if (_addTileEl) _addTileEl.style.display = q ? 'none' : '';
+
+  const noResultsEl = _ensureNoResults();
+  if (!noResultsEl.parentElement) dialGridEl.appendChild(noResultsEl);
+
   if (!q) {
     // Clear any search-hiding on all tiles
     for (const [, el] of _dialNodeCache) el.style.display = '';
+    noResultsEl.style.display = 'none';
     return;
   }
 
+  let visibleCount = 0;
   for (const [, el] of _dialNodeCache) {
     const d = el._dialData;
     if (!d) continue;
+    // Respect the category filter: a tile whose section is hidden should not
+    // count as "visible" even if it matches the search query.
+    const sectionHidden = el.closest('.dial-section')?.style.display === 'none';
     const label = (d.label || d.alias || '').toLowerCase();
     const url   = (d.url   || '').toLowerCase();
-    el.style.display = (label.includes(q) || url.includes(q)) ? '' : 'none';
+    const matches = label.includes(q) || url.includes(q);
+    el.style.display = (matches && !sectionHidden) ? '' : 'none';
+    if (matches && !sectionHidden) visibleCount++;
+  }
+
+  if (visibleCount === 0) {
+    noResultsEl.textContent = `NO MATCHES FOR \u201c${search.toUpperCase()}\u201d`;
+    noResultsEl.style.display = '';
+  } else {
+    noResultsEl.style.display = 'none';
   }
 }
 
@@ -1555,7 +1598,9 @@ const _sideSheetEl = (() => {
   const wrap = document.createElement('div');
   wrap.id        = 'dial-side-sheet';
   wrap.className = 'dial-side-sheet';
-  wrap.setAttribute('aria-modal', 'true');
+  wrap.setAttribute('role',         'dialog');
+  wrap.setAttribute('aria-modal',   'true');
+  wrap.setAttribute('aria-labelledby', 'dial-sheet-title-id');
   wrap.style.display = 'none';
 
   const backdrop = document.createElement('div');
@@ -1569,6 +1614,7 @@ const _sideSheetEl = (() => {
   header.className = 'dial-sheet-header';
 
   const titleEl = document.createElement('span');
+  titleEl.id          = 'dial-sheet-title-id';  // referenced by aria-labelledby
   titleEl.className   = 'dial-sheet-title';
   titleEl.textContent = '· · · ADVANCED';
 
@@ -1588,6 +1634,29 @@ const _sideSheetEl = (() => {
   panel.appendChild(body);
   wrap.appendChild(backdrop);
   wrap.appendChild(panel);
+
+  // ── Focus trap: keep Tab/Shift+Tab inside the panel while it is open ──────
+  panel.addEventListener('keydown', ev => {
+    if (ev.key !== 'Tab') return;
+    const focusable = Array.from(panel.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]),' +
+      'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (ev.shiftKey) {
+      if (document.activeElement === first || !panel.contains(document.activeElement)) {
+        ev.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !panel.contains(document.activeElement)) {
+        ev.preventDefault();
+        first.focus();
+      }
+    }
+  });
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && wrap.style.display !== 'none') {
@@ -1826,6 +1895,8 @@ function _showUndoToast(label) {
   if (_undoToastMsg) _undoToastMsg.textContent = `Removed \u201c${label}\u201d \u2014\u00A0`;
   _undoToastEl.classList.add('visible');
   _undoState.timer = setTimeout(_hideUndoToast, 5000);
+  // Move keyboard focus to [UNDO] so the user can act without reaching for a mouse.
+  requestAnimationFrame(() => _undoToastBtn?.focus());
 }
 
 if (_undoToastBtn) {
@@ -1838,6 +1909,10 @@ if (_undoToastBtn) {
     dials.splice(insertAt, 0, dial);
     await saveDials(dials);
     await renderDials();
+    // Return focus to the restored tile so keyboard users can continue editing.
+    requestAnimationFrame(() => {
+      dialGridEl.querySelector(`.dial-tile[data-alias="${dial.alias}"]`)?.focus();
+    });
   });
 }
 

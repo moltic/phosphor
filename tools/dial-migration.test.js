@@ -264,6 +264,43 @@ test('alias used as stable category id (needed for dialGroupCollapsed)', () => {
   assert.equal(store.categories[0].id, '__grp_42__');
 });
 
+test('missing url field defaults to empty string', () => {
+  const flat = [{ alias: 'nurl', label: 'No URL' }]; // no url property
+  const store = flatArrayToDialStore(flat);
+  assert.equal(store.categories[0].items[0].url, '');
+});
+
+test('missing label field falls back to alias', () => {
+  const flat = [{ alias: 'nolabel', url: 'https://example.com' }];
+  const store = flatArrayToDialStore(flat);
+  assert.equal(store.categories[0].items[0].label, 'nolabel');
+});
+
+test('sequential group-headers produce separate named categories (first may be empty)', () => {
+  const flat = [
+    { type: 'group-header', alias: '__grp_a__', label: 'A' },
+    { type: 'group-header', alias: '__grp_b__', label: 'B' },
+    { alias: 'gh', label: 'GitHub', url: 'https://github.com' },
+  ];
+  const store = flatArrayToDialStore(flat);
+  assert.equal(store.categories.length, 2);
+  assert.equal(store.categories[0].label, 'A');
+  assert.equal(store.categories[0].items.length, 0); // A is empty
+  assert.equal(store.categories[1].label, 'B');
+  assert.equal(store.categories[1].items.length, 1);
+});
+
+test('all-dividers flat array → single empty default category', () => {
+  const flat = [
+    { type: 'divider', alias: '__div_1__' },
+    { type: 'divider', alias: '__div_2__', col: true },
+  ];
+  const store = flatArrayToDialStore(flat);
+  assert.equal(store.categories.length, 1);
+  assert.equal(store.categories[0].label, '');
+  assert.equal(store.categories[0].items.length, 0);
+});
+
 // ── Suite: dialStoreToFlatArray ───────────────────────────────────────────────
 console.log('\ndialStoreToFlatArray()');
 
@@ -331,6 +368,17 @@ test('weather item icon NOT added (weather has no icon field in flat model)', ()
   assert(!('icon' in flat[0]), 'weather flat entries should not have icon');
 });
 
+test('link item without icon field does not emit icon key in flat array', () => {
+  const store = {
+    version: 1,
+    categories: [{ id: 'cat_default', label: '', collapsed: false, items: [
+      { id: 'gh', type: 'link', alias: 'gh', label: 'GitHub', url: 'https://github.com' },
+    ]}],
+  };
+  const flat = dialStoreToFlatArray(store);
+  assert(!('icon' in flat[0]), 'link without icon should not emit icon key');
+});
+
 // ── Suite: round-trip fidelity ────────────────────────────────────────────────
 console.log('\nRound-trip fidelity');
 
@@ -362,6 +410,27 @@ test('icon field survives round-trip on link items', () => {
   const original = [{ alias: 'wiki', label: 'Wikipedia', url: 'https://en.wikipedia.org', icon: '🌐' }];
   const roundTrip = dialStoreToFlatArray(flatArrayToDialStore(original));
   assert.equal(roundTrip[0].icon, '🌐');
+});
+
+test('empty default category survives round-trip when no named cats exist', () => {
+  const original = [];
+  const roundTrip = dialStoreToFlatArray(flatArrayToDialStore(original));
+  assert.equal(roundTrip.length, 0); // no items to emit
+});
+
+test('sequential group-headers (one empty) survive round-trip', () => {
+  const original = [
+    { type: 'group-header', alias: '__grp_a__', label: 'A' },
+    { type: 'group-header', alias: '__grp_b__', label: 'B' },
+    { alias: 'gh', label: 'GitHub', url: 'https://github.com' },
+  ];
+  const roundTrip = dialStoreToFlatArray(flatArrayToDialStore(original));
+  // A is empty \u2014 its header still round-trips because the category exists.
+  assert.equal(roundTrip[0].type, 'group-header');
+  assert.equal(roundTrip[0].label, 'A');
+  assert.equal(roundTrip[1].type, 'group-header');
+  assert.equal(roundTrip[1].label, 'B');
+  assert.equal(roundTrip[2].alias, 'gh');
 });
 
 // ── Suite: migrateDialsToV1 (async) ─────────────────────────────────────────-
