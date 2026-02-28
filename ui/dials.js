@@ -398,9 +398,22 @@ function _createTileEl(dial) {
   labelEl.textContent = dial.label || dial.alias;
   tile.appendChild(labelEl);
 
-  bindDragEvents(tile, dial, { suppressClick: true });
+  bindDragEvents(tile, dial);
+  let _clickTimer = null;
+  tile.addEventListener('click', e => {
+    if (_isDraggingDial) { e.preventDefault(); e.stopPropagation(); return; }
+    e.preventDefault();
+    e.stopPropagation();
+    if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; return; }
+    _clickTimer = setTimeout(() => {
+      _clickTimer = null;
+      if (dial.url) window.open(dial.url, '_blank', 'noopener,noreferrer');
+    }, 220);
+  });
   tile.addEventListener('dblclick', e => {
     e.preventDefault();
+    e.stopPropagation();
+    if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
     showDialEditDialog(dial.alias);
   });
   tile._dialData = { ...dial };
