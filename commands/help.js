@@ -57,7 +57,7 @@ export const helpCommands = {
       printLine('  ↑ / ↓          Navigate command history', 'line-info');
       printLine('  Tab            Auto-complete command name', 'line-info');
       printLine('  Ctrl+L / ⌘L    Clear current input (not the screen)', 'line-info');
-      printLine('  Ctrl+Shift+D   Add current tab as a speed-dial tile', 'line-info');
+      printLine('  Ctrl+Shift+S   Add current tab as a speed-dial tile', 'line-info');
       printLine('  (Run  keys  for a full shortcut reference)', 'line-info');
       printBlank();
     },
@@ -80,7 +80,7 @@ export const helpCommands = {
         ['↑ / ↓',        'Navigate command history'],
         ['Tab',           'Auto-complete command name'],
         ['Ctrl+L / ⌘L',   'Clear current input (not the screen)'],
-        ['Ctrl+Shift+D',   'Add current tab as a speed-dial tile'],
+        ['Ctrl+Shift+S',   'Add current tab as a speed-dial tile'],
         ['Ctrl+, / ⌘,',   'Open / close Settings panel'],
         ['Escape',        'Clear / cancel current input'],
         ['Right-click',   'Paste or open browser context menu'],
