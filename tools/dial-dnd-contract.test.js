@@ -21,5 +21,17 @@ assert(
   /_dragPlaceholder\.style\.pointerEvents\s*=\s*'auto'/.test(dialsJs),
   'Drag placeholder should enforce pointer events in JS as a fallback',
 );
+assert(
+  /async function _commitPlaceholderDrop\(fromAlias\)/.test(dialsJs),
+  'Drag/drop should persist from a placeholder-aware commit helper',
+);
+assert(
+  !/_getNewOrderFromPlaceholder/.test(dialsJs),
+  'Legacy flat-array placeholder reorder helper should not remain in use',
+);
+assert(
+  /if \(await _commitPlaceholderDrop\(fromAlias\)\)/.test(dialsJs),
+  'Tile/body/grid drop handlers should all prefer the placeholder commit path',
+);
 
 console.log('dial-dnd-contract.test.js: OK');

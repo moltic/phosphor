@@ -280,15 +280,7 @@ function _ensureDragPlaceholder(w, h) {
       dialGridEl.classList.remove('is-dragging-dial');
       const fromAlias = e.dataTransfer?.getData('text/plain');
       if (!fromAlias) return;
-      const newOrder = _getNewOrderFromPlaceholder(fromAlias);
-      const current  = await loadDials();
-      if (newOrder && newOrder.length) {
-        const byAlias = Object.fromEntries(current.map(d => [d.alias, d]));
-        const sorted  = newOrder.map(a => byAlias[a]).filter(Boolean);
-        const inOrder = new Set(newOrder);
-        for (const d of current) if (!inOrder.has(d.alias)) sorted.push(d);
-        await saveDials(sorted);
-      }
+      await _commitPlaceholderDrop(fromAlias);
       await renderDials();
     });
   }
@@ -377,25 +369,85 @@ function _movePlaceholderNear(overEl, before) {
 }
 
 /**
- * Read the intended new alias order straight from the DOM: walk all
- * section bodies in order, collect each tile's alias, but swap the
- * placeholder position for `fromAlias` (and skip the source tile).
- * Returns null if no placeholder is in the DOM.
+ * Snapshot the visible section/body DOM order while a drag placeholder is
+ * present. The placeholder position is replaced with `fromAlias`, and the
+ * dragged source tile is skipped at its original location.
+ *
+ * Returns null when no live placeholder exists.
  */
-function _getNewOrderFromPlaceholder(fromAlias) {
+function _getSectionAliasPlanFromPlaceholder(fromAlias) {
   const ph = _dragPlaceholder;
   if (!ph?.parentNode) return null;
-  const result = [];
-  for (const body of dialGridEl.querySelectorAll('.dial-section-body')) {
+
+  const plan = [];
+  for (const sectionEl of dialGridEl.querySelectorAll('.dial-section')) {
+    const catId = sectionEl.dataset.catId;
+    const body  = sectionEl.querySelector(':scope > .dial-section-body');
+    if (!catId || !body) continue;
+
+    const aliases = [];
     for (const child of body.children) {
       if (child === ph) {
-        result.push(fromAlias);
-      } else if (child.dataset?.alias && child.dataset.alias !== fromAlias) {
-        result.push(child.dataset.alias);
+        aliases.push(fromAlias);
+        continue;
       }
+
+      if (!child.classList.contains('dial-tile')) continue;
+      const alias = child.dataset?.alias;
+      if (alias && alias !== fromAlias) aliases.push(alias);
+    }
+
+    plan.push({ catId, aliases });
+  }
+
+  return plan;
+}
+
+/**
+ * Persist the current placeholder DOM position back into DialStore so the
+ * drop result exactly matches the live preview the user saw.
+ */
+async function _commitPlaceholderDrop(fromAlias) {
+  const plan = _getSectionAliasPlanFromPlaceholder(fromAlias);
+  if (!plan?.length) return false;
+
+  const store     = await loadDialStore();
+  const itemByAlias = new Map();
+  const catByAlias  = new Map();
+  for (const cat of store.categories) {
+    for (const item of cat.items) {
+      itemByAlias.set(item.alias, item);
+      catByAlias.set(item.alias, cat.id);
     }
   }
-  return result;
+
+  if (!itemByAlias.has(fromAlias)) return false;
+
+  const seen = new Set();
+  const aliasesByCat = new Map(plan.map(({ catId, aliases }) => [catId, aliases]));
+  const nextCategories = store.categories.map(cat => {
+    const plannedAliases = aliasesByCat.get(cat.id);
+    if (!plannedAliases) return { ...cat, items: [...cat.items] };
+
+    const items = plannedAliases
+      .map(alias => itemByAlias.get(alias))
+      .filter(Boolean);
+
+    for (const item of items) seen.add(item.alias);
+    return { ...cat, items };
+  });
+
+  // Preserve any unplanned items in their original categories rather than
+  // dropping data if the DOM snapshot missed a hidden node.
+  for (const item of itemByAlias.values()) {
+    if (seen.has(item.alias)) continue;
+    const catId = catByAlias.get(item.alias);
+    const cat   = nextCategories.find(c => c.id === catId);
+    if (cat) cat.items.push(item);
+  }
+
+  await saveDialStore({ ...store, categories: nextCategories });
+  return true;
 }
 
 function previewDropAtEnd() {
@@ -650,18 +702,11 @@ export function bindDragEvents(el, dial, opts = {}) {
     dialGridEl.classList.remove('is-dragging-dial');
     const fromAlias = e.dataTransfer?.getData('text/plain');
     if (!fromAlias) return;
-    // Derive new order directly from the placeholder’s current DOM position.
-    const newOrder  = _getNewOrderFromPlaceholder(fromAlias);
-    const current   = await loadDials();
-    if (newOrder && newOrder.length) {
-      const byAlias  = Object.fromEntries(current.map(d => [d.alias, d]));
-      const sorted   = newOrder.map(a => byAlias[a]).filter(Boolean);
-      // Append any dials not present in the new order (shouldn’t happen normally).
-      const inOrder  = new Set(newOrder);
-      for (const d of current) if (!inOrder.has(d.alias)) sorted.push(d);
-      await saveDials(sorted);
+    if (await _commitPlaceholderDrop(fromAlias)) {
+      await renderDials();
     } else {
       // Fallback: placeholder not in DOM yet (drop fired before first dragover).
+      const current   = await loadDials();
       const toAlias   = dial.alias;
       if (!toAlias || fromAlias === toAlias) return;
       const fromIndex = current.findIndex(d => d.alias === fromAlias);
@@ -673,8 +718,8 @@ export function bindDragEvents(el, dial, opts = {}) {
       if (fromIndex < insertIndex) insertIndex -= 1;
       insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
       await saveDials(_arrayMove(current, fromIndex, insertIndex));
+      await renderDials();
     }
-    await renderDials();
   });
 
   el.addEventListener('contextmenu', e => {
@@ -793,30 +838,23 @@ export function bindDragEvents(el, dial, opts = {}) {
       .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
     _cancelHoverExpand();
     const fromAlias = dial.alias;
-    const newOrder  = _getNewOrderFromPlaceholder(fromAlias);
-    _removeDragPlaceholder();
     _dragSourceEl = null;
     const below        = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-    const targetEl     = below?.closest('[data-alias]');
     const targetBodyEl = below?.closest('.dial-section-body');
     _touchDragging = false;
     setTimeout(() => { _isDraggingDial = false; }, 0);
 
-    if (newOrder && newOrder.length) {
-      // Use placeholder DOM position to determine new order (same-category and cross-category).
-      const current = await loadDials();
-      const byAlias = Object.fromEntries(current.map(d => [d.alias, d]));
-      const sorted  = newOrder.map(a => byAlias[a]).filter(Boolean);
-      const inOrder = new Set(newOrder);
-      for (const d of current) if (!inOrder.has(d.alias)) sorted.push(d);
-      await saveDials(sorted);
+    if (await _commitPlaceholderDrop(fromAlias)) {
+      _removeDragPlaceholder();
       await renderDials();
     } else if (targetBodyEl) {
+      _removeDragPlaceholder();
       // No placeholder (finger lifted over empty section body) — move to that category.
       const catId = targetBodyEl.closest('.dial-section')?.dataset.catId;
       if (catId) await _moveDialToCategory(fromAlias, catId);
       else await renderDials();
     } else {
+      _removeDragPlaceholder();
       // No valid target — restore.
       await renderDials();
     }
@@ -1175,7 +1213,12 @@ function _createSectionEl(cat) {
     hideDropIndicator();
     dialGridEl.classList.remove('is-dragging-dial');
     const fromAlias = e.dataTransfer?.getData('text/plain');
-    if (fromAlias && cat.label) await _moveDialToCategory(fromAlias, cat.id);
+    if (!fromAlias) return;
+    if (await _commitPlaceholderDrop(fromAlias)) {
+      await renderDials();
+      return;
+    }
+    if (cat.label) await _moveDialToCategory(fromAlias, cat.id);
   });
 
   sectionEl.appendChild(bodyEl);
@@ -1497,6 +1540,10 @@ export async function renderDials() {
       dialGridEl.classList.remove('is-dragging-dial');
       const fromAlias = e.dataTransfer?.getData('text/plain');
       if (!fromAlias) return;
+      if (await _commitPlaceholderDrop(fromAlias)) {
+        await renderDials();
+        return;
+      }
       const current   = await loadDials();
       const fromIndex = current.findIndex(d => d.alias === fromAlias);
       if (fromIndex === -1) return;
