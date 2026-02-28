@@ -381,12 +381,26 @@ html, body {
 /* ── Speed-dial Grid ────────────────────────────────────────── */
 #speed-dial {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   font-size: var(--dial-font-size);
-  gap: 0.45em;
   padding: 0.55em 0 0.65em;
   border-bottom: 1px solid var(--fg-dim);
   margin-bottom: 0.6em;
+}
+
+/* ── Speed-dial Section ─────────────────────────────────────── */
+/* Each DialStore category maps to a full-width .dial-section.  */
+/* Named categories also get a .dial-group-header above the     */
+/* .dial-section-body tile grid.                                */
+.dial-section {
+  width: 100%;
+}
+
+.dial-section-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+  padding: 0.1em 0 0.4em;
 }
 
 .dial-tile {

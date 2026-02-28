@@ -2,7 +2,7 @@
 // Speed-dial grid: rendering, DnD, context menu, edit dialog.
 
 import { CONFIG }                   from '../core/config.js';
-import { loadDials, saveDials }     from '../core/storage.js';
+import { loadDials, saveDials, loadDialStore } from '../core/storage.js';
 import { printLine, inputEl }       from '../core/render.js';
 import {
   _createWeatherTileEl, _patchWeatherTileEl,
@@ -191,7 +191,7 @@ function previewDropNearElement(toAlias, rect, clientX) {
 }
 
 function previewDropAtEnd() {
-  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-divider, .dial-group-header');
+  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-group-header');
   const last  = items.length ? items[items.length - 1] : null;
   if (!last) return;
   const rect = last.getBoundingClientRect();
@@ -399,32 +399,7 @@ export function bindDragEvents(el, dial, opts = {}) {
 }
 
 // ── Element factories ─────────────────────────────────────────────────────────
-
-function _createDividerEl(dial) {
-  const isCol    = dial.col === true;
-  const dividerEl = document.createElement('div');
-  dividerEl.className  = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
-  dividerEl.dataset.alias = dial.alias;
-  dividerEl.draggable  = true;
-  dividerEl.title      = isCol
-    ? 'Column Divider — drag to reorder, right-click to remove'
-    : 'Row Divider — drag to reorder, right-click to remove';
-  bindDragEvents(dividerEl, dial, { isDivider: true });
-  dividerEl._dialData = { ...dial };
-  return dividerEl;
-}
-
-function _patchDividerEl(dividerEl, dial) {
-  const isCol  = dial.col === true;
-  const wasCol = dividerEl.classList.contains('col-divider');
-  if (isCol !== wasCol) {
-    dividerEl.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
-    dividerEl.title     = isCol
-      ? 'Column Divider — drag to reorder, right-click to remove'
-      : 'Row Divider — drag to reorder, right-click to remove';
-  }
-  dividerEl._dialData = { ...dial };
-}
+// (Divider factories removed — dividers are not representable in DialStore v1.)
 
 // ── Inline label rename ─────────────────────────────────────────────────────
 /**
@@ -609,31 +584,55 @@ function _patchTileEl(tile, dial) {
   tile._dialData = { ...dial };
 }
 
-// ── Group-header element factories ────────────────────────────────────────────
+// ── Section element factories ────────────────────────────────────────────────
+// Each DialStore category maps to a .dial-section wrapper containing an
+// optional .dial-group-header (named categories only) and a .dial-section-body
+// flex grid.  Collapse state is toggled directly on the body — no positional
+// DOM-walking needed.
 
-function _createGroupHeaderEl(dial) {
-  const el = document.createElement('div');
-  el.className = 'dial-group-header';
-  el.dataset.alias = dial.alias;
-  el.draggable = true;
+const _sectionNodeCache = new Map(); // catId → .dial-section element
+
+function _createSectionEl(cat) {
+  const sectionEl        = document.createElement('div');
+  sectionEl.className    = 'dial-section';
+  sectionEl.dataset.catId = cat.id;
+  if (cat.label) sectionEl.appendChild(_createSectionHeaderEl(cat));
+
+  const bodyEl       = document.createElement('div');
+  bodyEl.className   = 'dial-section-body';
+  sectionEl.appendChild(bodyEl);
+
+  sectionEl._catData   = { id: cat.id, label: cat.label };
+  sectionEl._itemCount = 0;
+  return sectionEl;
+}
+
+/** Build the .dial-group-header element for a named category. */
+function _createSectionHeaderEl(cat) {
+  const _fakeDial = { alias: cat.id, label: cat.label, type: 'group-header' };
+
+  const el         = document.createElement('div');
+  el.className     = 'dial-group-header';
+  el.dataset.alias = cat.id;
+  el.draggable     = true;
   el.setAttribute('role', 'button');
   el.setAttribute('aria-expanded', 'true');
   el.setAttribute('tabindex', '0');
-  el.title = 'Click to collapse/expand — drag to reorder, right-click to rename/remove';
+  el.title = 'Click to collapse/expand — right-click to rename/remove';
 
-  const chevron   = document.createElement('span');
+  const chevron = document.createElement('span');
   chevron.className = 'dial-group-chevron';
   chevron.setAttribute('aria-hidden', 'true');
   chevron.textContent = '▼';
 
-  const labelEl   = document.createElement('span');
+  const labelEl = document.createElement('span');
   labelEl.className   = 'dial-group-label';
-  labelEl.textContent = dial.label || dial.alias;
+  labelEl.textContent = cat.label;
   labelEl.addEventListener('click', e => {
     if (!_isEditMode()) return;
     e.preventDefault();
     e.stopPropagation();
-    _startInlineLabelEdit(labelEl, dial);
+    _startInlineLabelEdit(labelEl, _fakeDial);
   });
 
   const countEl = document.createElement('span');
@@ -647,111 +646,147 @@ function _createGroupHeaderEl(dial) {
   el.addEventListener('click', e => {
     if (_isDraggingDial) return;
     e.stopPropagation();
-    _toggleGroupCollapse(dial.alias);
+    _toggleGroupCollapse(cat.id);
   });
   el.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggleGroupCollapse(dial.alias); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggleGroupCollapse(cat.id); }
   });
   el.addEventListener('dblclick', e => {
     if (_isDraggingDial) return;
     e.stopPropagation();
-    showDialEditDialog(dial.alias);
+    showDialEditDialog(cat.id);
   });
 
-  bindDragEvents(el, dial, { isGroupHeader: true });
-  el._dialData = { ...dial };
+  bindDragEvents(el, _fakeDial, { isGroupHeader: true });
+  el._dialData = { ..._fakeDial };
   return el;
 }
 
-function _patchGroupHeaderEl(el, dial) {
-  const prev = el._dialData ?? {};
-  if (prev.label !== dial.label) {
-    const labelEl = el.querySelector('.dial-group-label');
-    if (labelEl) labelEl.textContent = dial.label || dial.alias;
+/** Patch an existing .dial-section when its category metadata changes. */
+function _patchSectionEl(sectionEl, cat) {
+  if (sectionEl._catData?.label === cat.label) return;
+  if (cat.label) {
+    let headerEl = sectionEl.querySelector(':scope > .dial-group-header');
+    if (!headerEl) {
+      // Unnamed category just gained a label — insert a fresh header.
+      headerEl = _createSectionHeaderEl(cat);
+      sectionEl.insertBefore(headerEl, sectionEl.querySelector('.dial-section-body'));
+    } else if (headerEl.querySelector('.dial-group-label')?.dataset.editing !== '1') {
+      const labelEl = headerEl.querySelector('.dial-group-label');
+      if (labelEl) labelEl.textContent = cat.label;
+      headerEl._dialData = { alias: cat.id, label: cat.label, type: 'group-header' };
+    }
+  } else {
+    // Named category lost its label — drop the header row.
+    sectionEl.querySelector(':scope > .dial-group-header')?.remove();
   }
-  el._dialData = { ...dial };
+  sectionEl._catData = { id: cat.id, label: cat.label };
 }
 
 // ── Group collapse ────────────────────────────────────────────────────────────
 
-async function _toggleGroupCollapse(alias) {
-  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
-  const state  = stored.dialGroupCollapsed;
-  state[alias] = !state[alias];
+async function _toggleGroupCollapse(catId) {
+  const stored  = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  const state   = stored.dialGroupCollapsed;
+  state[catId]  = !state[catId];
   await chrome.storage.local.set({ dialGroupCollapsed: state });
   _applyGroupCollapse(state);
 }
 
+/**
+ * Apply collapse state to every named section.
+ * Count is sourced from sectionEl._itemCount — always fresh after renderDials.
+ * @param {Record<string,boolean>} [collapseState]
+ */
 async function _applyGroupCollapse(collapseState) {
   if (!collapseState) {
     const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
     collapseState = stored.dialGroupCollapsed;
   }
 
-  // First pass: count tiles belonging to each group
-  const groupSizes = new Map();
-  let currentGroupAlias = null;
-  for (const child of dialGridEl.children) {
-    if (child.classList.contains('dial-group-header')) {
-      currentGroupAlias = child.dataset.alias;
-      if (!groupSizes.has(currentGroupAlias)) groupSizes.set(currentGroupAlias, 0);
-    } else if (currentGroupAlias !== null) {
-      groupSizes.set(currentGroupAlias, (groupSizes.get(currentGroupAlias) || 0) + 1);
-    }
-  }
+  for (const [catId, sectionEl] of _sectionNodeCache) {
+    const headerEl = sectionEl.querySelector(':scope > .dial-group-header');
+    if (!headerEl) continue; // unnamed section — cannot collapse
 
-  // Second pass: apply collapse state and update count labels
-  let collapsed = false;
-  for (const child of dialGridEl.children) {
-    if (child.classList.contains('dial-group-header')) {
-      const alias   = child.dataset.alias;
-      collapsed     = collapseState[alias] === true;
-      const chevron = child.querySelector('.dial-group-chevron');
-      if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
-      child.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      child.dataset.collapsed = collapsed ? '1' : '';
-      const countSpan = child.querySelector('.dial-group-count');
-      if (countSpan) countSpan.textContent = collapsed ? ` (${groupSizes.get(alias) ?? 0})` : '';
-    } else {
-      child.style.display = collapsed ? 'none' : '';
-    }
+    const collapsed = collapseState[catId] === true;
+    const bodyEl    = sectionEl.querySelector('.dial-section-body');
+    if (bodyEl) bodyEl.style.display = collapsed ? 'none' : '';
+
+    const chevron = headerEl.querySelector('.dial-group-chevron');
+    if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
+    headerEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    headerEl.dataset.collapsed = collapsed ? '1' : '';
+
+    const countSpan = headerEl.querySelector('.dial-group-count');
+    if (countSpan) countSpan.textContent = collapsed ? ` (${sectionEl._itemCount ?? 0})` : '';
   }
 }
 
 // ── Keyed node cache ──────────────────────────────────────────────────────────
-const _dialNodeCache = new Map();
+const _dialNodeCache = new Map(); // alias → tile element
 
 // ── renderDials (incremental / diffing) ──────────────────────────────────────
 
 /**
- * Sync #speed-dial to the current storage state without wiping the grid.
+ * Sync #speed-dial to the current DialStore without wiping the grid.
+ *
+ * Reads categories directly from the versioned DialStore so each section
+ * header carries the real name, item count, and collapse state — no positional
+ * group-header rows needed.
  */
 export async function renderDials() {
-  const dials = await loadDials();
+  const store = await loadDialStore();
+  const { dialGroupCollapsed: collapseState = {} } =
+    await chrome.storage.local.get({ dialGroupCollapsed: {} });
 
-  for (const dial of dials) {
-    dial._faviconUrl = getFaviconUrl(dial);
-  }
-
-  const desiredEls = dials.map(dial => {
-    const cached = _dialNodeCache.get(dial.alias);
-    if (cached) {
-      if      (dial.type === 'divider')      _patchDividerEl(cached, dial);
-      else if (dial.type === 'weather')      _patchWeatherTileEl(cached, dial);
-      else if (dial.type === 'group-header') _patchGroupHeaderEl(cached, dial);
-      else                                   _patchTileEl(cached, dial);
-      return cached;
+  // ── Build / patch section elements in stable category order ───────────────
+  const desiredAliases  = new Set();
+  const desiredSections = store.categories.map(cat => {
+    let sectionEl = _sectionNodeCache.get(cat.id);
+    if (!sectionEl) {
+      sectionEl = _createSectionEl(cat);
+      _sectionNodeCache.set(cat.id, sectionEl);
+    } else {
+      _patchSectionEl(sectionEl, cat);
     }
-    const el =
-      dial.type === 'divider'      ? _createDividerEl(dial) :
-      dial.type === 'weather'      ? _createWeatherTileEl(dial, bindDragEvents) :
-      dial.type === 'group-header' ? _createGroupHeaderEl(dial) :
-                                     _createTileEl(dial);
-    _dialNodeCache.set(dial.alias, el);
-    return el;
+    sectionEl._itemCount = cat.items.length;
+
+    const bodyEl = sectionEl.querySelector('.dial-section-body');
+
+    // ── Build / patch tile elements for this category's body ─────────────
+    const desiredTileEls = cat.items.map(item => {
+      desiredAliases.add(item.alias);
+      const dial = { alias: item.alias, label: item.label, url: item.url, type: item.type };
+      if (item.icon) dial.icon = item.icon;
+      dial._faviconUrl = getFaviconUrl(dial);
+
+      const cached = _dialNodeCache.get(item.alias);
+      if (cached) {
+        if (item.type === 'weather') _patchWeatherTileEl(cached, dial);
+        else                         _patchTileEl(cached, dial);
+        return cached;
+      }
+      const el = item.type === 'weather'
+        ? _createWeatherTileEl(dial, bindDragEvents)
+        : _createTileEl(dial);
+      _dialNodeCache.set(item.alias, el);
+      return el;
+    });
+
+    // The "+" add-tile lives at the end of the first unnamed (default) section.
+    if (!cat.label) desiredTileEls.push(_ensureAddTile());
+
+    // Diff the body children in place.
+    for (let i = 0; i < desiredTileEls.length; i++) {
+      const cur = bodyEl.children[i];
+      if (cur !== desiredTileEls[i]) bodyEl.insertBefore(desiredTileEls[i], cur ?? null);
+    }
+    while (bodyEl.children.length > desiredTileEls.length) bodyEl.removeChild(bodyEl.lastChild);
+
+    return sectionEl;
   });
 
-  const desiredAliases = new Set(dials.map(d => d.alias));
+  // ── Evict removed tile elements ────────────────────────────────────────────
   for (const [alias, el] of _dialNodeCache) {
     if (!desiredAliases.has(alias)) {
       el.remove();
@@ -763,22 +798,35 @@ export async function renderDials() {
     }
   }
 
-  for (let i = 0; i < desiredEls.length; i++) {
-    const current = dialGridEl.children[i];
-    if (current !== desiredEls[i]) dialGridEl.insertBefore(desiredEls[i], current ?? null);
+  // ── Evict removed section elements ────────────────────────────────────────
+  const desiredCatIds = new Set(desiredSections.map(s => s.dataset.catId));
+  for (const [catId, el] of _sectionNodeCache) {
+    if (!desiredCatIds.has(catId)) { el.remove(); _sectionNodeCache.delete(catId); }
   }
 
+  // ── Diff section order in the grid ────────────────────────────────────────
+  for (let i = 0; i < desiredSections.length; i++) {
+    const cur = dialGridEl.children[i];
+    if (cur !== desiredSections[i]) dialGridEl.insertBefore(desiredSections[i], cur ?? null);
+  }
+  while (dialGridEl.children.length > desiredSections.length) dialGridEl.removeChild(dialGridEl.lastChild);
+
+  // If every category is named the add-tile has no unnamed body to live in;
+  // append it standalone after all sections.
+  if (store.categories.every(c => c.label)) dialGridEl.appendChild(_ensureAddTile());
+
+  // ── Grid-level DnD (one-time bind) ────────────────────────────────────────
   if (!dialGridEl.dataset.dndBound) {
     dialGridEl.dataset.dndBound = '1';
 
     dialGridEl.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      if (!e.target.closest('.dial-tile, .dial-divider, .dial-group-header')) previewDropAtEnd();
+      if (!e.target.closest('.dial-tile, .dial-group-header')) previewDropAtEnd();
     });
 
     dialGridEl.addEventListener('drop', async e => {
-      const tile = e.target.closest('.dial-tile, .dial-divider, .dial-group-header');
+      const tile = e.target.closest('.dial-tile, .dial-group-header');
       if (tile) return;
       e.preventDefault();
       e.stopPropagation();
@@ -793,16 +841,7 @@ export async function renderDials() {
     });
   }
 
-  // Keep the "+" add tile at the end of the ungrouped section
-  // (just before the first group-header, or at the very end if no groups exist).
-  const firstGroupHeader = [...dialGridEl.children].find(c => c.classList.contains('dial-group-header'));
-  if (firstGroupHeader) {
-    dialGridEl.insertBefore(_ensureAddTile(), firstGroupHeader);
-  } else {
-    dialGridEl.appendChild(_ensureAddTile());
-  }
-
-  await _applyGroupCollapse();
+  await _applyGroupCollapse(collapseState);
 }
 
 // ── Context menu ──────────────────────────────────────────────────────────────
