@@ -416,9 +416,9 @@ html, body {
 }
 
 .dial-tile:focus-visible {
-  outline: 2px solid var(--fg);
+  outline: 2px solid #ffb000;
   outline-offset: 2px;
-  box-shadow: 0 0 6px var(--glow);
+  box-shadow: 0 0 6px rgba(255, 176, 0, 0.60);
 }
 
 /* ── Keyboard-reorder flash ─────────────────────────────────── */
