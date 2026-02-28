@@ -228,6 +228,11 @@ function getPreviewBeforeFor(toAlias, fallbackRect, clientX) {
 // ── Shared drag-and-drop / touch helper ──────────────────────────────────────
 let _isDraggingDial = false;
 
+// Hover-to-expand: when dragging a tile over a collapsed category header,
+// expand it automatically after a short delay (mouse & touch).
+let _hoverExpandTimer = null;
+let _hoverExpandCatId = null;
+
 /** Pure helper — returns a new array with item moved from fromIndex to toIndex. */
 function _arrayMove(arr, fromIndex, toIndex) {
   const next      = [...arr];
@@ -269,6 +274,112 @@ async function _moveDialToCategory(fromAlias, toCatId) {
   await renderDials();
 }
 
+// ── Hover-expand helpers ──────────────────────────────────────────────────────
+
+/** Cancel any pending hover-expand timer and remove the visual cue from the header. */
+function _cancelHoverExpand() {
+  if (_hoverExpandTimer !== null) { clearTimeout(_hoverExpandTimer); _hoverExpandTimer = null; }
+  if (_hoverExpandCatId !== null) {
+    _sectionNodeCache.get(_hoverExpandCatId)
+      ?.querySelector('.dial-group-header')
+      ?.classList.remove('is-drag-hover');
+    _hoverExpandCatId = null;
+  }
+}
+
+/** Expand a collapsed category by removing it from the persisted collapse state. */
+async function _triggerHoverExpand(catId) {
+  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  if (!stored.dialGroupCollapsed[catId]) return; // already expanded
+  stored.dialGroupCollapsed[catId] = false;
+  await chrome.storage.local.set({ dialGroupCollapsed: stored.dialGroupCollapsed });
+  _applyGroupCollapse(stored.dialGroupCollapsed);
+}
+
+// ── Move-to-category picker ───────────────────────────────────────────────────
+// A small popup listing all other categories, opened via the ⇄ tile button
+// (edit mode) so cross-category moves never require right-click.
+
+/** @type {HTMLElement|null} */
+let _movePickerEl     = null;
+/** @type {HTMLElement|null} */
+let _movePickerAnchor = null;
+
+function _ensureMovePicker() {
+  if (_movePickerEl) return _movePickerEl;
+  const el = document.createElement('div');
+  el.id = 'dial-move-picker';
+  el.setAttribute('role', 'menu');
+  el.setAttribute('aria-label', 'Move dial to category');
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  // Close on click outside
+  document.addEventListener('click', e => {
+    if (_movePickerEl?.style.display !== 'none' &&
+        !_movePickerEl.contains(e.target) &&
+        e.target !== _movePickerAnchor) {
+      _hideMovePicker();
+    }
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _movePickerEl?.style.display !== 'none') {
+      _hideMovePicker();
+      _movePickerAnchor?.focus();
+    }
+  });
+  _movePickerEl = el;
+  return el;
+}
+
+function _hideMovePicker() {
+  if (_movePickerEl) _movePickerEl.style.display = 'none';
+  _movePickerAnchor = null;
+}
+
+async function _showMovePicker(alias, anchorEl) {
+  const picker = _ensureMovePicker();
+  _movePickerAnchor = anchorEl;
+  const store = await loadDialStore();
+
+  // Find current category
+  let currentCatId = null;
+  for (const cat of store.categories) {
+    if (cat.items.some(i => i.alias === alias)) { currentCatId = cat.id; break; }
+  }
+  const targets = store.categories.filter(c => c.id !== currentCatId);
+  if (!targets.length) { _hideMovePicker(); return; }
+
+  picker.innerHTML = '';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'dial-move-picker__title';
+  titleEl.textContent = 'MOVE TO';
+  picker.appendChild(titleEl);
+
+  for (const cat of targets) {
+    const btn = document.createElement('button');
+    btn.className = 'dial-move-picker__item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = cat.label || '(default)';
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      _hideMovePicker();
+      await _moveDialToCategory(alias, cat.id);
+    });
+    picker.appendChild(btn);
+  }
+
+  picker.style.display = 'flex';
+  const rect = anchorEl.getBoundingClientRect();
+  picker.style.left = `${rect.left}px`;
+  picker.style.top  = `${rect.bottom + 4}px`;
+  requestAnimationFrame(() => {
+    const pr = picker.getBoundingClientRect();
+    if (pr.right  > window.innerWidth)  picker.style.left = `${rect.right - pr.width}px`;
+    if (pr.bottom > window.innerHeight) picker.style.top  = `${rect.top - pr.height - 4}px`;
+    picker.querySelector('.dial-move-picker__item')?.focus();
+  });
+}
+
 /**
  * Bind all drag-and-drop (mouse) and touch (drag + long-press) events to a
  * dial element.
@@ -302,6 +413,7 @@ export function bindDragEvents(el, dial, opts = {}) {
     // Clean up any lingering drop-target highlights on section bodies.
     document.querySelectorAll('.dial-section-body.is-drop-target, .dial-section-empty-slot.is-over')
       .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
+    _cancelHoverExpand();
     setTimeout(() => { _isDraggingDial = false; }, 0);
   });
 
@@ -397,8 +509,35 @@ export function bindDragEvents(el, dial, opts = {}) {
       const targetEl = below?.closest('[data-alias]');
       if (targetEl && targetEl !== el) {
         previewDropNearElement(targetEl.dataset.alias, targetEl.getBoundingClientRect(), t.clientX);
+        // Tile takes priority — clear section-body highlights and any hover timer.
+        document.querySelectorAll('.dial-section-body.is-drop-target')
+          .forEach(b => b.classList.remove('is-drop-target'));
+        _cancelHoverExpand();
       } else {
         hideDropIndicator();
+        // Highlight the section body the finger is over.
+        const bodyEl = below?.closest('.dial-section-body');
+        document.querySelectorAll('.dial-section-body.is-drop-target')
+          .forEach(b => { if (b !== bodyEl) b.classList.remove('is-drop-target'); });
+        if (bodyEl) bodyEl.classList.add('is-drop-target');
+        // Hover-to-expand collapsed category under the touch pointer.
+        const sectionEl   = below?.closest('.dial-section');
+        const hovCatId    = sectionEl?.dataset.catId ?? null;
+        const headerEl    = sectionEl?.querySelector(':scope > .dial-group-header');
+        const hovBodyEl   = sectionEl?.querySelector(':scope > .dial-section-body');
+        const isCollapsed = hovBodyEl && hovBodyEl.style.display === 'none';
+        if (hovCatId && isCollapsed && hovCatId !== _hoverExpandCatId) {
+          _cancelHoverExpand();
+          _hoverExpandCatId = hovCatId;
+          headerEl?.classList.add('is-drag-hover');
+          _hoverExpandTimer = setTimeout(() => {
+            _hoverExpandTimer = null;
+            headerEl?.classList.remove('is-drag-hover');
+            _triggerHoverExpand(hovCatId);
+          }, 600);
+        } else if (!isCollapsed) {
+          _cancelHoverExpand();
+        }
       }
     }
   }, { passive: false });
@@ -408,24 +547,36 @@ export function bindDragEvents(el, dial, opts = {}) {
     el.classList.remove('is-dragging');
     dialGridEl.classList.remove('is-dragging-dial');
     hideDropIndicator();
-    const below    = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-    const targetEl = below?.closest('[data-alias]');
+    document.querySelectorAll('.dial-section-body.is-drop-target, .dial-section-empty-slot.is-over')
+      .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
+    _cancelHoverExpand();
+    const below        = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+    const targetEl     = below?.closest('[data-alias]');
+    const targetBodyEl = below?.closest('.dial-section-body');
     _touchDragging = false;
     setTimeout(() => { _isDraggingDial = false; }, 0);
-    if (!targetEl || targetEl === el) return;
-    const fromAlias = dial.alias, toAlias = targetEl.dataset.alias;
-    if (!fromAlias || fromAlias === toAlias) return;
-    const current   = await loadDials();
-    const fromIndex = current.findIndex(d => d.alias === fromAlias);
-    const toIndex   = current.findIndex(d => d.alias === toAlias);
-    if (fromIndex === -1 || toIndex === -1) return;
-    const rect   = targetEl.getBoundingClientRect();
-    const before = getPreviewBeforeFor(toAlias, rect, changedTouch.clientX);
-    let insertIndex = toIndex + (before ? 0 : 1);
-    if (fromIndex < insertIndex) insertIndex -= 1;
-    insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
-    await saveDials(_arrayMove(current, fromIndex, insertIndex));
-    await renderDials();
+    if (targetEl && targetEl !== el) {
+      // Drop on a tile or group-header — flat-array reorder.
+      // The DialStore conversion layer keeps the item in whichever category
+      // its new flat-array position belongs to, so cross-category moves work.
+      const fromAlias = dial.alias, toAlias = targetEl.dataset.alias;
+      if (!fromAlias || fromAlias === toAlias) return;
+      const current   = await loadDials();
+      const fromIndex = current.findIndex(d => d.alias === fromAlias);
+      const toIndex   = current.findIndex(d => d.alias === toAlias);
+      if (fromIndex === -1 || toIndex === -1) return;
+      const rect   = targetEl.getBoundingClientRect();
+      const before = getPreviewBeforeFor(toAlias, rect, changedTouch.clientX);
+      let insertIndex = toIndex + (before ? 0 : 1);
+      if (fromIndex < insertIndex) insertIndex -= 1;
+      insertIndex = Math.max(0, Math.min(insertIndex, current.length - 1));
+      await saveDials(_arrayMove(current, fromIndex, insertIndex));
+      await renderDials();
+    } else if (targetBodyEl) {
+      // Drop on a section body (between tiles / empty space) — move to that category.
+      const catId = targetBodyEl.closest('.dial-section')?.dataset.catId;
+      if (catId) await _moveDialToCategory(dial.alias, catId);
+    }
   }
 
   el.addEventListener('touchend', e => {
@@ -436,6 +587,9 @@ export function bindDragEvents(el, dial, opts = {}) {
 
   el.addEventListener('touchcancel', () => {
     _cancelLongPress();
+    _cancelHoverExpand();
+    document.querySelectorAll('.dial-section-body.is-drop-target')
+      .forEach(b => b.classList.remove('is-drop-target'));
     if (_ghostEl) { _ghostEl.remove(); _ghostEl = null; }
     el.classList.remove('is-dragging');
     dialGridEl.classList.remove('is-dragging-dial');
@@ -562,6 +716,24 @@ function _createTileEl(dial) {
   });
   tile.appendChild(removeBtn);
 
+  // ⇄ move-to-category button (edit mode only, when multiple categories exist)
+  const moveBtn = document.createElement('button');
+  moveBtn.className = 'dial-tile-move';
+  moveBtn.setAttribute('aria-label', `Move ${dial.label || dial.alias} to another category`);
+  moveBtn.setAttribute('tabindex', '-1');
+  moveBtn.textContent = '⇄';
+  moveBtn.addEventListener('click', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!_isEditMode()) return;
+    if (_movePickerEl?.style.display !== 'none' && _movePickerAnchor === moveBtn) {
+      _hideMovePicker();
+      return;
+    }
+    await _showMovePicker(dial.alias, moveBtn);
+  });
+  tile.appendChild(moveBtn);
+
   bindDragEvents(tile, dial);
   let _clickTimer = null;
   tile.addEventListener('click', e => {
@@ -607,16 +779,30 @@ function _createTileEl(dial) {
     if (!e.altKey || !e.shiftKey) return;
     const isLeft  = e.key === 'ArrowLeft';
     const isRight = e.key === 'ArrowRight';
-    if (!isLeft && !isRight) return;
+    const isUp    = e.key === 'ArrowUp';
+    const isDown  = e.key === 'ArrowDown';
+    if (!isLeft && !isRight && !isUp && !isDown) return;
     e.preventDefault();
     e.stopPropagation();
-    const dials    = await loadDials();
-    const fromIdx  = dials.findIndex(d => d.alias === dial.alias);
-    if (fromIdx === -1) return;
-    const toIdx    = isLeft ? fromIdx - 1 : fromIdx + 1;
-    if (toIdx < 0 || toIdx >= dials.length) return;
-    await saveDials(_arrayMove(dials, fromIdx, toIdx));
-    await renderDials();
+    if (isUp || isDown) {
+      // Move to previous / next category (Shift+Alt+↑ / Shift+Alt+↓)
+      const store   = await loadDialStore();
+      const cats    = store.categories;
+      const currIdx = cats.findIndex(c => c.items.some(i => i.alias === dial.alias));
+      if (currIdx === -1) return;
+      const nextIdx = isUp ? currIdx - 1 : currIdx + 1;
+      if (nextIdx < 0 || nextIdx >= cats.length) return;
+      await _moveDialToCategory(dial.alias, cats[nextIdx].id);
+    } else {
+      // Move within flat array (reorder position, Shift+Alt+← / Shift+Alt+→)
+      const dials    = await loadDials();
+      const fromIdx  = dials.findIndex(d => d.alias === dial.alias);
+      if (fromIdx === -1) return;
+      const toIdx    = isLeft ? fromIdx - 1 : fromIdx + 1;
+      if (toIdx < 0 || toIdx >= dials.length) return;
+      await saveDials(_arrayMove(dials, fromIdx, toIdx));
+      await renderDials();
+    }
     // Restore focus and show movement flash on the relocated tile
     const movedEl = dialGridEl.querySelector(`.dial-tile[data-alias="${dial.alias}"]`);
     if (movedEl) {
@@ -814,6 +1000,29 @@ function _createSectionHeaderEl(cat) {
   });
 
   bindDragEvents(el, _fakeDial, { isGroupHeader: true });
+
+  // Hover-to-expand: when a tile is dragged over this (collapsed) header
+  // during a mouse drag, expand the section after 600 ms so the user can
+  // drop into it — saves the round-trip of manually uncollapsing first.
+  el.addEventListener('dragenter', e => {
+    if (!e.dataTransfer?.types.includes('text/plain')) return;
+    const bodyEl = el.closest('.dial-section')?.querySelector('.dial-section-body');
+    if (!bodyEl || bodyEl.style.display !== 'none') return; // already expanded
+    if (_hoverExpandCatId === cat.id) return;               // timer already running
+    _cancelHoverExpand();
+    _hoverExpandCatId = cat.id;
+    el.classList.add('is-drag-hover');
+    _hoverExpandTimer = setTimeout(() => {
+      _hoverExpandTimer = null;
+      el.classList.remove('is-drag-hover');
+      _triggerHoverExpand(cat.id);
+    }, 600);
+  });
+  el.addEventListener('dragleave', e => {
+    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+    _cancelHoverExpand();
+  });
+
   el._dialData = { ..._fakeDial };
   return el;
 }
@@ -1002,6 +1211,8 @@ export async function renderDials() {
 
   // ── Toolbar: refresh chips + apply active filter ─────────────────────────
   refreshToolbarChips(store.categories);
+  // Show the ⇄ move button only when multiple categories exist.
+  dialGridEl.classList.toggle('has-multi-cats', store.categories.some(c => c.label));
   _applyDialFilter();
 }
 

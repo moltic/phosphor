@@ -709,7 +709,53 @@ html, body {
   outline: none;
 }
 
-/* ── Edit mode: grab cursor + subtle pulse on tiles ─────────── */
+/* ── ⇄ move-to-category button (edit mode only) ───────────────── */
+/* Mirrors the remove button in style; positioned bottom-left of tile.  */
+.dial-tile-move {
+  display: none;
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 1.45em;
+  height: 1.45em;
+  padding: 0;
+  border: 1px solid var(--fg-dim);
+  background: var(--bg);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+  transition: color 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* Only shown when edit mode is active AND multiple categories exist */
+#speed-dial.is-edit-mode.has-multi-cats .dial-tile-move {
+  display: flex;
+}
+
+.dial-tile-move:hover,
+.dial-tile-move:focus-visible {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  box-shadow: 0 0 4px var(--glow-soft);
+  outline: none;
+}
+
+/* Compact layout: shrink to fit shorter row height */
+html.dial-layout--compact #speed-dial.is-edit-mode.has-multi-cats .dial-tile-move {
+  width: 1.1em;
+  height: 1.1em;
+  font-size: 0.6em;
+  bottom: 1px;
+  left: 1px;
+}
+
+/* ── Edit mode: grab cursor + subtle pulse on tiles ─────────────── */
 #speed-dial.is-edit-mode .dial-tile {
   cursor: grab;
 }
@@ -1309,7 +1355,15 @@ html.dial-layout--compact .dial-divider.row-divider {
   opacity: 0.4;
 }
 
-/* [+] add button that appears on category header hover */
+/* Visual cue while a drag hovers over a collapsed header (hover-to-expand). */
+.dial-group-header.is-drag-hover {
+  color: var(--fg);
+  border-bottom-color: var(--fg-bright);
+  box-shadow: 0 2px 8px var(--glow-soft);
+  transition: color 0.1s, border-color 0.1s, box-shadow 0.15s;
+}
+
+
 .dial-group-add {
   flex-shrink: 0;
   background: none;
@@ -1427,6 +1481,52 @@ html.dial-layout--compact .dial-divider.row-divider {
 
 #dial-ctx-group-submenu .ctx-menu-item {
   white-space: nowrap;
+}
+
+/* ── Move-to-category picker ─────────────────────────────────── */
+/* Compact popup for the ⇄ tile button — avoids needing right-click.  */
+
+#dial-move-picker {
+  position: fixed;
+  z-index: 210;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  min-width: 130px;
+  max-height: 50vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.dial-move-picker__title {
+  font-family: var(--font-stack);
+  font-size: 0.6em;
+  color: var(--fg-dim);
+  padding: 0.35em 0.9em 0.25em;
+  letter-spacing: 0.12em;
+  user-select: none;
+  border-bottom: 1px solid var(--fg-dim);
+  opacity: 0.7;
+}
+
+.dial-move-picker__item {
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--dial-font-size);
+  padding: 0.3em 0.9em;
+  text-align: left;
+  cursor: pointer;
+  line-height: var(--line-height);
+  white-space: nowrap;
+}
+
+.dial-move-picker__item:hover,
+.dial-move-picker__item:focus-visible {
+  background: rgba(255, 176, 0, 0.13);
+  color: var(--fg-bright);
+  outline: none;
 }
 
 /* ── Inline Dial Composer ────────────────────────────────────── */
