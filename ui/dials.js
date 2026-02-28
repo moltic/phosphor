@@ -78,7 +78,19 @@ function buildDialIconElement(dial) {
     img.className = 'dial-favicon';
     img.src = faviconUrl;
     img.alt = '';
-    img.addEventListener('error', () => { img.replaceWith(buildLetterIcon(dial)); });
+    let _ddgTried = false;
+    img.addEventListener('error', () => {
+      if (!_ddgTried) {
+        let hostname = null;
+        try { hostname = new URL(dial.url).hostname; } catch (_) {}
+        if (hostname) {
+          _ddgTried = true;
+          img.src = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+          return;
+        }
+      }
+      img.replaceWith(buildLetterIcon(dial));
+    });
     return img;
   }
 
