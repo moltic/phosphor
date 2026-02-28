@@ -44,6 +44,7 @@ export async function printBootSequence() {
   printRule('═');
   printLine('  SYSTEM READY.', 'line-head');
   printLine('  Type  help  for a list of commands.', 'line-info');
+  printLine('  Tip:  Ctrl+,  opens settings  ·  Ctrl+Shift+S  captures current tab', 'line-info');
   if (prefs.motd) {
     printRule('─');
     printLine(`  ${prefs.motd}`, 'line-info');

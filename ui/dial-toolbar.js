@@ -87,6 +87,49 @@ export function syncManageBtnExternal() {
   _manageBtn.setAttribute('aria-pressed', String(active));
 }
 
+// ── Keys popover builder ────────────────────────────────────────────────────
+
+function _buildKeysPopover() {
+  const pop = document.createElement('div');
+  pop.className = 'dial-keys-popover';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Keyboard shortcuts reference');
+
+  const title = document.createElement('div');
+  title.className = 'dial-keys-popover__title';
+  title.textContent = 'KEYBOARD SHORTCUTS';
+  pop.appendChild(title);
+
+  const shortcuts = [
+    ['↑ / ↓',         'Navigate command history'],
+    ['Tab',            'Auto-complete command'],
+    ['Ctrl+L / ⌘L',   'Clear current input'],
+    ['Ctrl+Shift+S',   'Capture current tab as dial'],
+    ['Ctrl+, / ⌘,',   'Open / close settings panel'],
+    ['Escape',         'Cancel / clear input'],
+    ['Right-click',    'Paste or browser context menu'],
+  ];
+
+  const table = document.createElement('table');
+  for (const [key, action] of shortcuts) {
+    const tr      = document.createElement('tr');
+    const tdKey   = document.createElement('td');
+    tdKey.className = 'dial-keys-popover__key';
+    const kbd = document.createElement('kbd');
+    kbd.textContent = key;
+    tdKey.appendChild(kbd);
+    const tdAction = document.createElement('td');
+    tdAction.className = 'dial-keys-popover__action';
+    tdAction.textContent = action;
+    tr.appendChild(tdKey);
+    tr.appendChild(tdAction);
+    table.appendChild(tr);
+  }
+  pop.appendChild(table);
+
+  return pop;
+}
+
 // ── Toolbar builder ───────────────────────────────────────────────────────────
 
 /** Build the toolbar element exactly once. */
@@ -121,8 +164,15 @@ function _buildToolbar() {
     else _showDialEditDialog?.(null);
   });
 
+  const keysBtn = document.createElement('button');
+  keysBtn.className = 'dial-toolbar-btn dial-toolbar-btn--keys';
+  keysBtn.textContent = '[?]';
+  keysBtn.setAttribute('aria-label', 'Show keyboard shortcuts');
+  keysBtn.setAttribute('aria-expanded', 'false');
+
   leftGroup.appendChild(_manageBtn);
   leftGroup.appendChild(addLinkBtn);
+  leftGroup.appendChild(keysBtn);
 
   // ── Search input ─────────────────────────────────────────────────────────────
   const searchWrap = document.createElement('div');
@@ -200,11 +250,47 @@ function _buildToolbar() {
   _chipsArea.setAttribute('aria-label', 'Filter by category');
   _chipsArea.style.display = 'none'; // hidden until categories exist
 
+  // ── Keys popover wiring ────────────────────────────────────────────────────
+  const keysPopover = _buildKeysPopover();
+  keysBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = keysPopover.classList.toggle('is-open');
+    keysBtn.setAttribute('aria-expanded', String(open));
+    keysBtn.classList.toggle('is-active', open);
+  });
+  keysPopover.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && keysPopover.classList.contains('is-open')) {
+      keysPopover.classList.remove('is-open');
+      keysBtn.setAttribute('aria-expanded', 'false');
+      keysBtn.classList.remove('is-active');
+    }
+  });
+  document.addEventListener('click', () => {
+    if (keysPopover.classList.contains('is-open')) {
+      keysPopover.classList.remove('is-open');
+      keysBtn.setAttribute('aria-expanded', 'false');
+      keysBtn.classList.remove('is-active');
+    }
+  });
+
+  // ── Persistent shortcut hint ──────────────────────────────────────────────
+  const hintBar = document.createElement('div');
+  hintBar.className = 'dial-toolbar-hint';
+  hintBar.innerHTML =
+    '<kbd>Ctrl+Shift+S</kbd> capture tab' +
+    ' &nbsp;·&nbsp; ' +
+    '<kbd>Ctrl+,</kbd> settings' +
+    ' &nbsp;·&nbsp; ' +
+    'type <span class="dial-toolbar-hint__cmd">keys</span> for all shortcuts';
+
   // Assemble
   bar.appendChild(leftGroup);
   bar.appendChild(searchWrap);
   bar.appendChild(densityGroup);
   bar.appendChild(_chipsArea);
+  bar.appendChild(keysPopover);
+  bar.appendChild(hintBar);
 
   _toolbarEl = bar;
   return bar;
