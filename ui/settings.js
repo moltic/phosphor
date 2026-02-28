@@ -53,6 +53,10 @@ export async function applyPrefs(prefs) {
   root.style.setProperty('--font-size',      FONT_SIZES[terminalSize] || FONT_SIZES.medium);
   root.style.setProperty('--dial-font-size', FONT_SIZES[dialSize]     || FONT_SIZES.medium);
 
+  const _dialTileWidths = { small: '3.2em', medium: '4.8em', large: '6.2em' };
+  root.style.setProperty('--dial-tile-width', _dialTileWidths[dialSize] || '4.8em');
+  root.classList.toggle('dial-size--large', dialSize === 'large');
+
   await updateBannerMetrics();
 
   const statusLabel = document.getElementById('status-label');

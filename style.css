@@ -509,6 +509,13 @@ html, body {
   min-height: 1.05em;
 }
 
+html.dial-size--large .dial-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: break-word;
+}
+
 /* ── Weather Dial tile ──────────────────────────────────────── */
 .dial-tile--weather {
   /* Weather tile uses 2 rows: (icon + temp) and location label.
