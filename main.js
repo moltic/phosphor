@@ -79,6 +79,14 @@ async function init() {
   // Boot sequence
   await printBootSequence();
 
+  // Check for pending "add current tab" dial (queued by the background SW
+  // when the user pressed Ctrl+Shift+D on another tab).
+  const { _pendingTabDial } = await chrome.storage.local.get('_pendingTabDial');
+  if (_pendingTabDial) {
+    await chrome.storage.local.remove('_pendingTabDial');
+    openCurrentTabDial(_pendingTabDial);
+  }
+
   // Hint for new users
   const dials = await loadDials();
   if (dials.length === 0) {
@@ -197,16 +205,6 @@ inputEl.addEventListener('keydown', e => {
         } else {
           openSettingsPanel();
         }
-      }
-      break;
-    }
-
-    case 'd':
-    case 'D': {
-      // Ctrl+D / ⌘D — add current tab as a new speed-dial tile
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        openCurrentTabDial();
       }
       break;
     }
