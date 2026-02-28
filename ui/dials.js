@@ -423,6 +423,67 @@ function _patchDividerEl(dividerEl, dial) {
   dividerEl._dialData = { ...dial };
 }
 
+// ── Inline label rename ─────────────────────────────────────────────────────
+/**
+ * Replace labelEl's text with a focused <input> so the user can rename the
+ * dial in place.  Works for both regular tiles (.dial-label) and group
+ * headers (.dial-group-label).  Call only when edit-mode is active.
+ */
+function _startInlineLabelEdit(labelEl, dial) {
+  if (labelEl.dataset.editing === '1') return;
+  labelEl.dataset.editing = '1';
+  const currentText = labelEl.textContent;
+  const tileEl      = labelEl.closest('.dial-tile, .dial-group-header');
+
+  const input = document.createElement('input');
+  input.type      = 'text';
+  input.className = 'dial-label-input';
+  input.value     = currentText;
+  if (tileEl) input.style.width = `${tileEl.offsetWidth - 8}px`;
+
+  labelEl.textContent = '';
+  labelEl.appendChild(input);
+
+  // Prevent clicks inside the input from bubbling to the tile / group header.
+  input.addEventListener('click',     e => e.stopPropagation());
+  input.addEventListener('mousedown', e => e.stopPropagation());
+
+  input.focus();
+  input.select();
+
+  let _done = false;
+
+  async function _commit() {
+    if (_done) return;
+    _done = true;
+    delete labelEl.dataset.editing;
+    const newLabel = input.value.trim();
+    if (!newLabel) { labelEl.textContent = currentText; return; }
+    const dials = await loadDials();
+    const idx   = dials.findIndex(d => d.alias === dial.alias);
+    if (idx !== -1) {
+      dials[idx].label = newLabel;
+      await saveDials(dials);
+    }
+    await renderDials();
+  }
+
+  function _cancel() {
+    if (_done) return;
+    _done = true;
+    delete labelEl.dataset.editing;
+    labelEl.textContent = currentText;
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); e.stopPropagation(); _commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); _cancel(); }
+  });
+
+  // Blur commits unless already handled by Enter or Escape.
+  input.addEventListener('blur', () => setTimeout(() => _commit(), 80));
+}
+
 function _createTileEl(dial) {
   const tile = document.createElement('a');
   tile.className     = 'dial-tile';
@@ -440,6 +501,12 @@ function _createTileEl(dial) {
   const labelEl = document.createElement('span');
   labelEl.className   = 'dial-label';
   labelEl.textContent = dial.label || dial.alias;
+  labelEl.addEventListener('click', e => {
+    if (!_isEditMode()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _startInlineLabelEdit(labelEl, dial);
+  });
   tile.appendChild(labelEl);
 
   // ✕ remove button (visible only when #speed-dial.is-edit-mode is active)
@@ -523,6 +590,12 @@ function _createGroupHeaderEl(dial) {
   const labelEl   = document.createElement('span');
   labelEl.className   = 'dial-group-label';
   labelEl.textContent = dial.label || dial.alias;
+  labelEl.addEventListener('click', e => {
+    if (!_isEditMode()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _startInlineLabelEdit(labelEl, dial);
+  });
 
   const countEl = document.createElement('span');
   countEl.className = 'dial-group-count';

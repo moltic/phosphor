@@ -603,6 +603,40 @@ html.dial-size--large .dial-label {
   overflow-wrap: break-word;
 }
 
+/* Show text cursor on labels while in edit mode to hint they're renameable */
+#speed-dial.is-edit-mode .dial-label,
+#speed-dial.is-edit-mode .dial-group-label {
+  cursor: text;
+}
+
+/* ── Inline label rename input ──────────────────────────────── */
+.dial-label-input {
+  display: block;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: inherit;
+  line-height: inherit;
+  text-align: center;
+  text-transform: none;       /* override group-header uppercase */
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  caret-color: var(--fg);
+  text-shadow: 0 0 4px var(--glow-soft);
+  box-shadow: 0 2px 0 0 var(--glow-soft);
+}
+
+.dial-label-input:focus {
+  border-bottom-color: var(--fg-bright);
+  box-shadow: 0 2px 6px 0 var(--glow-soft);
+  text-shadow: 0 0 6px var(--glow);
+}
+
 /* ── Weather Dial tile ──────────────────────────────────────── */
 .dial-tile--weather {
   /* Weather tile uses 2 rows: (icon + temp) and location label.
