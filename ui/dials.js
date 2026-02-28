@@ -645,8 +645,14 @@ export async function renderDials() {
     });
   }
 
-  // Always keep the "+" add tile as the very last element.
-  dialGridEl.appendChild(_ensureAddTile());
+  // Keep the "+" add tile at the end of the ungrouped section
+  // (just before the first group-header, or at the very end if no groups exist).
+  const firstGroupHeader = [...dialGridEl.children].find(c => c.classList.contains('dial-group-header'));
+  if (firstGroupHeader) {
+    dialGridEl.insertBefore(_ensureAddTile(), firstGroupHeader);
+  } else {
+    dialGridEl.appendChild(_ensureAddTile());
+  }
 
   await _applyGroupCollapse();
 }
