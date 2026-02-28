@@ -399,6 +399,10 @@ function _createTileEl(dial) {
   tile.appendChild(labelEl);
 
   bindDragEvents(tile, dial, { suppressClick: true });
+  tile.addEventListener('dblclick', e => {
+    e.preventDefault();
+    showDialEditDialog(dial.alias);
+  });
   tile._dialData = { ...dial };
   return tile;
 }
@@ -464,6 +468,11 @@ function _createGroupHeaderEl(dial) {
   });
   el.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggleGroupCollapse(dial.alias); }
+  });
+  el.addEventListener('dblclick', e => {
+    if (_isDraggingDial) return;
+    e.stopPropagation();
+    showDialEditDialog(dial.alias);
   });
 
   bindDragEvents(el, dial, { isGroupHeader: true });
