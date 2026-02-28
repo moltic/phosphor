@@ -169,6 +169,11 @@ inputEl.addEventListener('keydown', e => {
       e.preventDefault();
       const raw   = inputEl.value;
       const parts = raw.trimStart().split(/\s+/);
+      if (raw === '') {
+        // Empty input: Tab enters the speed-dial grid
+        const firstTile = document.querySelector('#speed-dial .dial-tile');
+        if (firstTile) { firstTile.focus(); break; }
+      }
       if (parts.length === 1 && !raw.endsWith(' ')) {
         const prefix = parts[0];
         if (prefix !== '') {

@@ -550,6 +550,12 @@ function _createTileEl(dial) {
 
   // ── Keyboard reordering: Shift+Alt+← / Shift+Alt+→ ──────────
   tile.addEventListener('keydown', async e => {
+    // Escape from tile grid → return focus to cmd-input
+    if (e.key === 'Escape' && !_isEditMode()) {
+      e.preventDefault();
+      document.getElementById('cmd-input')?.focus();
+      return;
+    }
     if (!e.altKey || !e.shiftKey) return;
     const isLeft  = e.key === 'ArrowLeft';
     const isRight = e.key === 'ArrowRight';

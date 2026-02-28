@@ -422,13 +422,14 @@ html, body {
 }
 
 /* ── Keyboard-reorder flash ─────────────────────────────────── */
+/* Fixed amber colour so it always contrasts, regardless of theme */
 @keyframes dial-tile-move-flash {
-  0%   { outline: 2px solid var(--fg-bright); outline-offset: 3px;
-         box-shadow: 0 0 0 3px var(--fg-bright), 0 0 16px var(--glow); }
-  65%  { outline: 2px solid var(--fg-bright); outline-offset: 3px;
-         box-shadow: 0 0 0 3px var(--fg-bright), 0 0 16px var(--glow); }
-  100% { outline: 2px solid transparent;      outline-offset: 2px;
-         box-shadow: 0 0 6px var(--glow); }
+  0%   { outline: 2px solid #ffd050; outline-offset: 3px;
+         box-shadow: 0 0 0 3px #ffd050, 0 0 16px rgba(255, 176, 0, 0.70); }
+  65%  { outline: 2px solid #ffd050; outline-offset: 3px;
+         box-shadow: 0 0 0 3px #ffd050, 0 0 16px rgba(255, 176, 0, 0.70); }
+  100% { outline: 2px solid transparent;  outline-offset: 2px;
+         box-shadow: none; }
 }
 
 .dial-tile--moved {
