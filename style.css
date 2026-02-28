@@ -812,6 +812,140 @@ html.dial-size--large .dial-label {
   overflow-wrap: break-word;
 }
 
+/* ── Dial Layout Modes ──────────────────────────────────────── */
+/*
+ * Three adaptive density modes applied via html.dial-layout--{mode}:
+ *
+ *   auto        – CSS auto-fill grid; tiles scale to fill available width
+ *                 while staying square.  Default mode.
+ *   comfortable – Classic square tiles (icon stacked above label).
+ *                 Respects --dial-tile-width like the legacy behavior.
+ *   compact     – Horizontal bar tiles (small icon + label side-by-side);
+ *                 packs many more links per line without shrinking icons.
+ */
+
+/* ── Auto: grid auto-fill, tiles expand to fill rows evenly ── */
+html.dial-layout--auto .dial-section-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--dial-tile-width), 1fr));
+}
+
+html.dial-layout--auto .dial-tile,
+html.dial-layout--auto .dial-add-tile {
+  flex: none;
+  width: 100%;
+  height: auto; /* aspect-ratio: 1/1 from base rule keeps tiles square */
+}
+
+/* ── Comfortable: explicit square tiles, same as classic layout ── */
+/* (The base .dial-tile rules already match comfortable, so we only  */
+/*  need to ensure no auto/compact overrides bleed through.)         */
+html.dial-layout--comfortable .dial-section-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+}
+
+html.dial-layout--comfortable .dial-tile {
+  flex-direction: column;
+  flex: 0 0 var(--dial-tile-width);
+  width: var(--dial-tile-width);
+  height: var(--dial-tile-width);
+  aspect-ratio: 1 / 1;
+  padding: 0.45em 0.6em;
+  gap: 0.28em;
+  justify-content: center;
+  align-items: center;
+}
+
+html.dial-layout--comfortable .dial-add-tile {
+  flex: 0 0 var(--dial-tile-width);
+  width: var(--dial-tile-width);
+  height: var(--dial-tile-width);
+  aspect-ratio: 1 / 1;
+}
+
+/* ── Compact: horizontal bar tiles — icon left, label right ── */
+html.dial-layout--compact .dial-section-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28em 0.4em;
+}
+
+html.dial-layout--compact .dial-tile {
+  flex-direction: row;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 3.8em;
+  max-width: 11em;
+  height: 1.85em;
+  aspect-ratio: unset;
+  padding: 0 0.5em;
+  gap: 0.32em;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Shrink icons to fit the narrower row height */
+html.dial-layout--compact .dial-favicon,
+html.dial-layout--compact .dial-letter-icon {
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+}
+
+html.dial-layout--compact .dial-icon-text {
+  font-size: 0.85em;
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+}
+
+html.dial-layout--compact .dial-label {
+  font-size: 0.78em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 0;
+  text-align: left;
+}
+
+html.dial-layout--compact .dial-add-tile {
+  flex-direction: row;
+  width: auto;
+  min-width: 2.5em;
+  height: 1.85em;
+  aspect-ratio: unset;
+  padding: 0 0.6em;
+}
+
+html.dial-layout--compact .dial-add-tile__plus {
+  font-size: 1em;
+}
+
+/* Suppress the hover URL tooltip in compact mode — it overlaps too much */
+html.dial-layout--compact .dial-tile[data-url]:not(.dial-tile--weather)::after {
+  display: none;
+}
+
+/* Weather tiles keep their internal column layout regardless of density */
+html.dial-layout--compact .dial-tile--weather {
+  flex-direction: column;
+  min-width: var(--dial-tile-width);
+  max-width: none;
+  width: var(--dial-tile-width);
+  height: var(--dial-tile-width);
+  aspect-ratio: 1 / 1;
+  padding: 0.45em 0.6em;
+  align-items: stretch;
+}
+
+/* Dividers stay full-width in compact mode */
+html.dial-layout--compact .dial-divider.row-divider {
+  width: 100%;
+  flex-shrink: 0;
+}
+
 /* Show text cursor on labels while in edit mode to hint they're renameable */
 #speed-dial.is-edit-mode .dial-label,
 #speed-dial.is-edit-mode .dial-group-label {

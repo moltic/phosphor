@@ -32,20 +32,21 @@ export function setDialToolbarDeps({ renderDials, showDialEditDialog, toggleDial
   _isDialEditMode     = isDialEditMode;
 }
 
-// ── Density helpers ───────────────────────────────────────────────────────────
-const DENSITY_CYCLE = ['small', 'medium', 'large'];
+// ── Layout-mode helpers ──────────────────────────────────────────────────────
+// Cycles through: compact → auto → comfortable (and back)
+const LAYOUT_CYCLE = ['compact', 'auto', 'comfortable'];
 
-function _getDensity() {
-  return getCachedPrefs()?.dialSize || 'medium';
+function _getLayout() {
+  return getCachedPrefs()?.dialLayout || 'auto';
 }
 
-async function _stepDensity(dir) {
-  const cur   = _getDensity();
-  const idx   = DENSITY_CYCLE.indexOf(cur);
-  const next  = DENSITY_CYCLE[(idx + dir + DENSITY_CYCLE.length) % DENSITY_CYCLE.length];
+async function _stepLayout(dir) {
+  const cur   = _getLayout();
+  const idx   = LAYOUT_CYCLE.indexOf(cur) === -1 ? 1 : LAYOUT_CYCLE.indexOf(cur);
+  const next  = LAYOUT_CYCLE[(idx + dir + LAYOUT_CYCLE.length) % LAYOUT_CYCLE.length];
   if (_densityLabel) _densityLabel.textContent = next.toUpperCase();
   const prefs = await loadPrefs();
-  prefs.dialSize = next;
+  prefs.dialLayout = next;
   await savePrefs(prefs);
   await applyPrefs(prefs);
 }
@@ -167,19 +168,19 @@ function _buildToolbar() {
   const densityDown = document.createElement('button');
   densityDown.className = 'dial-toolbar-btn dial-toolbar-btn--icon';
   densityDown.textContent = '[\u2212]';
-  densityDown.setAttribute('aria-label', 'Smaller dial tiles');
-  densityDown.addEventListener('click', () => _stepDensity(-1));
+  densityDown.setAttribute('aria-label', 'Previous layout mode (compact / auto / comfortable)');
+  densityDown.addEventListener('click', () => _stepLayout(-1));
 
   _densityLabel = document.createElement('span');
   _densityLabel.className = 'dial-toolbar-density-label';
   _densityLabel.setAttribute('aria-live', 'polite');
-  _densityLabel.textContent = _getDensity().toUpperCase();
+  _densityLabel.textContent = _getLayout().toUpperCase();
 
   const densityUp = document.createElement('button');
   densityUp.className = 'dial-toolbar-btn dial-toolbar-btn--icon';
   densityUp.textContent = '[+]';
-  densityUp.setAttribute('aria-label', 'Larger dial tiles');
-  densityUp.addEventListener('click', () => _stepDensity(1));
+  densityUp.setAttribute('aria-label', 'Next layout mode (compact / auto / comfortable)');
+  densityUp.addEventListener('click', () => _stepLayout(1));
 
   densityGroup.appendChild(densityDown);
   densityGroup.appendChild(_densityLabel);
@@ -215,7 +216,7 @@ function _buildToolbar() {
  */
 export function refreshToolbarChips(categories) {
   // Always sync density label whenever renderDials fires.
-  if (_densityLabel) _densityLabel.textContent = _getDensity().toUpperCase();
+  if (_densityLabel) _densityLabel.textContent = _getLayout().toUpperCase();
 
   if (!_chipsArea) return;
 

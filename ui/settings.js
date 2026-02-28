@@ -57,6 +57,11 @@ export async function applyPrefs(prefs) {
   root.style.setProperty('--dial-tile-width', _dialTileWidths[dialSize] || '4.8em');
   root.classList.toggle('dial-size--large', dialSize === 'large');
 
+  const dialLayout = prefs.dialLayout || 'auto';
+  ['auto', 'comfortable', 'compact'].forEach(m =>
+    root.classList.toggle(`dial-layout--${m}`, dialLayout === m)
+  );
+
   await updateBannerMetrics();
 
   const statusLabel = document.getElementById('status-label');
@@ -145,6 +150,9 @@ export const settingsPanelEl = (() => {
   const terminalSizeSelect = makeSelect('s-terminalsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
+  const dialLayoutSelect = makeSelect('s-diallayout', [
+    ['auto', 'AUTO'], ['comfortable', 'COMFORTABLE'], ['compact', 'COMPACT'],
+  ]);
   const dialSizeSelect = makeSelect('s-dialsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
@@ -194,6 +202,7 @@ export const settingsPanelEl = (() => {
   inner.appendChild(titleEl);
   inner.appendChild(makeRow('THEME',            themeSelect));
   inner.appendChild(makeRow('TERMINAL SIZE',    terminalSizeSelect));
+  inner.appendChild(makeRow('DIAL LAYOUT',      dialLayoutSelect));
   inner.appendChild(makeRow('DIAL SIZE',        dialSizeSelect));
   inner.appendChild(makeRow('BANNER',           bannerInput));
   inner.appendChild(makeRow('GREETING',         greetingSelect));
@@ -224,6 +233,7 @@ export async function openSettingsPanel() {
   const prefs = await loadPrefs();
   document.getElementById('s-theme').value         = prefs.theme || 'amber';
   document.getElementById('s-terminalsize').value  = prefs.terminalSize || prefs.fontSize || 'medium';
+  document.getElementById('s-diallayout').value    = prefs.dialLayout   || 'auto';
   document.getElementById('s-dialsize').value      = prefs.dialSize     || prefs.fontSize || 'medium';
   document.getElementById('s-banner').value        = prefs.bannerText   || '';
   document.getElementById('s-greeting').value      = prefs.greetingMode ? 'on' : 'off';
@@ -246,6 +256,7 @@ export async function commitSettings() {
   const prefs = {
     theme:            document.getElementById('s-theme').value,
     terminalSize:     document.getElementById('s-terminalsize').value,
+    dialLayout:       document.getElementById('s-diallayout').value,
     dialSize:         document.getElementById('s-dialsize').value,
     bannerText:       document.getElementById('s-banner').value.trim(),
     greetingMode:     document.getElementById('s-greeting').value === 'on',

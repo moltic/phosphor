@@ -96,6 +96,7 @@ export const DEFAULT_PREFS = {
   theme:            'amber',
   terminalSize:     'medium',
   dialSize:         'medium',
+  dialLayout:       'auto',
   scanlines:        true,
   bannerText:       '',
   greetingMode:     false,
