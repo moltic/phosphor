@@ -338,9 +338,14 @@ export const funCommands = {
     run(args) {
       const CHARS  = '█▓▒░ .:!|/\\#%&@*^~?+=-_,;\'"`<>[]{}()0O°';
       const WIDTH  = 60;
+      const MAX_LINES = 24;
       const requestedLines = parseInt(args[0], 10);
       const lines  = (!isNaN(requestedLines) && requestedLines > 0)
-        ? Math.min(requestedLines, 24) : 8;
+        ? Math.min(requestedLines, MAX_LINES) : 8;
+
+      if (!isNaN(requestedLines) && requestedLines > MAX_LINES) {
+        printLine(`  (capped at ${MAX_LINES} lines)`, 'line-info');
+      }
 
       printBlank();
       for (let i = 0; i < lines; i++) {

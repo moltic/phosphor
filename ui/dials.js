@@ -33,12 +33,14 @@ function _isEditMode()   { return dialGridEl.classList.contains('is-edit-mode');
 function _enterEditMode() {
   dialGridEl.classList.add('is-edit-mode');
   if (_editToggle) { _editToggle.textContent = '[DONE]'; _editToggle.classList.add('is-active'); }
+  dialGridEl.setAttribute('aria-label', 'Speed dial shortcuts — Edit mode');
   syncManageBtnExternal();
 }
 
 function _exitEditMode() {
   dialGridEl.classList.remove('is-edit-mode');
   if (_editToggle) { _editToggle.textContent = '[EDIT]'; _editToggle.classList.remove('is-active'); }
+  dialGridEl.setAttribute('aria-label', 'Speed dial shortcuts');
   syncManageBtnExternal();
 }
 
@@ -991,7 +993,7 @@ function _createTileEl(dial) {
   const removeBtn = document.createElement('button');
   removeBtn.className = 'dial-tile-remove';
   removeBtn.setAttribute('aria-label', `Remove ${dial.label || dial.alias}`);
-  removeBtn.setAttribute('tabindex', '-1');
+  removeBtn.setAttribute('tabindex', '0');
   removeBtn.textContent = '✕';
   removeBtn.addEventListener('click', async e => {
     e.preventDefault();
@@ -1005,7 +1007,7 @@ function _createTileEl(dial) {
   const moveBtn = document.createElement('button');
   moveBtn.className = 'dial-tile-move';
   moveBtn.setAttribute('aria-label', `Move ${dial.label || dial.alias} to another category`);
-  moveBtn.setAttribute('tabindex', '-1');
+  moveBtn.setAttribute('tabindex', '0');
   moveBtn.textContent = '⇄';
   moveBtn.addEventListener('click', async e => {
     e.preventDefault();
@@ -1023,7 +1025,7 @@ function _createTileEl(dial) {
   const advBtn = document.createElement('button');
   advBtn.className = 'dial-tile-advanced';
   advBtn.setAttribute('aria-label', `Advanced options for ${dial.label || dial.alias}`);
-  advBtn.setAttribute('tabindex', '-1');
+  advBtn.setAttribute('tabindex', '0');
   advBtn.textContent = '[···]';
   advBtn.addEventListener('click', e => {
     e.preventDefault();
@@ -1048,7 +1050,7 @@ function _createTileEl(dial) {
     _clickTimer = setTimeout(() => {
       _clickTimer = null;
       if (dial.url) window.open(dial.url, '_blank', 'noopener,noreferrer');
-    }, 220);
+    }, 120);
   });
   tile.addEventListener('dblclick', e => {
     e.preventDefault();
@@ -1917,10 +1919,17 @@ const _sideSheetEl = (() => {
 
 export function hideDialSideSheet() {
   _sideSheetEl.classList.remove('is-open');
-  // Wait for the slide-out transition before hiding entirely
-  _sideSheetEl.addEventListener('transitionend', () => {
+  // Wait for the slide-out transition before hiding entirely.
+  // Use a fallback timeout in case transitionend never fires
+  // (e.g. prefers-reduced-motion or zero-duration transitions).
+  let handled = false;
+  const finish = () => {
+    if (handled) return;
+    handled = true;
     if (!_sideSheetEl.classList.contains('is-open')) _sideSheetEl.style.display = 'none';
-  }, { once: true });
+  };
+  _sideSheetEl.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 400);
   inputEl?.focus();
 }
 
@@ -2063,6 +2072,10 @@ export async function showDialSideSheet(alias) {
     delBtn.className   = 'dial-edit-btn dial-edit-btn--delete';
     delBtn.textContent = '[DELETE CATEGORY]';
     delBtn.addEventListener('click', async () => {
+      if (count > 0) {
+        const msg = `Delete category and its ${count} dial${count === 1 ? '' : 's'}? This cannot be undone.`;
+        if (!confirm(msg)) return;
+      }
       const s = await loadDialStore();
       s.categories = s.categories.filter(c => c.id !== alias);
       await saveDialStore(s);

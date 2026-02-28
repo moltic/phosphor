@@ -72,9 +72,14 @@ export function dispatch(raw) {
       });
   } else {
     printLine(`Unknown command: "${cmdName}"`, 'line-err');
-    const suggestion = Object.keys(commands).find(k => levenshtein(key, k) === 1);
-    if (suggestion) {
-      printLine(`Did you mean  ${suggestion}?`, 'line-info');
+    // Suggest close matches (distance ≤ 2)
+    const scored = Object.keys(commands)
+      .map(k => ({ k, d: levenshtein(key, k) }))
+      .filter(({ d }) => d <= 2)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 3);
+    if (scored.length > 0) {
+      printLine(`Did you mean  ${scored.map(s => s.k).join(', ')}?`, 'line-info');
     } else {
       printLine('Type  help  to see available commands.', 'line-info');
     }

@@ -334,15 +334,33 @@ export const systemCommands = {
     usage: 'syncstatus',
     async run(_args) {
       const data  = await chrome.storage.sync.get(null);
-      const dials = data.dials || [];
       const notes = data.notes || [];
       const prefs = data.prefs || {};
+
+      // Read dials from the v1 dialStore if available, falling back to legacy flat array
+      let dialCount = 0;
+      let dialEntries = [];
+      if (data.dialStore?.version) {
+        for (const cat of (data.dialStore.categories || [])) {
+          for (const item of (cat.items || [])) {
+            dialCount++;
+            dialEntries.push({ alias: item.alias, url: item.url, category: cat.label || '(default)' });
+          }
+        }
+      } else {
+        const dials = data.dials || [];
+        dialCount = dials.length;
+        dialEntries = dials.map(d => ({ alias: d.alias, url: d.url }));
+      }
 
       printBlank();
       printLine('  chrome.storage.sync contents:', 'line-head');
       printRule('─', 38);
-      printLine(`  Dials : ${dials.length} item(s)`, 'line-info');
-      dials.forEach(d => printLine(`    • ${d.alias}  →  ${d.url}`, 'line-out'));
+      printLine(`  Dials : ${dialCount} item(s)`, 'line-info');
+      dialEntries.forEach(d => {
+        const cat = d.category ? `  [${d.category}]` : '';
+        printLine(`    • ${d.alias}  →  ${d.url}${cat}`, 'line-out');
+      });
       printLine(`  Notes : ${notes.length} item(s)`, 'line-info');
       printLine(`  Prefs : ${Object.keys(prefs).length > 0 ? JSON.stringify(prefs) : '(none)'}`, 'line-info');
 
@@ -354,9 +372,10 @@ export const systemCommands = {
 
   // ── shutdown ──────────────────────────────────────────────────────
   shutdown: {
-    description: 'Power off the terminal with a CRT shutdown animation.',
+    description: 'Power off the terminal with a CRT shutdown animation. Reload the tab to restart.',
     usage: 'shutdown',
     run(_args) {
+      if (!confirm('Shut down the terminal? You will need to reload the tab to restart.')) return;
       printLine('SYSTEM HALTED.', 'line-err');
       printLine('Powering down...', 'line-out');
 

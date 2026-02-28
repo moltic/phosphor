@@ -160,10 +160,20 @@ export async function _refreshWeatherTile(tile) {
     _setWeatherTileContent(tile, { ...weather, city, lat, lon, ts });
   } catch (err) {
     console.warn('[Phosphor] Weather refresh failed:', err?.message ?? err);
-    const iconEl = tile.querySelector('.dial-weather-icon');
-    const tempEl = tile.querySelector('.dial-weather-temp');
+    const iconEl    = tile.querySelector('.dial-weather-icon');
+    const tempEl    = tile.querySelector('.dial-weather-temp');
+    const updatedEl = tile.querySelector('.dial-weather-updated');
     if (iconEl) iconEl.textContent = '✕';
-    if (tempEl) tempEl.textContent = 'ERR';
+    if (err?.code === 1 || /denied|permission/i.test(err?.message ?? '')) {
+      if (tempEl) tempEl.textContent = 'NO LOC';
+      if (updatedEl) updatedEl.textContent = 'enable location access';
+    } else if (!navigator.onLine) {
+      if (tempEl) tempEl.textContent = 'OFFLINE';
+      if (updatedEl) updatedEl.textContent = 'waiting for connection';
+    } else {
+      if (tempEl) tempEl.textContent = 'ERR';
+      if (updatedEl) updatedEl.textContent = 'tap to retry';
+    }
   } finally {
     tile.classList.remove('is-refreshing');
   }

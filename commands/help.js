@@ -16,9 +16,22 @@ export const helpCommands = {
 
   // ── help ──────────────────────────────────────────────────────────
   help: {
-    description: 'Show help for all commands.',
-    usage: 'help',
+    description: 'Show help for all commands, or usage for a specific command.  help [command]',
+    usage: 'help [command]',
     run(_args) {
+      // Per-command help: "help theme", "help n", etc.
+      if (_args.length > 0) {
+        const target = _args[0].toLowerCase();
+        const cmd = _commandsRef[target];
+        if (cmd) {
+          printBlank();
+          printLine(`  ${cmd.usage}`, 'line-head');
+          printLine(`  ${cmd.description}`, 'line-info');
+          printBlank();
+          return;
+        }
+        printLine(`Unknown command: "${target}".  Showing full help.`, 'line-err');
+      }
       printBlank();
       printRule('═');
       printLine('  PHOSPHOR COMMAND REFERENCE', 'line-head');

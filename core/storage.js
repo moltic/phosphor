@@ -153,8 +153,16 @@ export async function loadDialStore() {
  *
  * @param {{ version:1, categories:Array }} store
  */
-export function saveDialStore(store) {
-  return chrome.storage.sync.set({ dialStore: store });
+export async function saveDialStore(store) {
+  try {
+    await chrome.storage.sync.set({ dialStore: store });
+  } catch (err) {
+    if (err?.message?.includes('QUOTA')) {
+      console.error('[Phosphor] Storage quota exceeded for dialStore:', err);
+      throw new Error('Storage quota exceeded. Try removing some dials or categories.');
+    }
+    throw err;
+  }
 }
 
 // ── Flat-array shims (backward-compat for all existing UI / command code) ─────
@@ -204,8 +212,16 @@ export async function loadNotes() {
  * Persist the notes array back to chrome.storage.sync.
  * @param {Array<{id:string,text:string,ts:number}>} notes
  */
-export function saveNotes(notes) {
-  return chrome.storage.sync.set({ notes });
+export async function saveNotes(notes) {
+  try {
+    await chrome.storage.sync.set({ notes });
+  } catch (err) {
+    if (err?.message?.includes('QUOTA')) {
+      console.error('[Phosphor] Storage quota exceeded for notes:', err);
+      throw new Error('Storage quota exceeded. Try removing some notes.');
+    }
+    throw err;
+  }
 }
 
 // ── Prefs CRUD ────────────────────────────────────────────────────────────────
@@ -229,8 +245,16 @@ export async function loadPrefs() {
 /**
  * Persist user preferences to chrome.storage.sync.
  */
-export function savePrefs(prefs) {
-  return chrome.storage.sync.set({ prefs });
+export async function savePrefs(prefs) {
+  try {
+    await chrome.storage.sync.set({ prefs });
+  } catch (err) {
+    if (err?.message?.includes('QUOTA')) {
+      console.error('[Phosphor] Storage quota exceeded for prefs:', err);
+      throw new Error('Storage quota exceeded. Try shortening your MOTD or banner text.');
+    }
+    throw err;
+  }
 }
 
 // ── One-time migrations ───────────────────────────────────────────────────────

@@ -53,6 +53,14 @@ export const dataCommands = {
           const file = fileInput.files[0];
           if (!file) { printLine('No file selected.', 'line-err'); resolve(); return; }
 
+          // Warn the user that import is destructive
+          const proceed = confirm(
+            'Importing will replace all your current dials, notes, and preferences.\n\n'
+            + 'Consider running "export" first to back up your data.\n\n'
+            + 'Continue?'
+          );
+          if (!proceed) { printLine('Import cancelled.', 'line-info'); resolve(); return; }
+
           let payload;
           try {
             const text = await file.text();

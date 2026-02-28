@@ -214,6 +214,30 @@ export const settingsPanelEl = (() => {
   inner.appendChild(makeRow('HISTORY PERSIST',  historyPersistSel));
   inner.appendChild(actionsEl);
 
+  // ── Live preview: apply changes instantly as the user adjusts controls ────
+  const livePreviewFields = [
+    themeSelect, terminalSizeSelect, dialLayoutSelect, dialSizeSelect,
+    scanSelect, cursorSpeedSelect,
+  ];
+  function _livePreview() {
+    const previewPrefs = {
+      theme:            themeSelect.value,
+      terminalSize:     terminalSizeSelect.value,
+      dialLayout:       dialLayoutSelect.value,
+      dialSize:         dialSizeSelect.value,
+      bannerText:       bannerInput.value.trim(),
+      greetingMode:     greetingSelect.value === 'on',
+      greetingName:     greetingNameInput.value.trim(),
+      scanlines:        scanSelect.value === 'on',
+      clockFormat:      clockFormatSelect.value,
+      tempUnit:         tempUnitSelect.value,
+      cursorBlinkSpeed: cursorSpeedSelect.value,
+      historyPersist:   historyPersistSel.value === 'on',
+    };
+    applyPrefs(previewPrefs);
+  }
+  livePreviewFields.forEach(el => el.addEventListener('change', _livePreview));
+
   inner.addEventListener('keydown', e => {
     if (e.key === 'Escape') { e.preventDefault(); closeSettingsPanel(); }
     if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
@@ -229,8 +253,12 @@ export const settingsPanelEl = (() => {
   return panel;
 })();
 
+// Store original prefs to revert on cancel
+let _originalPrefs = null;
+
 export async function openSettingsPanel() {
   const prefs = await loadPrefs();
+  _originalPrefs = { ...prefs };
   document.getElementById('s-theme').value         = prefs.theme || 'amber';
   document.getElementById('s-terminalsize').value  = prefs.terminalSize || prefs.fontSize || 'medium';
   document.getElementById('s-diallayout').value    = prefs.dialLayout   || 'auto';
@@ -249,6 +277,8 @@ export async function openSettingsPanel() {
 
 export function closeSettingsPanel() {
   settingsPanelEl.classList.remove('visible');
+  // Revert live preview to saved prefs
+  if (_originalPrefs) { applyPrefs(_originalPrefs); _originalPrefs = null; }
   inputEl.focus();
 }
 
@@ -269,6 +299,7 @@ export async function commitSettings() {
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);
+  _originalPrefs = null;  // Prevent close from reverting the saved prefs
   closeSettingsPanel();
   printLine('✓ Settings saved.', 'line-ok');
 }

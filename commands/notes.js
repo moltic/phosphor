@@ -4,7 +4,8 @@
 import { CONFIG }                               from '../core/config.js';
 import { loadNotes, saveNotes, loadDials }      from '../core/storage.js';
 import {
-  printLine, printBlank, printRule, endBatch,
+  printLine, printBlank, printRule,
+  beginBatch, endBatch,
 } from '../core/render.js';
 import { setPendingConfirm }                    from '../core/state.js';
 import { formatTimestamp }                      from '../core/clock.js';
@@ -37,6 +38,19 @@ export const notesCommands = {
 
       // ── n clear ──────────────────────────────────────────────────
       if (sub === 'clear') {
+        const notes = await loadNotes();
+        if (notes.length === 0) {
+          printLine('No notes to clear.', 'line-info');
+          return;
+        }
+        printLine(`This will delete all ${notes.length} note${notes.length === 1 ? '' : 's'}. Type CONFIRM to proceed:`, 'line-err');
+        endBatch();
+        const answer = await new Promise(resolve => setPendingConfirm(resolve));
+        beginBatch();
+        if (answer.trim().toUpperCase() !== 'CONFIRM') {
+          printLine('Cancelled.', 'line-info');
+          return;
+        }
         await saveNotes([]);
         printLine('✓ All notes cleared.', 'line-ok');
         return;
