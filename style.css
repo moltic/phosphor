@@ -336,8 +336,8 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Hide wrapper entirely when no tiles exist yet */
-#speed-dial-wrap:not(:has(.dial-tile, .dial-group-header, .dial-add-tile)) {
+/* Hide wrapper entirely when no tiles exist and the toolbar has not mounted */
+#speed-dial-wrap:not(:has(.dial-tile, .dial-group-header, .dial-add-tile, #dial-toolbar)) {
   display: none;
 }
 
@@ -372,6 +372,186 @@ html, body {
 }
 
 #dial-edit-toggle.is-active {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  opacity: 1;
+  box-shadow: 0 0 6px var(--glow);
+}
+
+/* ── Dial Toolbar ────────────────────────────────────────────── */
+#dial-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35em 0.7em;
+  padding: 0.42em 0 0.42em;
+  border-bottom: 1px solid var(--fg-dim);
+  margin-bottom: 0.35em;
+}
+
+/* Left / density groups */
+.dial-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  flex-shrink: 0;
+}
+
+/* Action + density stepper buttons share a base style */
+.dial-toolbar-btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  line-height: 1;
+  padding: 0.22em 0.6em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  user-select: none;
+  white-space: nowrap;
+  opacity: 0.7;
+  transition:
+    color       0.12s ease,
+    border-color 0.12s ease,
+    box-shadow  0.12s ease,
+    opacity     0.12s ease;
+}
+
+.dial-toolbar-btn:hover,
+.dial-toolbar-btn:focus-visible {
+  color: var(--fg);
+  border-color: var(--fg);
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+.dial-toolbar-btn.is-active {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  opacity: 1;
+  box-shadow: 0 0 6px var(--glow);
+}
+
+/* Narrow ± icon variant */
+.dial-toolbar-btn--icon {
+  padding: 0.22em 0.42em;
+}
+
+/* ── Search wrapper ───────────────────────────────────────────── */
+.dial-toolbar-search {
+  position: relative;
+  flex: 1 1 8em;
+  min-width: 5em;
+  max-width: 22em;
+  display: flex;
+  align-items: center;
+}
+
+#dial-search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  line-height: 1;
+  padding: 0.18em 1.4em 0.18em 0;
+  outline: none;
+  caret-color: var(--fg);
+  letter-spacing: 0.04em;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+#dial-search-input::placeholder {
+  color: var(--fg-dim);
+  opacity: 0.5;
+  letter-spacing: 0.07em;
+}
+
+#dial-search-input:focus {
+  border-bottom-color: var(--fg);
+  box-shadow: 0 1px 0 0 var(--glow-soft);
+}
+
+/* Clear (×) button inside search */
+.dial-search-clear {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.65em;
+  cursor: pointer;
+  padding: 0 0.2em;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.1s ease, color 0.1s ease;
+}
+
+.dial-search-clear:hover,
+.dial-search-clear:focus-visible {
+  opacity: 1;
+  color: var(--fg);
+  outline: none;
+}
+
+/* ── Density label ────────────────────────────────────────────── */
+.dial-toolbar-density-label {
+  font-family: var(--font-stack);
+  font-size: 0.6em;
+  color: var(--fg-dim);
+  letter-spacing: 0.08em;
+  min-width: 4.2em;
+  text-align: center;
+  user-select: none;
+}
+
+/* ── Category chips row ───────────────────────────────────────── */
+.dial-toolbar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28em;
+  align-items: center;
+  flex-basis: 100%;   /* force own row inside the flex-wrap toolbar */
+  padding-top: 0.08em;
+}
+
+.dial-chip {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.61em;
+  line-height: 1;
+  padding: 0.16em 0.55em;
+  cursor: pointer;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  user-select: none;
+  opacity: 0.6;
+  transition:
+    color       0.1s ease,
+    border-color 0.1s ease,
+    box-shadow  0.1s ease,
+    opacity     0.1s ease;
+}
+
+.dial-chip:hover,
+.dial-chip:focus-visible {
+  color: var(--fg);
+  border-color: var(--fg);
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+.dial-chip.is-active {
   color: var(--fg-bright);
   border-color: var(--fg-bright);
   opacity: 1;

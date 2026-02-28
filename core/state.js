@@ -35,3 +35,16 @@ export function setCountdownInterval(id) { _countdownInterval = id; }
 export function clearCountdownIntervalState() {
   if (_countdownInterval !== null) { clearInterval(_countdownInterval); _countdownInterval = null; }
 }
+
+// ── Dial toolbar view-state (search + category filter) ───────────────────────
+/** @type {{ search: string, category: string | null }} */
+let _dialFilter = { search: '', category: null };
+
+/** Return a shallow copy of the current dial filter. */
+export function getDialFilter()        { return { ..._dialFilter }; }
+
+/**
+ * Merge a partial update into the dial filter.
+ * @param {{ search?: string, category?: string | null }} partial
+ */
+export function setDialFilter(partial) { _dialFilter = { ..._dialFilter, ...partial }; }

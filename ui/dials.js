@@ -8,6 +8,13 @@ import {
   _createWeatherTileEl, _patchWeatherTileEl,
   _refreshWeatherTile, _weatherIntervals,
 } from './weather.js';
+import { getDialFilter }            from '../core/state.js';
+import {
+  initDialToolbar,
+  setDialToolbarDeps,
+  refreshToolbarChips,
+  syncManageBtnExternal,
+} from './dial-toolbar.js';
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const dialGridEl    = document.getElementById('speed-dial');
@@ -22,12 +29,22 @@ function _isEditMode()   { return dialGridEl.classList.contains('is-edit-mode');
 function _enterEditMode() {
   dialGridEl.classList.add('is-edit-mode');
   if (_editToggle) { _editToggle.textContent = '[DONE]'; _editToggle.classList.add('is-active'); }
+  syncManageBtnExternal();
 }
 
 function _exitEditMode() {
   dialGridEl.classList.remove('is-edit-mode');
   if (_editToggle) { _editToggle.textContent = '[EDIT]'; _editToggle.classList.remove('is-active'); }
+  syncManageBtnExternal();
 }
+
+/** Toggle edit mode from external callers (toolbar [MANAGE] button). */
+export function toggleDialEditMode() {
+  if (_isEditMode()) _exitEditMode(); else _enterEditMode();
+}
+
+/** Return whether the grid is currently in edit mode. */
+export function isDialEditMode() { return _isEditMode(); }
 
 if (_editToggle) {
   _editToggle.addEventListener('click', () => _isEditMode() ? _exitEditMode() : _enterEditMode());
@@ -842,6 +859,40 @@ export async function renderDials() {
   }
 
   await _applyGroupCollapse(collapseState);
+
+  // ── Toolbar: refresh chips + apply active filter ─────────────────────────
+  refreshToolbarChips(store.categories);
+  _applyDialFilter();
+}
+
+// ── Dial toolbar filter application ──────────────────────────────────────────
+
+/**
+ * Post-pass over the cached section / tile elements: apply category and
+ * search filters by toggling inline display.  Runs after every renderDials.
+ */
+function _applyDialFilter() {
+  const { search, category } = getDialFilter();
+  const q = search.toLowerCase();
+
+  for (const [catId, sectionEl] of _sectionNodeCache) {
+    const hidden = category !== null && catId !== category;
+    sectionEl.style.display = hidden ? 'none' : '';
+  }
+
+  if (!q) {
+    // Clear any search-hiding on all tiles
+    for (const [, el] of _dialNodeCache) el.style.display = '';
+    return;
+  }
+
+  for (const [, el] of _dialNodeCache) {
+    const d = el._dialData;
+    if (!d) continue;
+    const label = (d.label || d.alias || '').toLowerCase();
+    const url   = (d.url   || '').toLowerCase();
+    el.style.display = (label.includes(q) || url.includes(q)) ? '' : 'none';
+  }
 }
 
 // ── Context menu ──────────────────────────────────────────────────────────────
@@ -1382,3 +1433,14 @@ export async function removeDial(alias) {
   }
   printLine(`✓ Dial \u201c${alias}\u201d removed.`, 'line-ok');
 }
+
+// ── Toolbar wiring (module init) ──────────────────────────────────────────────
+// Inject references after all function declarations so the toolbar can call
+// back into this module without a circular import.
+setDialToolbarDeps({
+  renderDials,
+  showDialEditDialog,
+  toggleDialEditMode,
+  isDialEditMode,
+});
+initDialToolbar();
