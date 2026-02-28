@@ -705,8 +705,57 @@ export const ctxMenuEl = (() => {
     if (el) _refreshWeatherTile(el);
   });
 
+  // ── "Move to group" submenu item ──────────────────────────────────────────
+  const moveToGroupItem = document.createElement('div');
+  moveToGroupItem.className = 'ctx-menu-item ctx-menu-item--has-sub';
+  moveToGroupItem.setAttribute('role', 'menuitem');
+  moveToGroupItem.setAttribute('aria-haspopup', 'true');
+  moveToGroupItem.setAttribute('tabindex', '-1');
+  moveToGroupItem.dataset.action = 'move-to-group';
+  moveToGroupItem.style.display = 'none';
+
+  const moveToGroupLabel = document.createElement('span');
+  moveToGroupLabel.textContent = 'Move to group \u25B6';
+  moveToGroupItem.appendChild(moveToGroupLabel);
+
+  const groupSubmenu = document.createElement('div');
+  groupSubmenu.id = 'dial-ctx-group-submenu';
+  groupSubmenu.setAttribute('role', 'menu');
+  moveToGroupItem.appendChild(groupSubmenu);
+
+  let _subHideTimer = null;
+  function _showGroupSub() {
+    if (_subHideTimer) { clearTimeout(_subHideTimer); _subHideTimer = null; }
+    groupSubmenu.classList.add('visible');
+    requestAnimationFrame(() => {
+      const r = groupSubmenu.getBoundingClientRect();
+      if (r.right > window.innerWidth) {
+        groupSubmenu.style.left  = 'auto';
+        groupSubmenu.style.right = '100%';
+      } else {
+        groupSubmenu.style.left  = '100%';
+        groupSubmenu.style.right = 'auto';
+      }
+    });
+  }
+  function _hideGroupSub() {
+    _subHideTimer = setTimeout(() => groupSubmenu.classList.remove('visible'), 120);
+  }
+
+  moveToGroupItem.addEventListener('mouseenter', _showGroupSub);
+  moveToGroupItem.addEventListener('mouseleave', _hideGroupSub);
+  groupSubmenu.addEventListener('mouseenter', () => {
+    if (_subHideTimer) { clearTimeout(_subHideTimer); _subHideTimer = null; }
+  });
+  groupSubmenu.addEventListener('mouseleave', _hideGroupSub);
+  moveToGroupLabel.addEventListener('click', e => {
+    e.stopPropagation();
+    groupSubmenu.classList.contains('visible') ? _hideGroupSub() : _showGroupSub();
+  });
+
   menu.appendChild(openTabBtn);
   menu.appendChild(editBtn);
+  menu.appendChild(moveToGroupItem);
   menu.appendChild(refreshWeatherBtn);
   menu.appendChild(removeBtn);
   document.body.appendChild(menu);
@@ -718,9 +767,11 @@ export function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = fals
   const ctxEditBtn           = ctxMenuEl.querySelector('[data-action="edit"]');
   const ctxOpenTabBtn        = ctxMenuEl.querySelector('[data-action="open-tab"]');
   const ctxRefreshWeatherBtn = ctxMenuEl.querySelector('[data-action="refresh-weather"]');
+  const ctxMoveToGroupItem   = ctxMenuEl.querySelector('[data-action="move-to-group"]');
   if (ctxEditBtn)           ctxEditBtn.style.display           = isDivider ? 'none' : '';
   if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = (isDivider || isGroupHeader) ? 'none' : '';
   if (ctxRefreshWeatherBtn) ctxRefreshWeatherBtn.style.display = isWeather ? '' : 'none';
+  if (ctxMoveToGroupItem)   _populateMoveToGroupSubmenu(alias, isDivider, isGroupHeader, ctxMoveToGroupItem);
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
@@ -741,6 +792,51 @@ export function hideDialCtxMenu() {
   ctxMenuEl.classList.remove('visible');
   ctxMenuEl.setAttribute('aria-hidden', 'true');
   delete ctxMenuEl.dataset.target;
+  const sub = ctxMenuEl.querySelector('#dial-ctx-group-submenu');
+  if (sub) sub.classList.remove('visible');
+}
+
+// ── Move-to-group submenu populate ───────────────────────────────────────────
+async function _populateMoveToGroupSubmenu(alias, isDivider, isGroupHeader, itemEl) {
+  // Never show for group headers or dividers
+  if (isDivider || isGroupHeader) {
+    itemEl.style.display = 'none';
+    return;
+  }
+  const submenu = itemEl.querySelector('#dial-ctx-group-submenu');
+  submenu.innerHTML = '';
+  submenu.classList.remove('visible');
+
+  const dials  = await loadDials();
+  const groups = dials.filter(d => d.type === 'group-header');
+  if (!groups.length) {
+    itemEl.style.display = 'none';
+    return;
+  }
+  itemEl.style.display = '';
+
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'ctx-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.setAttribute('tabindex', '-1');
+    btn.textContent = g.label || g.alias;
+    btn.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      const targetAlias = ctxMenuEl.dataset.target;
+      hideDialCtxMenu();
+      const dialsArr = await loadDials();
+      const dialIdx  = dialsArr.findIndex(d => d.alias === targetAlias);
+      if (dialIdx === -1) return;
+      const [moved]     = dialsArr.splice(dialIdx, 1);
+      const groupIdx    = dialsArr.findIndex(d => d.alias === g.alias);
+      if (groupIdx === -1) return;
+      dialsArr.splice(groupIdx + 1, 0, moved);
+      await saveDials(dialsArr);
+      await renderDials();
+    });
+    submenu.appendChild(btn);
+  });
 }
 
 // ── Edit dialog ───────────────────────────────────────────────────────────────

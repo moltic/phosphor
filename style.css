@@ -784,9 +784,47 @@ html.dial-size--large .dial-label {
   line-height: var(--line-height);
 }
 
-.ctx-menu-item:hover {
+.ctx-menu-item:hover,
+.ctx-menu-item--has-sub:hover {
   background: rgba(255, 176, 0, 0.13);
   color: var(--fg-bright);
+}
+
+/* ── Context Menu — Group Submenu ────────────────────────────── */
+.ctx-menu-item--has-sub {
+  position: relative;
+  user-select: none;
+  padding: 0;           /* padding lives on the inner span */
+}
+
+.ctx-menu-item--has-sub > span {
+  display: block;
+  padding: 0.3em 0.9em;
+  line-height: var(--line-height);
+  cursor: pointer;
+}
+
+#dial-ctx-group-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  right: auto;
+  top: 0;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  min-width: 130px;
+  z-index: 201;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#dial-ctx-group-submenu.visible {
+  display: flex;
+}
+
+#dial-ctx-group-submenu .ctx-menu-item {
+  white-space: nowrap;
 }
 
 /* ── Speed-dial Edit Dialog ──────────────────────────────────── */
