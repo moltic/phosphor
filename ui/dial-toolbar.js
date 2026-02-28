@@ -19,17 +19,20 @@ let _showDialEditDialog = null;
 let _toggleDialEditMode = null;
 /** @type {(() => boolean) | null} */
 let _isDialEditMode     = null;
+/** @type {((opts?: { categoryId?: string | null }) => Promise<void>) | null} */
+let _openComposer       = null;
 
 /**
  * Must be called once from dials.js after all functions are defined.
  * @param {{ renderDials: Function, showDialEditDialog: Function,
  *           toggleDialEditMode: Function, isDialEditMode: Function }} deps
  */
-export function setDialToolbarDeps({ renderDials, showDialEditDialog, toggleDialEditMode, isDialEditMode }) {
+export function setDialToolbarDeps({ renderDials, showDialEditDialog, toggleDialEditMode, isDialEditMode, openComposer }) {
   _renderDials        = renderDials;
   _showDialEditDialog = showDialEditDialog;
   _toggleDialEditMode = toggleDialEditMode;
   _isDialEditMode     = isDialEditMode;
+  _openComposer       = openComposer ?? null;
 }
 
 // ── Layout-mode helpers ──────────────────────────────────────────────────────
@@ -112,7 +115,10 @@ function _buildToolbar() {
   addLinkBtn.className = 'dial-toolbar-btn';
   addLinkBtn.textContent = '[+ LINK]';
   addLinkBtn.setAttribute('aria-label', 'Add new speed-dial link');
-  addLinkBtn.addEventListener('click', () => _showDialEditDialog?.(null));
+  addLinkBtn.addEventListener('click', () => {
+    if (_openComposer) _openComposer();
+    else _showDialEditDialog?.(null);
+  });
 
   leftGroup.appendChild(_manageBtn);
   leftGroup.appendChild(addLinkBtn);

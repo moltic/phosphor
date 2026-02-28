@@ -15,6 +15,10 @@ import {
   refreshToolbarChips,
   syncManageBtnExternal,
 } from './dial-toolbar.js';
+import {
+  openComposer,
+  setComposerDeps,
+} from './dial-composer.js';
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const dialGridEl    = document.getElementById('speed-dial');
@@ -162,9 +166,9 @@ function _ensureAddTile() {
   plus.setAttribute('aria-hidden', 'true');
   plus.textContent = '+';
   _addTileEl.appendChild(plus);
-  _addTileEl.addEventListener('click', () => showDialEditDialog(null));
+  _addTileEl.addEventListener('click', () => openComposer({}));
   _addTileEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDialEditDialog(null); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openComposer({}); }
   });
   return _addTileEl;
 }
@@ -656,9 +660,22 @@ function _createSectionHeaderEl(cat) {
   countEl.className = 'dial-group-count';
   countEl.setAttribute('aria-hidden', 'true');
 
+  // [+] button: open composer pre-targeted to this category
+  const addBtn = document.createElement('button');
+  addBtn.className = 'dial-group-add dial-toolbar-btn';
+  addBtn.textContent = '[+]';
+  addBtn.setAttribute('aria-label', `Add link to ${cat.label}`);
+  addBtn.setAttribute('title', `Add link to ${cat.label}`);
+  addBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    openComposer({ categoryId: cat.id });
+  });
+
   el.appendChild(chevron);
   el.appendChild(labelEl);
   el.appendChild(countEl);
+  el.appendChild(addBtn);
 
   el.addEventListener('click', e => {
     if (_isDraggingDial) return;
@@ -1442,5 +1459,9 @@ setDialToolbarDeps({
   showDialEditDialog,
   toggleDialEditMode,
   isDialEditMode,
+  openComposer,
 });
 initDialToolbar();
+
+// Inject renderDials into the composer so it can refresh the grid after saving.
+setComposerDeps({ renderDials });

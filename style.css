@@ -1203,6 +1203,38 @@ html.dial-layout--compact .dial-divider.row-divider {
   opacity: 0.4;
 }
 
+/* [+] add button that appears on category header hover */
+.dial-group-add {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  line-height: 1;
+  padding: 0.14em 0.42em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease,
+              box-shadow 0.12s ease;
+  user-select: none;
+}
+
+.dial-group-header:hover .dial-group-add,
+.dial-group-header:focus-within .dial-group-add {
+  opacity: 0.6;
+}
+
+.dial-group-add:hover,
+.dial-group-add:focus-visible {
+  color: var(--fg);
+  border-color: var(--fg-dim);
+  opacity: 1 !important;
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
  ───────────────────────────────── */
 .dial-drop-indicator {
   position: fixed;
@@ -1289,6 +1321,171 @@ html.dial-layout--compact .dial-divider.row-divider {
 
 #dial-ctx-group-submenu .ctx-menu-item {
   white-space: nowrap;
+}
+
+/* ── Inline Dial Composer ────────────────────────────────────── */
+/* Inline card that replaces the modal add-dial dialog.          */
+
+.dial-composer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65em;
+  padding: 0.5em 0.6em;
+  border: 1px solid var(--fg-dim);
+  background: var(--bg);
+  margin-bottom: 0.45em;
+  animation: dial-composer-in 0.12s ease;
+}
+
+@keyframes dial-composer-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Icon preview — mirrors a dial tile's icon area */
+.dial-composer-preview {
+  flex-shrink: 0;
+  width: var(--dial-tile-width, 5em);
+  height: var(--dial-tile-width, 5em);
+  border: 1px solid var(--fg-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.dial-composer-preview__none {
+  font-family: var(--font-stack);
+  font-size: 1.1em;
+  color: var(--fg-dim);
+  opacity: 0.35;
+  user-select: none;
+}
+
+/* Input column */
+.dial-composer-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32em;
+  min-width: 0;
+}
+
+.dial-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  align-items: center;
+}
+
+/* All text inputs share an underline style */
+.dial-composer-url,
+.dial-composer-label,
+.dial-composer-icon {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  line-height: 1;
+  padding: 0.18em 0.1em;
+  outline: none;
+  caret-color: var(--fg);
+  letter-spacing: 0.03em;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.dial-composer-url   { flex: 2 1 11em; }
+.dial-composer-label { flex: 1 1  7em; }
+.dial-composer-icon  { flex: 2 1 11em; }
+
+.dial-composer-url::placeholder,
+.dial-composer-label::placeholder,
+.dial-composer-icon::placeholder {
+  color: var(--fg-dim);
+  opacity: 0.5;
+  letter-spacing: 0.06em;
+}
+
+.dial-composer-url:focus,
+.dial-composer-label:focus,
+.dial-composer-icon:focus {
+  border-bottom-color: var(--fg);
+  box-shadow: 0 1px 0 0 var(--glow-soft);
+}
+
+/* Category dropdown */
+.dial-composer-cat {
+  flex: 1 1 6em;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  padding: 0.18em 0.1em;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.12s ease;
+}
+
+.dial-composer-cat:focus {
+  border-bottom-color: var(--fg);
+  color: var(--fg);
+  outline: none;
+}
+
+/* Actions row */
+.dial-composer-actions {
+  flex-wrap: nowrap;
+  margin-top: 0.08em;
+}
+
+.dial-composer-error {
+  flex: 1;
+  font-family: var(--font-stack);
+  font-size: 0.65em;
+  color: #e06c75;
+  min-height: 1em;
+  line-height: 1.3;
+}
+
+.dial-composer-btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  line-height: 1;
+  padding: 0.2em 0.58em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.dial-composer-btn:hover,
+.dial-composer-btn:focus-visible {
+  color: var(--fg);
+  border-color: var(--fg);
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+.dial-composer-btn--save {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+.dial-composer-btn--save:hover,
+.dial-composer-btn--save:focus-visible {
+  box-shadow: 0 0 8px var(--glow);
 }
 
 /* ── Speed-dial Edit Dialog ──────────────────────────────────── */
