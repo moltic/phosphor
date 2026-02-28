@@ -458,7 +458,10 @@ function _startInlineLabelEdit(labelEl, dial) {
     _done = true;
     delete labelEl.dataset.editing;
     const newLabel = input.value.trim();
-    if (!newLabel) { labelEl.textContent = currentText; return; }
+    // Always tear down the input immediately — don't leave it in the DOM
+    // while async storage operations are in flight.
+    labelEl.textContent = newLabel || currentText;
+    if (!newLabel) return;
     const dials = await loadDials();
     const idx   = dials.findIndex(d => d.alias === dial.alias);
     if (idx !== -1) {
