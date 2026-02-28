@@ -105,6 +105,28 @@ function buildDialIconElement(dial) {
 let _dropIndicator = null;
 let _dropPreview   = null;
 
+// ── Add-tile (persistent "+" at end of grid) ─────────────────────────────────
+let _addTileEl = null;
+
+function _ensureAddTile() {
+  if (_addTileEl) return _addTileEl;
+  _addTileEl = document.createElement('div');
+  _addTileEl.className = 'dial-add-tile';
+  _addTileEl.setAttribute('role', 'button');
+  _addTileEl.setAttribute('tabindex', '0');
+  _addTileEl.setAttribute('aria-label', 'Add new speed-dial tile');
+  const plus = document.createElement('span');
+  plus.className = 'dial-add-tile__plus';
+  plus.setAttribute('aria-hidden', 'true');
+  plus.textContent = '+';
+  _addTileEl.appendChild(plus);
+  _addTileEl.addEventListener('click', () => showDialEditDialog(null));
+  _addTileEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDialEditDialog(null); }
+  });
+  return _addTileEl;
+}
+
 function ensureDropIndicator() {
   if (_dropIndicator) return _dropIndicator;
   _dropIndicator = document.createElement('div');
@@ -623,6 +645,9 @@ export async function renderDials() {
     });
   }
 
+  // Always keep the "+" add tile as the very last element.
+  dialGridEl.appendChild(_ensureAddTile());
+
   await _applyGroupCollapse();
 }
 
@@ -790,6 +815,28 @@ export const editDialogEl = (() => {
 })();
 
 export async function showDialEditDialog(alias) {
+  // null / undefined  →  "Add new dial" mode.
+  if (alias == null) {
+    const titleEl    = editDialogEl.querySelector('.dial-edit-title');
+    if (titleEl) titleEl.textContent = 'ADD DIAL';
+    const labelInput = document.getElementById('dial-edit-label');
+    const urlInput   = document.getElementById('dial-edit-url');
+    const iconInput  = document.getElementById('dial-edit-icon');
+    labelInput.hidden = false;
+    urlInput.hidden   = false;
+    iconInput.hidden  = false;
+    editDialogEl.dataset.target        = '__new__';
+    editDialogEl.dataset.isWeather     = '';
+    editDialogEl.dataset.isGroupHeader = '';
+    labelInput.value = '';
+    urlInput.value   = '';
+    iconInput.value  = '';
+    document.getElementById('dial-edit-error').textContent = '';
+    editDialogEl.showModal();
+    labelInput.focus();
+    return;
+  }
+
   const dials = await loadDials();
   const dial  = dials.find(d => d.alias === alias);
   if (!dial) return;
@@ -879,6 +926,18 @@ async function commitDialEdit() {
       }
     }
     dials[idx] = next;
+    await saveDials(dials);
+    await renderDials();
+  } else if (alias === '__new__') {
+    // Create a new dial from the add-tile form.
+    const base = newLabel.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 32)
+               || `dial-${Date.now()}`;
+    let newAlias = base;
+    let n = 2;
+    while (dials.some(d => d.alias === newAlias)) newAlias = `${base}-${n++}`;
+    const entry = { alias: newAlias, label: newLabel, url: newUrl };
+    if (newIcon) entry.icon = newIcon;
+    dials.push(entry);
     await saveDials(dials);
     await renderDials();
   }

@@ -342,8 +342,8 @@ html, body {
   margin-bottom: 0.6em;
 }
 
-/* Hide entirely when empty (no tiles or group headers yet) */
-#speed-dial:not(:has(.dial-tile, .dial-group-header)) {
+/* Hide entirely when empty (no tiles, group headers, or add tile yet) */
+#speed-dial:not(:has(.dial-tile, .dial-group-header, .dial-add-tile)) {
   display: none;
 }
 
@@ -376,6 +376,45 @@ html, body {
   outline: 2px solid var(--fg);
   outline-offset: 2px;
   box-shadow: 0 0 6px var(--glow);
+}
+
+/* ── "+" Add tile ────────────────────────────────────────────── */
+.dial-add-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--dial-tile-width);
+  width: var(--dial-tile-width);
+  height: var(--dial-tile-width);
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--fg-dim);
+  color: var(--fg-dim);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+              background 0.15s ease;
+}
+
+.dial-add-tile:hover,
+.dial-add-tile:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg);
+  opacity: 1;
+  background: rgba(255, 176, 0, 0.07);
+}
+
+.dial-add-tile:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+  box-shadow: 0 0 6px var(--glow);
+}
+
+.dial-add-tile__plus {
+  font-size: 1.6em;
+  line-height: 1;
+  pointer-events: none;
 }
 
 /* ── URL tooltip on hover ───────────────────────────────────── */
