@@ -20,7 +20,7 @@ import {
 } from './core/state.js';
 
 import { CONFIG, DEFAULT_PREFS }      from './core/config.js';
-import { migrateLocalToSync,
+import { migrateLocalToSync, migrateDialsToV1,
          loadDials, loadPrefs,
          savePrefs }                  from './core/storage.js';
 import {
@@ -40,6 +40,9 @@ import { printBootSequence }          from './commands/system.js';
 
 async function init() {
   setSessionStart(Date.now());
+
+  // Migrate flat dials → versioned dialStore (no-op after first run)
+  await migrateDialsToV1();
 
   // Migrate local → sync (no-op after first run)
   await migrateLocalToSync();
