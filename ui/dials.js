@@ -263,6 +263,7 @@ function _ensureDragPlaceholder(w, h) {
     _dragPlaceholder = document.createElement('div');
     _dragPlaceholder.className = 'dial-drag-placeholder';
     _dragPlaceholder.setAttribute('aria-hidden', 'true');
+    _dragPlaceholder.style.pointerEvents = 'auto';
 
     // Accept drops that land directly on the placeholder (the most common case
     // when the user releases the mouse over the highlighted slot).

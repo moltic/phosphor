@@ -1539,7 +1539,8 @@ html.dial-layout--compact .dial-divider.row-divider {
   border: 2px dashed var(--fg-dim);
   background: rgba(255, 176, 0, 0.06);
   box-sizing: border-box;
-  pointer-events: none;
+  /* The placeholder is a real drop target during live reordering. */
+  pointer-events: auto;
   will-change: transform;
 }
 
