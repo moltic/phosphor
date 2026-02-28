@@ -753,9 +753,31 @@ export const ctxMenuEl = (() => {
     groupSubmenu.classList.contains('visible') ? _hideGroupSub() : _showGroupSub();
   });
 
+  // ── "Ungroup" button ──────────────────────────────────────────────────
+  const ungroupBtn = makeBtn('Ungroup', 'ungroup');
+  ungroupBtn.style.display = 'none';
+  ungroupBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    const dialsArr    = await loadDials();
+    const dialIdx     = dialsArr.findIndex(d => d.alias === alias);
+    if (dialIdx === -1) return;
+    const firstGrpIdx = dialsArr.findIndex(d => d.type === 'group-header');
+    if (firstGrpIdx === -1 || dialIdx < firstGrpIdx) return;
+    const [moved] = dialsArr.splice(dialIdx, 1);
+    // Insert just before the first group-header (re-find after splice)
+    const insertAt = dialsArr.findIndex(d => d.type === 'group-header');
+    if (insertAt === -1) dialsArr.push(moved);
+    else dialsArr.splice(insertAt, 0, moved);
+    await saveDials(dialsArr);
+    await renderDials();
+  });
+
   menu.appendChild(openTabBtn);
   menu.appendChild(editBtn);
   menu.appendChild(moveToGroupItem);
+  menu.appendChild(ungroupBtn);
   menu.appendChild(refreshWeatherBtn);
   menu.appendChild(removeBtn);
   document.body.appendChild(menu);
@@ -768,10 +790,12 @@ export function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = fals
   const ctxOpenTabBtn        = ctxMenuEl.querySelector('[data-action="open-tab"]');
   const ctxRefreshWeatherBtn = ctxMenuEl.querySelector('[data-action="refresh-weather"]');
   const ctxMoveToGroupItem   = ctxMenuEl.querySelector('[data-action="move-to-group"]');
+  const ctxUngroupBtn        = ctxMenuEl.querySelector('[data-action="ungroup"]');
   if (ctxEditBtn)           ctxEditBtn.style.display           = isDivider ? 'none' : '';
   if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = (isDivider || isGroupHeader) ? 'none' : '';
   if (ctxRefreshWeatherBtn) ctxRefreshWeatherBtn.style.display = isWeather ? '' : 'none';
   if (ctxMoveToGroupItem)   _populateMoveToGroupSubmenu(alias, isDivider, isGroupHeader, ctxMoveToGroupItem);
+  if (ctxUngroupBtn)        _updateUngroupBtn(alias, isDivider, isGroupHeader, ctxUngroupBtn);
   ctxMenuEl.style.left = `${x}px`;
   ctxMenuEl.style.top  = `${y}px`;
   ctxMenuEl.classList.add('visible');
@@ -837,6 +861,16 @@ async function _populateMoveToGroupSubmenu(alias, isDivider, isGroupHeader, item
     });
     submenu.appendChild(btn);
   });
+}
+
+// ── Ungroup button visibility ─────────────────────────────────────────────────
+// A dial is "grouped" if it appears after the first group-header in the array.
+async function _updateUngroupBtn(alias, isDivider, isGroupHeader, btnEl) {
+  if (isDivider || isGroupHeader) { btnEl.style.display = 'none'; return; }
+  const dials       = await loadDials();
+  const dialIdx     = dials.findIndex(d => d.alias === alias);
+  const firstGrpIdx = dials.findIndex(d => d.type === 'group-header');
+  btnEl.style.display = (firstGrpIdx !== -1 && dialIdx > firstGrpIdx) ? '' : 'none';
 }
 
 // ── Edit dialog ───────────────────────────────────────────────────────────────
