@@ -1529,7 +1529,18 @@ html.dial-layout--compact .dial-divider.row-divider {
   opacity: 0.25;
   outline: 2px dashed var(--fg-dim);
   outline-offset: -2px;
+}
+
+/* Empty slot that slides around the grid during a drag to preview placement */
+.dial-drag-placeholder {
+  flex: 0 0 var(--dial-tile-width);
+  width: var(--dial-tile-width);
+  height: var(--dial-tile-width);
+  border: 2px dashed var(--fg-dim);
+  background: rgba(255, 176, 0, 0.06);
+  box-sizing: border-box;
   pointer-events: none;
+  will-change: transform;
 }
 
 .dial-group-header.is-dragging {
