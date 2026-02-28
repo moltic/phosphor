@@ -2,7 +2,7 @@
 // Speed-dial grid: rendering, DnD, context menu, edit dialog.
 
 import { CONFIG }                   from '../core/config.js';
-import { loadDials, saveDials, loadDialStore } from '../core/storage.js';
+import { loadDials, saveDials, loadDialStore, saveDialStore } from '../core/storage.js';
 import { printLine, inputEl }       from '../core/render.js';
 import {
   _createWeatherTileEl, _patchWeatherTileEl,
@@ -247,6 +247,29 @@ async function _moveDialAliasToIndex(dials, alias, toIndex) {
 }
 
 /**
+ * Move a dial (by alias) to a different category, appending at the end.
+ * Operates directly on the versioned DialStore to avoid flat-array ambiguity
+ * when multiple named categories are involved.
+ *
+ * @param {string} fromAlias  Alias of the dial to move.
+ * @param {string} toCatId    Target category id.
+ */
+async function _moveDialToCategory(fromAlias, toCatId) {
+  const store = await loadDialStore();
+  let movedItem = null;
+  for (const cat of store.categories) {
+    const idx = cat.items.findIndex(i => i.alias === fromAlias);
+    if (idx !== -1) { [movedItem] = cat.items.splice(idx, 1); break; }
+  }
+  if (!movedItem) return;
+  const targetCat = store.categories.find(c => c.id === toCatId);
+  if (!targetCat) return;
+  targetCat.items.push(movedItem);
+  await saveDialStore(store);
+  await renderDials();
+}
+
+/**
  * Bind all drag-and-drop (mouse) and touch (drag + long-press) events to a
  * dial element.
  */
@@ -276,6 +299,9 @@ export function bindDragEvents(el, dial, opts = {}) {
     el.classList.remove('is-dragging');
     dialGridEl.classList.remove('is-dragging-dial');
     hideDropIndicator();
+    // Clean up any lingering drop-target highlights on section bodies.
+    document.querySelectorAll('.dial-section-body.is-drop-target, .dial-section-empty-slot.is-over')
+      .forEach(b => b.classList.remove('is-drop-target', 'is-over'));
     setTimeout(() => { _isDraggingDial = false; }, 0);
   });
 
@@ -569,6 +595,15 @@ function _createTileEl(dial) {
       document.getElementById('cmd-input')?.focus();
       return;
     }
+    // Block keyboard link-navigation in manage mode.
+    // Enter triggers inline rename; Space is suppressed entirely so it
+    // cannot activate the <a> href while the grid is being organised.
+    if (_isEditMode() && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Enter') _startInlineLabelEdit(labelEl, dial, tile);
+      return;
+    }
     if (!e.altKey || !e.shiftKey) return;
     const isLeft  = e.key === 'ArrowLeft';
     const isRight = e.key === 'ArrowRight';
@@ -638,6 +673,64 @@ function _createSectionEl(cat) {
 
   const bodyEl       = document.createElement('div');
   bodyEl.className   = 'dial-section-body';
+
+  // ── Empty-category drop slot ──────────────────────────────────────────────
+  // Shown (via CSS) only for named sections with no items while manage mode
+  // is active.  Acts as a large-target drop zone for cross-category moves.
+  if (cat.label) {
+    const emptySlot = document.createElement('div');
+    emptySlot.className = 'dial-section-empty-slot';
+    emptySlot.setAttribute('aria-hidden', 'true');
+    emptySlot.textContent = '[ DROP HERE ]';
+    emptySlot.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      emptySlot.classList.add('is-over');
+      bodyEl.classList.add('is-drop-target');
+    });
+    emptySlot.addEventListener('dragleave', e => {
+      if (!bodyEl.contains(e.relatedTarget)) {
+        emptySlot.classList.remove('is-over');
+        bodyEl.classList.remove('is-drop-target');
+      }
+    });
+    emptySlot.addEventListener('drop', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      emptySlot.classList.remove('is-over');
+      bodyEl.classList.remove('is-drop-target');
+      const fromAlias = e.dataTransfer?.getData('text/plain');
+      if (fromAlias) await _moveDialToCategory(fromAlias, cat.id);
+    });
+    bodyEl.appendChild(emptySlot);
+  }
+
+  // ── Section-body category drop target ─────────────────────────────────────
+  // Accepts a tile dropped directly on the body (not on a child tile) and
+  // moves it to the end of this category.  Tile-to-tile drops are handled by
+  // the individual tile drop handler (which calls stopPropagation).
+  bodyEl.addEventListener('dragover', e => {
+    if (!e.dataTransfer.types.includes('text/plain')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    bodyEl.classList.add('is-drop-target');
+  });
+  bodyEl.addEventListener('dragleave', e => {
+    if (!bodyEl.contains(e.relatedTarget)) bodyEl.classList.remove('is-drop-target');
+  });
+  bodyEl.addEventListener('drop', async e => {
+    bodyEl.classList.remove('is-drop-target');
+    // Tile-level handlers use stopPropagation, so this fires only for
+    // drops that land on the body itself (between tiles or on cleared space).
+    if (e.target.closest('.dial-tile, .dial-group-header')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropIndicator();
+    dialGridEl.classList.remove('is-dragging-dial');
+    const fromAlias = e.dataTransfer?.getData('text/plain');
+    if (fromAlias && cat.label) await _moveDialToCategory(fromAlias, cat.id);
+  });
+
   sectionEl.appendChild(bodyEl);
 
   sectionEl._catData   = { id: cat.id, label: cat.label };
@@ -705,7 +798,13 @@ function _createSectionHeaderEl(cat) {
     _toggleGroupCollapse(cat.id);
   });
   el.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggleGroupCollapse(cat.id); }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      // In manage mode, keyboard activation renames rather than
+      // toggling collapse, matching the click behaviour.
+      if (_isEditMode()) _startInlineLabelEdit(labelEl, _fakeDial, el);
+      else _toggleGroupCollapse(cat.id);
+    }
   });
   el.addEventListener('dblclick', e => {
     if (_isDraggingDial) return;
@@ -807,6 +906,7 @@ export async function renderDials() {
       _patchSectionEl(sectionEl, cat);
     }
     sectionEl._itemCount = cat.items.length;
+    sectionEl.classList.toggle('dial-section--empty', cat.items.length === 0);
 
     const bodyEl = sectionEl.querySelector('.dial-section-body');
 

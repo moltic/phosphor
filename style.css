@@ -694,6 +694,11 @@ html, body {
 
 #speed-dial.is-edit-mode .dial-tile-remove {
   display: flex;
+  width: 1.45em;
+  height: 1.45em;
+  font-size: 0.72em;
+  border-color: var(--fg);
+  color: var(--fg);
 }
 
 .dial-tile-remove:hover,
@@ -711,6 +716,59 @@ html, body {
 
 #speed-dial.is-edit-mode .dial-tile:active {
   cursor: grabbing;
+}
+
+/* ── Manage mode: visible organisation state ─────────────────── */
+/* Subtle grid-level indicator */
+#speed-dial.is-edit-mode {
+  outline: 1px dashed var(--fg-dim);
+  outline-offset: 4px;
+}
+
+/* Drag-handle indicator — positioned-absolute so it doesn't
+   affect the tile's internal flex layout. */
+#speed-dial.is-edit-mode .dial-tile::before {
+  content: '\283F';  /* \u283F \u22EF braille 2\00D73 dot-grid — universal drag-handle glyph */
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68em;
+  line-height: 1;
+  color: var(--fg-dim);
+  user-select: none;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* In compact mode the tiles are short rows; keep handle proportional */
+html.dial-layout--compact #speed-dial.is-edit-mode .dial-tile::before {
+  font-size: 0.6em;
+  left: 2px;
+}
+
+/* Group-header drag handle + grab cursor in manage mode */
+#speed-dial.is-edit-mode .dial-group-header {
+  cursor: grab;
+}
+
+#speed-dial.is-edit-mode .dial-group-header:active {
+  cursor: grabbing;
+}
+
+#speed-dial.is-edit-mode .dial-group-header::before {
+  content: '\283F';
+  font-size: 0.68em;
+  color: var(--fg-dim);
+  margin-right: 0.25em;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Suppress hover URL tooltip in manage mode — it clutters the UI */
+#speed-dial.is-edit-mode .dial-tile[data-url]:not(.dial-tile--weather)::after {
+  display: none;
 }
 
 /* ── URL tooltip on hover ───────────────────────────────────── */
@@ -950,6 +1008,54 @@ html.dial-layout--compact .dial-divider.row-divider {
 #speed-dial.is-edit-mode .dial-label,
 #speed-dial.is-edit-mode .dial-group-label {
   cursor: text;
+}
+
+/* ── Manage mode: section-body category drop target ─────────── */
+/* Sections receive a visible highlight while a tile hovers over them. */
+#speed-dial.is-edit-mode .dial-section-body {
+  min-height: 2em;           /* ensure empty body is still catchable area */
+  transition: outline 0.1s, background 0.1s;
+}
+
+.dial-section-body.is-drop-target {
+  outline: 1px dashed var(--fg);
+  outline-offset: 3px;
+  background: rgba(255, 176, 0, 0.05);
+}
+
+/* ── Manage mode: empty-category drop slot ─────────────────── */
+/* Rendered inside every named section body.  Shown only when the  */
+/* section has no dial tiles (managed via .dial-section--empty).   */
+.dial-section-empty-slot {
+  display: none;
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8em;
+  border: 1px dashed var(--fg-dim);
+  color: var(--fg-dim);
+  font-size: 0.72em;
+  letter-spacing: 0.14em;
+  user-select: none;
+  pointer-events: none;   /* enabled below when in manage mode */
+  opacity: 0.55;
+  transition: border-color 0.1s ease, color 0.1s ease,
+              background 0.1s ease, opacity 0.1s ease;
+}
+
+/* Show the slot for empty named sections while manage mode is active */
+#speed-dial.is-edit-mode .dial-section--empty .dial-section-empty-slot {
+  display: flex;
+  pointer-events: auto;
+}
+
+/* Drag-over highlight on the empty slot */
+.dial-section-empty-slot.is-over {
+  border-color: var(--fg-bright);
+  color: var(--fg-bright);
+  background: rgba(255, 176, 0, 0.10);
+  opacity: 1;
+  box-shadow: 0 0 6px var(--glow-soft);
 }
 
 /* ── Inline label rename input ──────────────────────────────── */
