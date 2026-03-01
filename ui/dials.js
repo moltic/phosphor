@@ -110,7 +110,21 @@ export function getFaviconUrl(dial) {
 function buildDialIconElement(dial) {
   const icon = normalizeDialIcon(dial?.icon);
   if (icon === 'none') return null;
-  if (!icon) return buildLetterIcon(dial);
+
+  if (!icon) {
+    // Auto-favicon: derive from the dial URL; fall back to letter icon on error.
+    let hostname = null;
+    try { hostname = new URL(dial?.url || '').hostname; } catch (_) {}
+    if (hostname) {
+      const img = document.createElement('img');
+      img.className = 'dial-favicon';
+      img.src = `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+      img.alt = '';
+      img.addEventListener('error', () => img.replaceWith(buildLetterIcon(dial)));
+      return img;
+    }
+    return buildLetterIcon(dial);
+  }
 
   if (isShortTextIcon(icon)) {
     const span = document.createElement('span');
