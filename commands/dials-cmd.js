@@ -102,7 +102,7 @@ export const dialsCommands = {
         const aliasLower = alias.toLowerCase();
         const collision  = store.categories
           .flatMap(c => c.items)
-          .find(it => it.alias != null && it.alias.toLowerCase() === aliasLower);
+          .find(it => it.alias !== null && it.alias !== undefined && it.alias.toLowerCase() === aliasLower);
         if (collision) {
           printLine(`Alias "${collision.alias}" already exists. Use  dial rm ${collision.alias}  first.`, 'line-err');
           return;
