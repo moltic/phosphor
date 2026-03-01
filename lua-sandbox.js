@@ -26,8 +26,7 @@ async function _boot(wasmUrl) {
   });
 
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
-  _engine.global.set('io', null);
-  _engine.global.set('os', null);
+  await _engine.doString('io = nil; os = nil');
 
   parent.postMessage({ type: 'ready' }, '*');
 }
