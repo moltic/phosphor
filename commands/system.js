@@ -8,7 +8,7 @@ import { loadPrefs, savePrefs, loadNotes }  from '../core/storage.js';
 import { playSoundIfEnabled }               from '../core/sounds.js';
 import {
   clearScreen, printLine, printBlank, printRule,
-  printBannerHtml, renderBanner,
+  printBannerNodes, renderBanner,
   inputEl, cursorEl,
   beginBatch, endBatch,
 } from '../core/render.js';
@@ -201,7 +201,7 @@ export const systemCommands = {
       }
       const text   = args.join(' ');
       const result = await renderBanner(text);
-      printBannerHtml(result.value);
+      printBannerNodes(result.value);
       notifyMission(await triggerMission('run_banner'));
     },
   },
