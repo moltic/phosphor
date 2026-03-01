@@ -60,13 +60,7 @@ tools/
 
 fonts/              ← self-hosted VT323 font files (referenced in style.css)
 
-_archive/
-  script.legacy.js  ← original pre-modular monolith; NOT loaded by the extension
 ```
-
-> **`script.js`** (root) is a tombstone stub.  The full legacy source lives in
-> `_archive/script.legacy.js` for historical reference only.  It must never be
-> `import`-ed or added to `index.html`.
 
 ---
 

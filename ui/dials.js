@@ -2103,7 +2103,7 @@ export function hideDialSideSheet() {
 }
 
 /** Backward-compat alias — nothing in the new code calls this but external
- *  callers (e.g. script.js) that import it will still get a safe no-op. */
+ *  callers that import it will still get a safe no-op. */
 export const hideDialEditDialog = hideDialSideSheet;
 
 export async function showDialSideSheet(alias) {
