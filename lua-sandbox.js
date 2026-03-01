@@ -106,21 +106,78 @@ async function _boot(wasmUrl) {
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
   await _engine.doString('io = nil; os = nil');
 
-  // Wasmoon returns JS Promises as Lua userdata with an :await() method.
-  // Without this wrapper, phos.sleep/store/fetch/read_key just discard the
-  // Promise and return immediately, breaking animation and all async calls.
+  // Wasmoon returns JS Promises as userdata.  :await() would need to call
+  // lua_yieldk from within a JS callback, which cannot unwind through the
+  // WASM→JS stack boundary.  Instead each wrapper uses coroutine.yield(),
+  // which is a pure-WASM Lua builtin that yields cleanly.  The custom JS
+  // runner below (see _runCode) detects the yielded Promise, awaits it in
+  // JS, and passes the resolved value back via lua_resume — so phos.fetch
+  // and phos.read_key can return values to Lua as well.
   await _engine.doString(`
-    local _sleep    = phos.sleep
-    local _store    = phos.store
-    local _fetch    = phos.fetch
-    local _read_key = phos.read_key
-    phos.sleep    = function(ms)      return _sleep(ms):await()    end
-    phos.store    = function(k, v)    return _store(k, v):await()  end
-    phos.fetch    = function(k)       return _fetch(k):await()     end
-    phos.read_key = function()        return _read_key():await()   end
+    local _raw_sleep    = phos.sleep
+    local _raw_store    = phos.store
+    local _raw_fetch    = phos.fetch
+    local _raw_read_key = phos.read_key
+    phos.sleep    = function(ms)   coroutine.yield(_raw_sleep(ms))          end
+    phos.store    = function(k, v) coroutine.yield(_raw_store(k, v))        end
+    phos.fetch    = function(k)    return coroutine.yield(_raw_fetch(k))    end
+    phos.read_key = function()     return coroutine.yield(_raw_read_key())  end
   `);
 
   parent.postMessage({ type: 'ready' }, '*');
+}
+
+// ── Custom async code runner ──────────────────────────────────────────────────
+// Runs a Lua string in a fresh coroutine thread and drives it via a manual
+// resume loop.  When Lua yields a Promise (via coroutine.yield(promise)), we
+// await the Promise in JS and pass the resolved value back with resume(1),
+// so phos.fetch / phos.read_key can return values to the caller.
+async function _runCode(code) {
+  const { LuaReturn } = globalThis.wasmoon;
+  const global = _engine.global;
+
+  const thread  = global.newThread();
+  const threadStackIndex = global.getTop();
+
+  try {
+    thread.loadString(code);
+    let res = thread.resume(0);
+
+    while (res.result === LuaReturn.Yield) {
+      let passback = 0;
+
+      if (res.resultCount > 0) {
+        const yieldedVal = thread.getValue(-1);
+        thread.pop(res.resultCount);
+
+        if (yieldedVal != null && typeof yieldedVal.then === 'function') {
+          // Lua yielded a Promise — await it in JS.
+          const resolved = await yieldedVal;
+          // Pass the resolved value back to Lua (e.g. for phos.fetch / read_key).
+          if (resolved != null) {
+            thread.pushValue(resolved);
+            passback = 1;
+          }
+        } else {
+          // Non-Promise yield — just give the event loop a turn.
+          await new Promise(r => setTimeout(r, 0));
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      res = thread.resume(passback);
+    }
+
+    if (res.result !== LuaReturn.Ok) {
+      const msg = res.resultCount > 0
+        ? String(thread.getValue(-1))
+        : 'unknown Lua error';
+      throw new Error(msg);
+    }
+  } finally {
+    global.remove(threadStackIndex);
+  }
 }
 
 // ── Message router ────────────────────────────────────────────────────────────
@@ -141,7 +198,7 @@ window.addEventListener('message', async event => {
       return;
     }
     try {
-      await _engine.doString(code);
+      await _runCode(code);
       parent.postMessage({ type: 'done', id }, '*');
     } catch (err) {
       parent.postMessage({ type: 'error', id, message: String(err?.message ?? err) }, '*');
