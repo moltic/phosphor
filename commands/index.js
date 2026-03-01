@@ -13,6 +13,7 @@ import { profileCommands }                   from './profile.js';
 import { missionsCommands }                  from './missions.js';
 import { gamesCommands }                     from './games.js';
 import { launchCommands }                    from './launch.js';
+import { luaCommands }                       from './lua.js';
 import {
   beginBatch, endBatch, printLine,
 } from '../core/render.js';
@@ -31,6 +32,7 @@ export const commands = {
   ...missionsCommands,
   ...gamesCommands,
   ...launchCommands,
+  ...luaCommands,
 };
 
 // Inject the full registry into help.js (avoids circular import).

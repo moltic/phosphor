@@ -41,6 +41,7 @@ import { printBootSequence }          from './commands/system.js';
 import { awardAchievement }           from './core/progression.js';
 import { notifyAchievement }          from './commands/profile.js';
 import { initLaunchPanel }            from './ui/launch-panel.js';
+import { initLuaVM }                  from './core/lua-vm.js';
 
 // ============================================================
 //  init
@@ -48,6 +49,10 @@ import { initLaunchPanel }            from './ui/launch-panel.js';
 
 async function init() {
   setSessionStart(Date.now());
+
+  // Kick off the Lua VM in the background — it fetches and compiles the WASM
+  // binary (~260 KB) so we start it early without blocking the rest of init.
+  initLuaVM().catch(err => console.warn('[Phosphor] Lua VM init failed:', err));
 
   // Migrate flat dials → versioned dialStore (no-op after first run)
   await migrateDialsToV1();
