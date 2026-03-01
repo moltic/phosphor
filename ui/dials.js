@@ -565,7 +565,6 @@ async function _moveDialAliasToIndex(dials, alias, toIndex) {
   if (fromIndex === -1) return;
   const next = _arrayMove(dials, fromIndex, toIndex);
   await saveDials(next);
-  await renderDials();
 }
 
 /**

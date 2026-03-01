@@ -356,7 +356,7 @@ document.addEventListener('visibilitychange', () => {
 // ── Sync change listener ──────────────────────────────────────────────────────
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
-  if (changes.dials) renderDials();
+  if (changes.dials || changes.dialStore) renderDials();
   if (changes.prefs) {
     const newPrefs = { ...DEFAULT_PREFS, ...(changes.prefs.newValue || {}) };
     applyPrefs(newPrefs);
