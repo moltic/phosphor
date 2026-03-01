@@ -123,11 +123,11 @@ function _setWeatherTileContent(tile, { icon, temp, symbol, city, lat, lon, ts }
   const labelEl   = tile.querySelector('.dial-label');
   const updatedEl = tile.querySelector('.dial-weather-updated');
   if (iconEl)    iconEl.textContent  = icon ?? '☁';
-  if (tempEl)    tempEl.textContent  = temp != null ? `${temp}${symbol}` : '--';
+  if (tempEl)    tempEl.textContent  = (temp !== null && temp !== undefined) ? `${temp}${symbol}` : '--';
   if (labelEl && city) labelEl.textContent = city;
   if (updatedEl) updatedEl.textContent = _formatAgo(ts);
   if (ts) tile.dataset.weatherTs = String(ts);
-  if (lat != null && lon != null) {
+  if (lat !== null && lat !== undefined && lon !== null && lon !== undefined) {
     const locUrl = `https://weather.com/weather/today/l/${lat.toFixed(4)},${lon.toFixed(4)}`;
     tile.href = locUrl;
     tile.setAttribute('aria-label', `Weather — ${city ?? 'local'}`);
