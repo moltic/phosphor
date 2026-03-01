@@ -279,9 +279,9 @@ function _buildToolbar() {
   hintBar.className = 'dial-toolbar-hint';
   hintBar.innerHTML =
     '<kbd>Ctrl+Shift+S</kbd> capture tab' +
-    ' &nbsp;·&nbsp; ' +
+    ' · ' +
     '<kbd>Ctrl+,</kbd> settings' +
-    ' &nbsp;·&nbsp; ' +
+    ' · ' +
     'type <span class="dial-toolbar-hint__cmd">keys</span> for all shortcuts';
 
   // Assemble
