@@ -9,17 +9,28 @@
 //   postMessage.
 //
 // Message protocol (parent → sandbox):
-//   { type: 'init', wasmUrl: string }        — boot the Lua engine
+//   { type: 'init', wasmUrl: string }          — boot the Lua engine
 //   { type: 'run',  id: number, code: string } — execute a Lua snippet
+//   { type: 'key',  key: string }              — keypress for phos.read_key()
+//   { type: 'store-done', id: number }         — phos.store() completed
+//   { type: 'store-error', id, message }       — phos.store() failed
+//   { type: 'fetch-done', id, value }          — phos.fetch() result
+//   { type: 'fetch-error', id, message }       — phos.fetch() failed
 //
 // Message protocol (sandbox → parent):
-//   { type: 'ready' }                         — engine initialised OK
-//   { type: 'init-error', message: string }   — engine failed to init
-//   { type: 'print', text: string }           — Lua print() output
-//   { type: 'done',  id: number }             — run completed OK
-//   { type: 'error', id: number, message: string } — run threw an error
+//   { type: 'ready' }                          — engine initialised OK
+//   { type: 'init-error', message: string }    — engine failed to init
+//   { type: 'print', text: string }            — Lua print() output
+//   { type: 'done',  id: number }              — run completed OK
+//   { type: 'error', id: number, message }     — run threw an error
+//   { type: 'cls' }                            — phos.cls(): clear terminal
+//   { type: 'draw', text: string }             — phos.draw(): render frame
+//   { type: 'key-request' }                    — phos.read_key(): want a key
+//   { type: 'store-request', id, key, value }  — phos.store(): write storage
+//   { type: 'fetch-request', id, key }         — phos.fetch(): read storage
 
-import { printLine } from './render.js';
+import { printLine, clearScreen, outputEl } from './render.js';
+import { setActiveGame, clearActiveGame }    from './state.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let _iframe      = null;   // hidden sandbox iframe
@@ -29,6 +40,19 @@ let _initReject  = null;   // pending reject  for the init promise
 
 const _pendingRuns = new Map(); // id → { resolve, reject }
 let   _nextId      = 0;
+
+/** Persistent <pre> element written by phos.draw(). Nulled after each run. */
+let _gameCanvas = null;
+
+/**
+ * Called when a Lua script finishes (done or error).
+ * Clears any lingering _activeGame so the terminal is never locked,
+ * and releases the canvas reference (the DOM node stays as static output).
+ */
+function _cleanupGame() {
+  clearActiveGame();
+  _gameCanvas = null;
+}
 
 // ── Global message router ─────────────────────────────────────────────────────
 // Single listener handles all messages from the sandbox so there are no
@@ -60,6 +84,7 @@ window.addEventListener('message', event => {
     case 'done': {
       const run = _pendingRuns.get(id);
       _pendingRuns.delete(id);
+      _cleanupGame();
       run?.resolve();
       break;
     }
@@ -67,7 +92,83 @@ window.addEventListener('message', event => {
     case 'error': {
       const run = _pendingRuns.get(id);
       _pendingRuns.delete(id);
+      _cleanupGame();
       run?.reject(new Error(message));
+      break;
+    }
+
+    // ── Graphics bridge ───────────────────────────────────────────────────────
+
+    case 'cls':
+      // Clear the terminal and discard the current game canvas so the next
+      // phos.draw() creates a fresh one at the bottom of the output.
+      clearScreen();
+      if (_gameCanvas) { _gameCanvas.remove(); _gameCanvas = null; }
+      break;
+
+    case 'draw': {
+      // Create the canvas <pre> on first call; reuse it for every subsequent
+      // frame so updating a game is a single textContent assignment.
+      if (!_gameCanvas) {
+        _gameCanvas = document.createElement('pre');
+        _gameCanvas.className = 'banner-output';
+        _gameCanvas.style.cssText =
+          'margin:0.4em 0;line-height:1.35;font-size:inherit;white-space:pre';
+        outputEl.appendChild(_gameCanvas);
+      }
+      _gameCanvas.textContent = event.data.text ?? '';
+      outputEl.scrollTop = outputEl.scrollHeight;
+      break;
+    }
+
+    // ── Input bridge ──────────────────────────────────────────────────────────
+
+    case 'key-request':
+      // Activate the real-time key-capture hook for ONE keystroke, then
+      // forward it to the sandbox and immediately release the hook.
+      setActiveGame({
+        onKey(e) {
+          clearActiveGame();
+          _iframe.contentWindow.postMessage({ type: 'key', key: e.key }, '*');
+        },
+      });
+      break;
+
+    // ── Persistence bridge ────────────────────────────────────────────────────
+
+    case 'store-request': {
+      const { id: sid, key: sKey, value: sVal } = event.data;
+      chrome.storage.local
+        .set({ [`lua_${sKey}`]: sVal })
+        .then(() =>
+          _iframe.contentWindow.postMessage({ type: 'store-done', id: sid }, '*'),
+        )
+        .catch(err =>
+          _iframe.contentWindow.postMessage(
+            { type: 'store-error', id: sid, message: String(err?.message ?? err) },
+            '*',
+          ),
+        );
+      break;
+    }
+
+    case 'fetch-request': {
+      const { id: fid, key: fKey } = event.data;
+      const storageKey = `lua_${fKey}`;
+      chrome.storage.local
+        .get(storageKey)
+        .then(result =>
+          _iframe.contentWindow.postMessage(
+            { type: 'fetch-done', id: fid, value: result[storageKey] ?? null },
+            '*',
+          ),
+        )
+        .catch(err =>
+          _iframe.contentWindow.postMessage(
+            { type: 'fetch-error', id: fid, message: String(err?.message ?? err) },
+            '*',
+          ),
+        );
       break;
     }
   }
@@ -111,12 +212,15 @@ export function initLuaVM() {
 
 /**
  * Execute a Lua string in the sandbox.
- * Rejects if the code throws a Lua error or exceeds timeoutMs.
+ * Rejects if the code throws a Lua error.
  *
  * @param {string} code
- * @param {number} [timeoutMs=5000]
+ * @param {number} [timeoutMs=0]  0 = no timeout (required for interactive
+ *                                 scripts that block on phos.read_key()).
+ *                                 Pass a positive value to hard-kill a run
+ *                                 that takes longer than expected.
  */
-export async function runLua(code, timeoutMs = 5_000) {
+export async function runLua(code, timeoutMs = 0) {
   const id = _nextId++;
 
   return new Promise((resolve, reject) => {
@@ -124,11 +228,14 @@ export async function runLua(code, timeoutMs = 5_000) {
 
     _iframe.contentWindow.postMessage({ type: 'run', id, code }, '*');
 
-    setTimeout(() => {
-      if (_pendingRuns.has(id)) {
-        _pendingRuns.delete(id);
-        reject(new Error(`Lua execution timed out after ${timeoutMs} ms`));
-      }
-    }, timeoutMs);
+    if (timeoutMs > 0) {
+      setTimeout(() => {
+        if (_pendingRuns.has(id)) {
+          _pendingRuns.delete(id);
+          _cleanupGame();
+          reject(new Error(`Lua execution timed out after ${timeoutMs} ms`));
+        }
+      }, timeoutMs);
+    }
   });
 }
