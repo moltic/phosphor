@@ -79,10 +79,11 @@ export function dispatch(raw) {
 
   if (Object.prototype.hasOwnProperty.call(commands, key)) {
     Promise.resolve(commands[key].run(args))
-      .then(() => { if (!isLua) endBatch(); })
       .catch(err => {
         printLine(`Error: ${err.message}`, 'line-err');
         console.error('[Phosphor]', err);
+      })
+      .finally(() => {
         if (!isLua) endBatch();
       });
   } else {
