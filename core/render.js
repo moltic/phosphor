@@ -406,7 +406,10 @@ export async function fitBanner(el) {
   if (!probeW || !refPx) return;
 
   const available = Math.max(0, el.parentElement.clientWidth - 18);
-  const widthPx    = (available * BANNER_FIT_SCALE / probeW) * refPx;
+  // Correct for the probe cap: if the actual banner is wider than BANNER_FIT_MAX_CHARS,
+  // the probe under-represents the real width and would produce a font that is too large.
+  // Multiplying by (fitLen / maxLen) scales the result back to the true content width.
+  const widthPx = (available * BANNER_FIT_SCALE / probeW) * refPx * (fitLen / maxLen);
 
   // Height guard: clamp so the full banner never exceeds BANNER_FIT_MAX_HEIGHT_VH
   // of the viewport height, regardless of how few characters the greeting has.
@@ -416,6 +419,14 @@ export async function fitBanner(el) {
 
   const idealPx = Math.min(widthPx, heightPx);
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), BANNER_FIT_MAX_PX) + 'px';
+
+  // Safety net: if the content still overflows after font-size is set (e.g. due to
+  // font metrics rounding), shrink further until it fits.
+  if (el.scrollWidth > el.parentElement.clientWidth) {
+    const overflowRatio = el.parentElement.clientWidth / el.scrollWidth;
+    const currentPx = parseFloat(el.style.fontSize) || idealPx;
+    el.style.fontSize = Math.max(Math.floor(currentPx * overflowRatio), 6) + 'px';
+  }
 }
 
 /**
