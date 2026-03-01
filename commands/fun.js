@@ -65,6 +65,20 @@ const FORTUNES = [
   "pwd: the command you type when you've completely forgotten where you are.",
 ];
 
+export function wrapQuote(quote, innerWidth) {
+  if (!quote) return [];
+  const words   = quote.split(' ');
+  const wrapped = [];
+  let   cur     = '';
+  for (const word of words) {
+    if (cur.length === 0) { cur = word; }
+    else if (cur.length + 1 + word.length <= innerWidth) { cur += ' ' + word; }
+    else { wrapped.push(cur); cur = word; }
+  }
+  if (cur) wrapped.push(cur);
+  return wrapped;
+}
+
 export const funCommands = {
 
   // ── fortune ───────────────────────────────────────────────────────
@@ -75,15 +89,7 @@ export const funCommands = {
       const quote = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
       const INNER  = 54;
 
-      const words   = quote.split(' ');
-      const wrapped = [];
-      let   cur     = '';
-      for (const word of words) {
-        if (cur.length === 0) { cur = word; }
-        else if (cur.length + 1 + word.length <= INNER) { cur += ' ' + word; }
-        else { wrapped.push(cur); cur = word; }
-      }
-      if (cur) wrapped.push(cur);
+      const wrapped = wrapQuote(quote, INNER);
 
       const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
       const bottom = '╚' + '═'.repeat(INNER + 2) + '╝';
