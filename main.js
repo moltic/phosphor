@@ -300,6 +300,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// ── [SETTINGS] trigger button ───────────────────────────────────────────────
+document.getElementById('settings-panel-trigger')?.addEventListener('click', () => {
+  if (settingsPanelEl.classList.contains('visible')) {
+    closeSettingsPanel();
+  } else {
+    openSettingsPanel();
+  }
+});
+// Keep [SETTINGS] button lit while the panel is open
+new MutationObserver(() => {
+  const trigger = document.getElementById('settings-panel-trigger');
+  if (!trigger) return;
+  trigger.classList.toggle('is-active', settingsPanelEl.classList.contains('visible'));
+}).observe(settingsPanelEl, { attributes: true, attributeFilter: ['class'] });
 // ── [DIALS] trigger button ────────────────────────────────────────────────────
 document.getElementById('dial-overlay-open')?.addEventListener('click', () => {
   isDialOverlayOpen() ? closeDialOverlay() : openDialOverlay();

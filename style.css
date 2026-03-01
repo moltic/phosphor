@@ -448,6 +448,38 @@ html, body {
   box-shadow: 0 0 4px var(--glow-soft);
 }
 
+/* ── [SETTINGS] trigger button in status-line ───────────────── */
+#settings-panel-trigger {
+  background: none;
+  border: 1px solid var(--fg);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.65em;
+  line-height: 1;
+  padding: 0.18em 0.45em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  opacity: 1;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease;
+  user-select: none;
+}
+
+#settings-panel-trigger:hover,
+#settings-panel-trigger:focus-visible {
+  opacity: 1;
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+#settings-panel-trigger.is-active {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  box-shadow: 0 0 6px var(--glow);
+}
+
 /* ── [DIALS] trigger button in status-line ───────────────────── */
 #dial-overlay-open {
   background: none;
