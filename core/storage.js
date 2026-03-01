@@ -332,6 +332,38 @@ export async function migrateDialsToV1() {
  * don't lose them when switching to sync-backed storage.
  * Guarded by a `_syncMigrated` flag in local so it runs only once.
  */
+// ── Game high scores ────────────────────────────────────────────────────────
+// chrome.storage.local key: 'gameScores'
+// { hangman: [{score,word,wrong,date,handle},...], bullscows: [...], chasemaze: [...] }
+// Each list is kept sorted descending by score, capped at 5 entries.
+
+const GAME_SCORES_KEY = 'gameScores';
+
+/**
+ * Load the full game-scores object from local storage.
+ * @returns {Promise<Record<string, Array>>}
+ */
+export async function loadGameScores() {
+  const data = await chrome.storage.local.get({ [GAME_SCORES_KEY]: {} });
+  return data[GAME_SCORES_KEY];
+}
+
+/**
+ * Append a score entry for a game, keeping only the top-5 by score.
+ * @param {'hangman'|'bullscows'|'chasemaze'} game
+ * @param {object} entry  Any plain object — must include a `score` number.
+ * @returns {Promise<Array>}  Updated leaderboard for that game.
+ */
+export async function saveGameScore(game, entry) {
+  const scores = await loadGameScores();
+  if (!scores[game]) scores[game] = [];
+  scores[game].push(entry);
+  scores[game].sort((a, b) => b.score - a.score);
+  scores[game] = scores[game].slice(0, 5);
+  await chrome.storage.local.set({ [GAME_SCORES_KEY]: scores });
+  return scores[game];
+}
+
 export async function migrateLocalToSync() {
   const flag = await chrome.storage.local.get({ _syncMigrated: false });
   if (flag._syncMigrated) return;

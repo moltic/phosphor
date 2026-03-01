@@ -54,6 +54,12 @@ export const ACHIEVEMENTS = [
   { id: 'export_done',        label: 'Backed Up',        desc: 'Export a data backup',                xp:  20 },
   { id: 'ten_sessions',       label: 'Regular',          desc: 'Open the terminal 10 times',          xp:  50 },
   { id: 'fifty_sessions',     label: 'Veteran',          desc: 'Open the terminal 50 times',          xp: 100 },
+  // ── Door Games ────────────────────────────────────────────────────────────
+  { id: 'hangman_win',        label: 'Word Warden',      desc: 'Win a game of Hangman',               xp:  30 },
+  { id: 'bullscows_solved',   label: 'Code Cracker',     desc: 'Solve Bulls & Cows',                  xp:  30 },
+  { id: 'bullscows_perfect',  label: 'Mind Reader',      desc: 'Crack Bulls & Cows in ≤3 guesses',    xp:  50 },
+  { id: 'chasemaze_escape',   label: 'Ghost Runner',     desc: 'Escape the Chase Maze',               xp:  35 },
+  { id: 'doorgames_played',   label: 'Door Jockey',      desc: 'Set a high score in 5 door games',    xp:  40 },
 ];
 
 // ── Rank utilities ────────────────────────────────────────────────────────────

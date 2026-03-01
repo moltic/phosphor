@@ -36,6 +36,12 @@ export function clearCountdownIntervalState() {
   if (_countdownInterval !== null) { clearInterval(_countdownInterval); _countdownInterval = null; }
 }
 
+// ── Active game (key-capture games like Chase Maze) ─────────────────────────
+/** Set to a { onKey(e) } handler while a real-time key-capture game is active. */
+export let _activeGame = null;
+export function setActiveGame(handler) { _activeGame = handler; }
+export function clearActiveGame()      { _activeGame = null; }
+
 // ── Dial toolbar view-state (search + category filter) ───────────────────────
 /** @type {{ search: string, category: string | null }} */
 let _dialFilter = { search: '', category: null };

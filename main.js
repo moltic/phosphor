@@ -15,6 +15,7 @@ import {
   historyIndex, updateHistoryIndex,
   pendingInput, setPendingInput,
   _pendingConfirm, clearPendingConfirm,
+  _activeGame,
   clockInterval, setClockInterval, clearClockInterval,
   _countdownInterval,
   setSessionStart,
@@ -135,6 +136,15 @@ inputEl.addEventListener('input', () => {
 });
 
 inputEl.addEventListener('keydown', e => {
+  // Active game intercept: route ALL keys to the game handler while a
+  // real-time game (e.g. Chase Maze) is running.  Prevents default so
+  // arrow keys don't scroll and typed chars don't enter the input field.
+  if (_activeGame) {
+    e.preventDefault();
+    _activeGame.onKey(e);
+    return;
+  }
+
   switch (e.key) {
 
     case 'Enter': {
