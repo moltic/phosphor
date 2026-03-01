@@ -7,6 +7,7 @@ import {
   printLine, printBlank, printRule,
   beginBatch, endBatch,
   fitBanner, updateBannerMetrics,
+  clearScreen,
 } from './core/render.js';
 
 import {
@@ -179,8 +180,20 @@ inputEl.addEventListener('keydown', e => {
             setInput(matches[0] + ' ');
             updateHistoryIndex(-1);
           } else if (matches.length > 1) {
-            printBlank();
-            printLine('  ' + matches.join('   '), 'line-info');
+            // Complete to longest common prefix first, then list matches
+            let common = matches[0];
+            for (let i = 1; i < matches.length; i++) {
+              while (!matches[i].startsWith(common)) {
+                common = common.slice(0, -1);
+              }
+            }
+            if (common.length > prefix.length) {
+              setInput(common);
+              updateHistoryIndex(-1);
+            } else {
+              printBlank();
+              printLine('  ' + matches.join('   '), 'line-info');
+            }
           }
         }
       }
@@ -191,6 +204,7 @@ inputEl.addEventListener('keydown', e => {
     case 'L': {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
+        clearScreen();
         setInput('');
         updateHistoryIndex(-1);
         setPendingInput('');
@@ -248,6 +262,9 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
   if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, .dial-tile, .dial-composer, #dial-move-picker')) {
+    // Don't steal focus when user is selecting text in the output area
+    const sel = window.getSelection();
+    if (sel && sel.toString().length > 0) return;
     inputEl.focus();
   }
 });

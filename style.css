@@ -1055,7 +1055,7 @@ html.dial-layout--compact #speed-dial.is-edit-mode .dial-tile::before {
   line-height: 1.35;
   padding: 0.18em 0.55em;
   white-space: nowrap;
-  max-width: 28em;
+  max-width: min(28em, calc(100vw - 2rem));
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
@@ -1687,6 +1687,13 @@ html.dial-layout--compact .dial-divider.row-divider {
   color: var(--fg-bright);
 }
 
+.ctx-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--fg) 13%, transparent);
+  color: var(--fg-bright);
+  outline: 1px solid var(--fg);
+  outline-offset: -1px;
+}
+
 /* ── Context Menu — Group Submenu ────────────────────────────── */
 .ctx-menu-item--has-sub {
   position: relative;
@@ -2170,6 +2177,9 @@ html.dial-layout--compact .dial-divider.row-divider {
   flex-direction: column;
   gap: 0.45rem;
   min-width: 22em;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   box-shadow: 0 0 24px var(--glow-soft), 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
@@ -2255,6 +2265,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 0.4rem 0;
+  scroll-behavior: smooth;
   /* hide scrollbar track on Chrome; keep scrollability */
   scrollbar-width: thin;
   scrollbar-color: var(--fg-dim) transparent;
@@ -2398,6 +2409,7 @@ html.dial-layout--compact .dial-divider.row-divider {
   flex-shrink: 0;
   position: relative;
   display: flex;
+  cursor: text;
   align-items: center;
   padding: 0.35rem 0 0.5rem;
   border-top: 1px solid var(--fg-dim);
@@ -2419,6 +2431,7 @@ html.dial-layout--compact .dial-divider.row-divider {
 .prompt-glyph {
   color: var(--fg-bright);
   flex-shrink: 0;
+  text-shadow: 0 0 8px var(--glow);
 }
 
 /* Visible mirror of the hidden <input> value */
@@ -2460,6 +2473,15 @@ html.dial-layout--compact .dial-divider.row-divider {
   }
   #terminal {
     animation: none;        /* no CRT flicker */
+  }
+  #output {
+    scroll-behavior: auto;  /* no smooth scroll */
+  }
+  .crt-poweroff {
+    animation-duration: 0.01s;
+  }
+  .crt-wipe {
+    animation-duration: 0.01s;
   }
 }
 
@@ -2697,5 +2719,22 @@ html.dial-layout--compact .dial-divider.row-divider {
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.2em 0.5em;
+    bottom: 3.5em;  /* clear the input row on mobile */
+  }
+
+  .settings-inner {
+    min-width: 0;
+    width: calc(100vw - 2rem);
+  }
+
+  .settings-row {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .settings-label {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: auto;
   }
 }

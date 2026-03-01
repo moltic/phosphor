@@ -79,10 +79,9 @@ export function dispatch(raw) {
       .sort((a, b) => a.d - b.d)
       .slice(0, 3);
     if (scored.length > 0) {
-      printLine(`Did you mean  ${scored.map(s => s.k).join(', ')}?`, 'line-info');
-    } else {
-      printLine('Type  help  to see available commands.', 'line-info');
+      printLine(`Did you mean:  ${scored.map(s => s.k).join('  ')}`, 'line-info');
     }
+    printLine('Type  help  to see available commands.', 'line-info');
     endBatch();
   }
 }

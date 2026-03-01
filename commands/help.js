@@ -51,7 +51,20 @@ export const helpCommands = {
       const DESC_WIDTH = MAX_WIDTH - DESC_START;
       const indent     = ' '.repeat(DESC_START);
 
-      Object.entries(_commandsRef).forEach(([, cmd]) => {
+      // Group commands by category for easier scanning
+      const CATEGORIES = [
+        { label: 'NAVIGATION',  keys: ['g', 'l'] },
+        { label: 'NOTES',       keys: ['n', 'ls', 'nuke'] },
+        { label: 'SPEED DIAL',  keys: ['dial'] },
+        { label: 'SYSTEM',      keys: ['clr', 'clear', 'history', 'theme', 'banner', 'settings', 'boot', 'motd', 'uptime', 'whoami', 'sysinfo', 'syncstatus', 'shutdown'] },
+        { label: 'DATA',        keys: ['export', 'import'] },
+        { label: 'FUN',         keys: ['fortune', 'cal', 'ping', 'scan', 'typewriter', 'beep', 'cow', 'noise', 'matrix', 'hack', 'countdown', 'maze'] },
+        { label: 'HELP',        keys: ['help', 'keys'] },
+      ];
+
+      function printCmd(key) {
+        const cmd = _commandsRef[key];
+        if (!cmd) return;
         const descLines = wrapWords(cmd.description, DESC_WIDTH);
         if (cmd.usage.length <= COL) {
           printLine(`  ${cmd.usage.padEnd(COL)} ${descLines[0]}`, 'line-out');
@@ -62,14 +75,32 @@ export const helpCommands = {
         for (let i = 1; i < descLines.length; i++) {
           printLine(`${indent}${descLines[i]}`, 'line-info');
         }
-      });
+      }
+
+      const categorised = new Set();
+      for (const { label, keys } of CATEGORIES) {
+        const validKeys = keys.filter(k => _commandsRef[k]);
+        if (validKeys.length === 0) continue;
+        printLine(`  ── ${label} ──`, 'line-head');
+        validKeys.forEach(k => { printCmd(k); categorised.add(k); });
+        printBlank();
+      }
+
+      // Print any uncategorised commands (future-proof)
+      const uncategorised = Object.keys(_commandsRef).filter(k => !categorised.has(k));
+      if (uncategorised.length > 0) {
+        printLine('  ── OTHER ──', 'line-head');
+        uncategorised.forEach(k => printCmd(k));
+        printBlank();
+      }
 
       printBlank();
       printLine('  Keyboard shortcuts', 'line-head');
       printRule('─', 38);
       printLine('  ↑ / ↓          Navigate command history', 'line-info');
       printLine('  Tab            Auto-complete command name', 'line-info');
-      printLine('  Ctrl+L / ⌘L    Clear current input (not the screen)', 'line-info');
+      printLine('  Ctrl+L / ⌘L    Clear the terminal screen', 'line-info');
+      printLine('  Escape         Clear current input line', 'line-info');
       printLine('  Ctrl+Shift+S   Add current tab as a speed-dial tile', 'line-info');
       printLine('  (Run  keys  for a full shortcut reference)', 'line-info');
       printBlank();
@@ -92,10 +123,10 @@ export const helpCommands = {
       const shortcuts = [
         ['↑ / ↓',        'Navigate command history'],
         ['Tab',           'Auto-complete command name'],
-        ['Ctrl+L / ⌘L',   'Clear current input (not the screen)'],
+        ['Ctrl+L / ⌘L',   'Clear the terminal screen'],
+        ['Escape',        'Clear / cancel current input'],
         ['Ctrl+Shift+S',   'Add current tab as a speed-dial tile'],
         ['Ctrl+, / ⌘,',   'Open / close Settings panel'],
-        ['Escape',        'Clear / cancel current input'],
         ['Right-click',   'Paste or open browser context menu'],
       ];
 
