@@ -65,8 +65,9 @@ window.addEventListener('message', event => {
 
   switch (type) {
     case 'print':
-      // Lua print() output — printLine is batch-aware so this lands in the
-      // correct cmd-output-block while the lua command is executing.
+      // Lua runs without a batch (dispatch skips beginBatch/endBatch for 'lua'),
+      // so printLine appends directly to outputEl and scrolls into view in
+      // real time.  The call is still safe if a batch happens to be active.
       printLine(text ?? '');
       break;
 
@@ -107,8 +108,10 @@ window.addEventListener('message', event => {
       break;
 
     case 'draw': {
-      // Create the canvas <pre> on first call; reuse it for every subsequent
-      // frame so updating a game is a single textContent assignment.
+      // Lua runs without a batch, so we append _gameCanvas directly to
+      // outputEl — no beginBatch/endBatch is involved.  Creating the <pre>
+      // once and reusing it means each animation frame is a single
+      // textContent assignment with no extra DOM nodes.
       if (!_gameCanvas) {
         _gameCanvas = document.createElement('pre');
         _gameCanvas.className = 'banner-output';

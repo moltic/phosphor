@@ -64,23 +64,26 @@ export function dispatch(raw) {
   const trimmed = raw.trim();
   if (trimmed === '') return;
 
+  const [cmdName, ...args] = trimmed.split(/\s+/);
+  const key = cmdName.toLowerCase();
+
+  // Skip batching for Lua to allow real-time animation.
+  const isLua = (key === 'lua');
+
   // Open a batch so every printLine call during this command goes into a
   // single container that is appended to #output in one shot.
-  beginBatch();
+  if (!isLua) beginBatch();
 
   // Echo what the user typed.
   printLine(`> ${trimmed}`, 'line-cmd');
 
-  const [cmdName, ...args] = trimmed.split(/\s+/);
-  const key = cmdName.toLowerCase();
-
   if (Object.prototype.hasOwnProperty.call(commands, key)) {
     Promise.resolve(commands[key].run(args))
-      .then(() => endBatch())
+      .then(() => { if (!isLua) endBatch(); })
       .catch(err => {
         printLine(`Error: ${err.message}`, 'line-err');
         console.error('[Phosphor]', err);
-        endBatch();
+        if (!isLua) endBatch();
       });
   } else {
     printLine(`Unknown command: "${cmdName}"`, 'line-err');
@@ -94,6 +97,6 @@ export function dispatch(raw) {
       printLine(`Did you mean:  ${scored.map(s => s.k).join('  ')}`, 'line-info');
     }
     printLine('Type  help  to see available commands.', 'line-info');
-    endBatch();
+    if (!isLua) endBatch();
   }
 }

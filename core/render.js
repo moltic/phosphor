@@ -81,6 +81,9 @@ function _cancelPager() {
 
 /**
  * Append one line of text to the output area.
+ * Safe to call with or without an active batch:
+ *   • Inside a batch  → appended to the off-DOM _batchEl container.
+ *   • Outside a batch → appended directly to outputEl and scrolled into view.
  * @param {string} text
  * @param {string} [cls='line-out']
  */
