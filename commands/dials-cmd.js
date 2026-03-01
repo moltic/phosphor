@@ -58,8 +58,8 @@ export const dialsCommands = {
 
   // ── dial ──────────────────────────────────────────────────────────
   dial: {
-    description: 'Manage speed-dial tiles.  dial add [alias ...] [url] [--category <name>] | dial rm [alias ...] | dial move <alias> <category> | dial rename <alias> <new-label> | dial category [label ...] | dial weather [url] | dial divider [row|col] | dial import',
-    usage: 'dial add [alias ...] [url] [--category <name>]  |  dial rm [alias ...]  |  dial move <alias> <category>  |  dial rename <alias> <new-label>  |  dial category [label ...]  |  dial group [label ...] (deprecated)  |  dial weather [url]  |  dial divider [row|col]  |  dial import',
+    description: 'Manage speed-dial tiles.  Subcommands: add, rm, move, rename, category, weather, divider, import',
+    usage: 'dial <subcommand> [args]',
     async run(args) {
       const sub = (args[0] || '').toLowerCase();
 
