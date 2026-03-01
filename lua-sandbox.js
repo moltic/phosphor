@@ -106,6 +106,20 @@ async function _boot(wasmUrl) {
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
   await _engine.doString('io = nil; os = nil');
 
+  // Wasmoon returns JS Promises as Lua userdata with an :await() method.
+  // Without this wrapper, phos.sleep/store/fetch/read_key just discard the
+  // Promise and return immediately, breaking animation and all async calls.
+  await _engine.doString(`
+    local _sleep    = phos.sleep
+    local _store    = phos.store
+    local _fetch    = phos.fetch
+    local _read_key = phos.read_key
+    phos.sleep    = function(ms)      return _sleep(ms):await()    end
+    phos.store    = function(k, v)    return _store(k, v):await()  end
+    phos.fetch    = function(k)       return _fetch(k):await()     end
+    phos.read_key = function()        return _read_key():await()   end
+  `);
+
   parent.postMessage({ type: 'ready' }, '*');
 }
 
