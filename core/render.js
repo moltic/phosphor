@@ -151,9 +151,14 @@ export function wrapWords(text, maxWidth) {
 // ============================================================
 
 // Visual scale for the header banner after auto-fit measurement.
-const BANNER_FIT_SCALE    = 0.86;
-const BANNER_FIT_MAX_CHARS = 140;
-const BANNER_FIT_MAX_PX   = 32;
+const BANNER_FIT_SCALE         = 0.86;
+const BANNER_FIT_MAX_CHARS     = 140;
+const BANNER_FIT_MAX_PX        = 32;
+// Maximum banner height expressed as a fraction of the viewport height.
+// Prevents short greetings from inflating the font until they tower over the layout.
+const BANNER_FIT_MAX_HEIGHT_VH = 0.25;
+// Must match the CSS line-height on #ascii-art (currently 1.02).
+const BANNER_LINE_HEIGHT       = 1.02;
 
 // Legacy 6-row banner font (Unicode).
 const LEGACY_BANNER_FONT = {
@@ -401,7 +406,15 @@ export async function fitBanner(el) {
   if (!probeW || !refPx) return;
 
   const available = Math.max(0, el.parentElement.clientWidth - 18);
-  const idealPx   = (available * BANNER_FIT_SCALE / probeW) * refPx;
+  const widthPx    = (available * BANNER_FIT_SCALE / probeW) * refPx;
+
+  // Height guard: clamp so the full banner never exceeds BANNER_FIT_MAX_HEIGHT_VH
+  // of the viewport height, regardless of how few characters the greeting has.
+  const numRows     = lines.length || 6;
+  const maxHeightPx = window.innerHeight * BANNER_FIT_MAX_HEIGHT_VH;
+  const heightPx    = maxHeightPx / (numRows * BANNER_LINE_HEIGHT);
+
+  const idealPx = Math.min(widthPx, heightPx);
   el.style.fontSize = Math.min(Math.max(Math.round(idealPx), 6), BANNER_FIT_MAX_PX) + 'px';
 }
 
