@@ -433,7 +433,7 @@ html, body {
   padding: 0.18em 0.45em;
   cursor: pointer;
   letter-spacing: 0.05em;
-  opacity: 0.5;
+  opacity: 1;
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
               box-shadow 0.15s ease;
   user-select: none;
@@ -459,7 +459,7 @@ html, body {
   padding: 0.18em 0.45em;
   cursor: pointer;
   letter-spacing: 0.05em;
-  opacity: 0.5;
+  opacity: 1;
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
               box-shadow 0.15s ease;
   user-select: none;
@@ -485,7 +485,7 @@ html, body {
   padding: 0.18em 0.45em;
   cursor: pointer;
   letter-spacing: 0.05em;
-  opacity: 0.5;
+  opacity: 1;
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
               box-shadow 0.15s ease;
   user-select: none;
@@ -543,7 +543,7 @@ html, body {
   letter-spacing: 0.05em;
   user-select: none;
   white-space: nowrap;
-  opacity: 0.7;
+  opacity: 1;
   transition:
     color       0.12s ease,
     border-color 0.12s ease,
@@ -2989,7 +2989,7 @@ html.reduced-motion--on .dial-composer           { animation: none; }
   padding: 0.18em 0.45em;
   cursor: pointer;
   letter-spacing: 0.05em;
-  opacity: 0.5;
+  opacity: 1;
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
               box-shadow 0.15s ease;
   user-select: none;
