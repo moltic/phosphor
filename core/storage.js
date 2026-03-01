@@ -236,20 +236,46 @@ export async function saveNotes(notes) {
 
 // ── Prefs CRUD ────────────────────────────────────────────────────────────────
 
+let _cachedPrefs = null;
+let _prefsInitPromise = null;
+
 /**
  * Load user preferences from chrome.storage.sync.
  * Falls back to DEFAULT_PREFS for any missing key.
  */
 export async function loadPrefs() {
-  const data   = await chrome.storage.sync.get({ prefs: {} });
-  const stored = data.prefs || {};
-  const merged = { ...DEFAULT_PREFS, ...stored };
+  if (_cachedPrefs) return _cachedPrefs;
 
-  // Legacy migration: older versions stored a single `fontSize`.
-  if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
-  if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+  if (!_prefsInitPromise) {
+    _prefsInitPromise = (async () => {
+      const data   = await chrome.storage.sync.get({ prefs: {} });
+      const stored = data.prefs || {};
+      const merged = { ...DEFAULT_PREFS, ...stored };
 
-  return merged;
+      // Legacy migration: older versions stored a single `fontSize`.
+      if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+      if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+
+      _cachedPrefs = merged;
+
+      // Listen for background updates (e.g., from another tab or sync event)
+      if (chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === 'sync' && changes.prefs) {
+            const newStored = changes.prefs.newValue || {};
+            _cachedPrefs = { ...DEFAULT_PREFS, ...newStored };
+            // Legacy migration: older versions stored a single `fontSize`.
+            if (!('terminalSize' in newStored) && ('fontSize' in newStored)) _cachedPrefs.terminalSize = newStored.fontSize;
+            if (!('dialSize'     in newStored) && ('fontSize' in newStored)) _cachedPrefs.dialSize     = newStored.fontSize;
+          }
+        });
+      }
+
+      return merged;
+    })();
+  }
+
+  return _prefsInitPromise;
 }
 
 /**
