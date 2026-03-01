@@ -12,6 +12,7 @@ import { onboardingCommands }                from './onboarding.js';
 import { profileCommands }                   from './profile.js';
 import { missionsCommands }                  from './missions.js';
 import { gamesCommands }                     from './games.js';
+import { launchCommands }                    from './launch.js';
 import {
   beginBatch, endBatch, printLine,
 } from '../core/render.js';
@@ -29,6 +30,7 @@ export const commands = {
   ...profileCommands,
   ...missionsCommands,
   ...gamesCommands,
+  ...launchCommands,
 };
 
 // Inject the full registry into help.js (avoids circular import).

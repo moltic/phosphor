@@ -39,6 +39,7 @@ import { commands, dispatch }         from './commands/index.js';
 import { printBootSequence }          from './commands/system.js';
 import { awardAchievement }           from './core/progression.js';
 import { notifyAchievement }          from './commands/profile.js';
+import { initLaunchPanel }            from './ui/launch-panel.js';
 
 // ============================================================
 //  init
@@ -76,6 +77,7 @@ async function init() {
   if (prefs.sessionCount >= 50)  _sessionMilestones.push(awardAchievement('fifty_sessions'));
 
   await applyPrefs(prefs);
+  initLaunchPanel();
   updateDialOverlayTop();
 
   // Re-fit banner on window resize (debounced)
@@ -307,11 +309,11 @@ document.getElementById('dial-overlay-open')?.addEventListener('click', () => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
   // Close dial overlay when clicking outside of it (but not the open trigger)
-  if (isDialOverlayOpen() && !e.target.closest('#speed-dial-wrap, #dial-overlay-open')) {
+  if (isDialOverlayOpen() && !e.target.closest('#speed-dial-wrap, #dial-overlay-open, #launch-panel')) {
     closeDialOverlay();
     return;
   }
-  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, #speed-dial-wrap, .dial-composer, #dial-move-picker, .dial-toolbar-search')) {
+  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, #speed-dial-wrap, .dial-composer, #dial-move-picker, .dial-toolbar-search, #launch-panel')) {
     // Don't steal focus when user is selecting text in the output area
     const sel = window.getSelection();
     if (sel && sel.toString().length > 0) return;

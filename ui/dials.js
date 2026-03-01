@@ -4,6 +4,7 @@
 import { CONFIG }                   from '../core/config.js';
 import { loadDials, saveDials, loadDialStore, saveDialStore } from '../core/storage.js';
 import { printLine, inputEl }       from '../core/render.js';
+import { recordDialOpen }           from '../core/usage-stats.js';
 import {
   _createWeatherTileEl, _patchWeatherTileEl,
   _refreshWeatherTile, _weatherIntervals,
@@ -714,7 +715,10 @@ export function bindDragEvents(el, dial, opts = {}) {
       // In normal (non-edit) mode open the URL in a new tab.
       if (!_isEditMode() && !isDivider && !isGroupHeader) {
         const href = (el instanceof HTMLAnchorElement ? el.href : '') || dial.url;
-        if (href) window.open(href, '_blank', 'noopener,noreferrer');
+        if (href) {
+          recordDialOpen(dial.alias);
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
       }
     });
   }
@@ -1122,7 +1126,10 @@ function _createTileEl(dial) {
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; return; }
     _clickTimer = setTimeout(() => {
       _clickTimer = null;
-      if (dial.url) window.open(dial.url, '_blank', 'noopener,noreferrer');
+      if (dial.url) {
+        recordDialOpen(dial.alias);
+        window.open(dial.url, '_blank', 'noopener,noreferrer');
+      }
     }, 120);
   });
   tile.addEventListener('dblclick', e => {
@@ -1777,7 +1784,10 @@ export const ctxMenuEl = (() => {
     hideDialCtxMenu();
     const dials = await loadDials();
     const dial  = dials.find(d => d.alias === alias);
-    if (dial?.url) window.open(dial.url, '_blank');
+    if (dial?.url) {
+      recordDialOpen(alias);
+      window.open(dial.url, '_blank');
+    }
   });
 
   const editBtn = makeBtn('Advanced\u2026', 'edit');

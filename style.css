@@ -2894,3 +2894,464 @@ html.dial-layout--auto .dial-divider.row-divider {
     min-width: auto;
   }
 }
+
+/* ── ═══════════════════════════════════════════════════════
+   Launch Panel
+   ═══════════════════════════════════════════════════════ ─ */
+
+/* ── [LAUNCH] trigger button in the overlay header ────────── */
+#launch-panel-trigger {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--dial-font-size);
+  cursor: pointer;
+  padding: 0.15em 0.55em;
+  letter-spacing: 0.05em;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+#launch-panel-trigger:hover,
+#launch-panel-trigger:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+  box-shadow: 0 0 6px var(--glow-soft);
+  outline: none;
+}
+
+/* ── Full-screen overlay container ────────────────────────── */
+#launch-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 350;           /* above dial grid (300) */
+  pointer-events: none;   /* closed: let events through */
+}
+
+#launch-panel.is-open {
+  pointer-events: auto;
+}
+
+/* ── Semi-transparent backdrop ────────────────────────────── */
+.launch-panel__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#launch-panel.is-open .launch-panel__backdrop {
+  opacity: 1;
+}
+
+/* ── Panel card ────────────────────────────────────────────── */
+.launch-panel__card {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 26em;
+  max-width: 92vw;
+  background: var(--bg);
+  border-left: 1px solid var(--fg);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+#launch-panel.is-open .launch-panel__card {
+  transform: translateX(0);
+}
+
+/* ── Panel header ──────────────────────────────────────────── */
+.launch-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65em 1em;
+  border-bottom: 1px solid var(--fg-dim);
+  flex-shrink: 0;
+  gap: 0.5em;
+}
+
+.launch-panel__title {
+  color: var(--fg-bright);
+  font-family: var(--font-stack);
+  font-size: var(--dial-font-size);
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 8px var(--glow);
+}
+
+.launch-panel__close {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: var(--dial-font-size);
+  cursor: pointer;
+  padding: 0.12em 0.5em;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.launch-panel__close:hover,
+.launch-panel__close:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+  outline: none;
+}
+
+/* ── Scrollable body ───────────────────────────────────────── */
+.launch-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75em 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fg-dim) transparent;
+}
+
+.launch-panel__body::-webkit-scrollbar {
+  width: 4px;
+}
+.launch-panel__body::-webkit-scrollbar-thumb {
+  background: var(--fg-dim);
+}
+
+/* ── Section ───────────────────────────────────────────────── */
+.launch-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+}
+
+.launch-panel__section-title {
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--fg-dim);
+  padding-bottom: 0.2em;
+}
+
+/* ── Quick-open list (recent / most-used) ──────────────────── */
+.launch-panel__quick-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+}
+
+.launch-panel__quick-item {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.82em;
+  padding: 0.22em 0.55em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  letter-spacing: 0.04em;
+  transition: border-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+.launch-panel__quick-item:hover,
+.launch-panel__quick-item:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+  box-shadow: 0 0 5px var(--glow-soft);
+  outline: none;
+}
+
+.launch-panel__quick-label {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launch-panel__count-badge {
+  color: var(--fg-dim);
+  font-size: 0.78em;
+  letter-spacing: 0.02em;
+}
+
+.launch-panel__mini-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  color: var(--fg-dim);
+}
+
+/* ── Launch sets header row ────────────────────────────────── */
+.launch-panel__sets-headrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+
+.launch-panel__new-btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.78em;
+  padding: 0.16em 0.5em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.launch-panel__new-btn:hover,
+.launch-panel__new-btn:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+  outline: none;
+}
+
+/* ── Empty state ───────────────────────────────────────────── */
+.launch-panel__empty {
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.82em;
+  line-height: 1.5;
+  padding: 0.4em 0;
+}
+
+/* ── Sets list ─────────────────────────────────────────────── */
+.launch-panel__sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+/* ── Single set row ────────────────────────────────────────── */
+.launch-panel__set-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5em;
+  border: 1px solid var(--fg-dim);
+  padding: 0.5em 0.65em;
+  transition: border-color 0.12s;
+}
+
+.launch-panel__set-row:hover {
+  border-color: var(--fg);
+}
+
+.launch-panel__set-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.launch-panel__set-name {
+  color: var(--fg-bright);
+  font-family: var(--font-stack);
+  font-size: 0.88em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.launch-panel__set-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22em;
+}
+
+.launch-panel__tag {
+  background: var(--bg);
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.72em;
+  padding: 0.06em 0.32em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.launch-panel__tag--missing {
+  border-color: #e06c75;
+  color: #e06c75;
+  opacity: 0.7;
+}
+
+/* ── Set action buttons ────────────────────────────────────── */
+.launch-panel__set-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28em;
+  flex-shrink: 0;
+}
+
+.launch-panel__set-btn {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.78em;
+  padding: 0.14em 0.45em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.launch-panel__set-btn:hover,
+.launch-panel__set-btn:focus-visible {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+  outline: none;
+}
+
+.launch-panel__set-btn--run {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+}
+
+.launch-panel__set-btn--run:hover,
+.launch-panel__set-btn--run:focus-visible {
+  box-shadow: 0 0 6px var(--glow-soft);
+}
+
+.launch-panel__set-btn--rm {
+  color: var(--fg-dim);
+}
+
+.launch-panel__set-btn--rm:hover,
+.launch-panel__set-btn--rm:focus-visible {
+  border-color: #e06c75;
+  color: #e06c75;
+}
+
+.launch-panel__set-btn--save {
+  border-color: var(--fg);
+  color: var(--fg-bright);
+}
+
+/* ── Inline editor card ────────────────────────────────────── */
+.launch-panel__editor {
+  border: 1px solid var(--fg);
+  padding: 0.7em 0.8em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  background: var(--bg);
+  box-shadow: 0 0 12px var(--glow-soft);
+}
+
+.launch-panel__editor-title {
+  color: var(--fg-bright);
+  font-family: var(--font-stack);
+  font-size: 0.8em;
+  letter-spacing: 0.12em;
+}
+
+.launch-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.launch-panel__field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.7em;
+  letter-spacing: 0.1em;
+}
+
+.launch-panel__field-input {
+  background: var(--bg);
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  font-family: var(--font-stack);
+  font-size: 0.88em;
+  padding: 0.28em 0.45em;
+  outline: none;
+  width: 100%;
+}
+
+.launch-panel__field-input:focus {
+  border-color: var(--fg);
+}
+
+.launch-panel__field-hint {
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  line-height: 1.4;
+  opacity: 0.8;
+  word-break: break-all;
+}
+
+.launch-panel__editor-error {
+  color: #e06c75;
+  font-family: var(--font-stack);
+  font-size: 0.78em;
+  min-height: 0.9em;
+}
+
+.launch-panel__editor-btns {
+  display: flex;
+  gap: 0.4em;
+}
+
+/* ── Footer hint ───────────────────────────────────────────── */
+.launch-panel__footer {
+  flex-shrink: 0;
+  padding: 0.55em 1em;
+  border-top: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.68em;
+  letter-spacing: 0.05em;
+}
+
+.launch-panel__footer kbd {
+  color: var(--fg);
+  border: 1px solid var(--fg-dim);
+  padding: 0.05em 0.28em;
+  font-family: var(--font-stack);
+  font-size: 1em;
+}
+
+/* ── Responsive: narrow viewports ─────────────────────────── */
+@media (max-width: 600px) {
+  .launch-panel__card {
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--fg);
+    top: auto;
+    bottom: 0;
+    height: 75vh;
+    transform: translateY(100%);
+  }
+
+  #launch-panel.is-open .launch-panel__card {
+    transform: translateY(0);
+  }
+}
+
