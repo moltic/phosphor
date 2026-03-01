@@ -2981,8 +2981,8 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 /* ── [LAUNCH] trigger button in the overlay header ────────── */
 #launch-panel-trigger {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.65em;
   line-height: 1;
