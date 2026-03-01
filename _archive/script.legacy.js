@@ -2632,6 +2632,15 @@ const commands = {
 
       // 3) Already has a scheme  (http://, https://, ftp://, etc.)
       if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(raw)) {
+        try {
+          const parsed = new URL(raw);
+          if (['javascript:', 'vbscript:', 'data:'].includes(parsed.protocol)) {
+            printLine(`Security Error: Navigation to ${parsed.protocol} is blocked.`, 'line-err');
+            return;
+          }
+        } catch (e) {
+          // Ignore invalid URLs
+        }
         printLine(`Opening ${raw}`, 'line-ok');
         window.location.href = raw;
         return;
