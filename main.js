@@ -31,7 +31,8 @@ import {
 import { renderDials,
          ctxMenuEl, hideDialCtxMenu,
          openCurrentTabDial,
-         openDialOverlay, closeDialOverlay, isDialOverlayOpen } from './ui/dials.js';
+         openDialOverlay, closeDialOverlay, isDialOverlayOpen,
+         updateDialOverlayTop } from './ui/dials.js';
 import { tickClock }                  from './core/clock.js';
 import { commands, dispatch }         from './commands/index.js';
 import { printBootSequence }          from './commands/system.js';
@@ -65,6 +66,7 @@ async function init() {
   await savePrefs(prefs);
 
   await applyPrefs(prefs);
+  updateDialOverlayTop();
 
   // Re-fit banner on window resize (debounced)
   let _resizeTimer;
@@ -74,6 +76,7 @@ async function init() {
       const el = document.getElementById('ascii-art');
       if (el) fitBanner(el);
       updateBannerMetrics();
+      updateDialOverlayTop();
     }, 120);
   });
 

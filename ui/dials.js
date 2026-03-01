@@ -61,7 +61,16 @@ if (_editToggle) {
 
 // ── Dial overlay open / close ─────────────────────────────────────────────────
 
+/** Measure #header bottom and update the --dial-overlay-top CSS variable. */
+export function updateDialOverlayTop() {
+  const headerEl = document.getElementById('header');
+  if (headerEl) {
+    _wrapEl.style.setProperty('--dial-overlay-top', (headerEl.offsetTop + headerEl.offsetHeight) + 'px');
+  }
+}
+
 export function openDialOverlay() {
+  updateDialOverlayTop();
   _wrapEl.classList.add('visible');
   _wrapEl.setAttribute('aria-hidden', 'false');
   _wrapEl.focus();
