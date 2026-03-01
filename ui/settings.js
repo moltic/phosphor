@@ -182,6 +182,7 @@ export const settingsPanelEl = (() => {
   const tempUnitSelect     = makeSelect('s-tempunit',      [['auto', 'AUTO (LOCALE)'], ['c', 'CELSIUS (°C)'], ['f', 'FAHRENHEIT (°F)']]);
   const cursorSpeedSelect  = makeSelect('s-cursorspeed',   [['slow', 'SLOW'], ['normal', 'NORMAL'], ['fast', 'FAST']]);
   const historyPersistSel  = makeSelect('s-historypersist',[['on', 'ON'], ['off', 'OFF']]);
+  const dialOnLoadSel      = makeSelect('s-dialonload',    [['off', 'OFF'], ['on', 'ON']]);
 
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
@@ -212,6 +213,7 @@ export const settingsPanelEl = (() => {
   inner.appendChild(makeRow('TEMPERATURE UNIT', tempUnitSelect));
   inner.appendChild(makeRow('CURSOR SPEED',     cursorSpeedSelect));
   inner.appendChild(makeRow('HISTORY PERSIST',  historyPersistSel));
+  inner.appendChild(makeRow('DIALS ON LOAD',    dialOnLoadSel));
   inner.appendChild(actionsEl);
 
   // ── Live preview: apply changes instantly as the user adjusts controls ────
@@ -291,6 +293,7 @@ export async function openSettingsPanel() {
   document.getElementById('s-tempunit').value      = prefs.tempUnit     || 'auto';
   document.getElementById('s-cursorspeed').value   = prefs.cursorBlinkSpeed || 'normal';
   document.getElementById('s-historypersist').value = prefs.historyPersist === false ? 'off' : 'on';
+  document.getElementById('s-dialonload').value      = prefs.dialOpenOnLoad  === true  ? 'on'  : 'off';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -316,6 +319,7 @@ export async function commitSettings() {
     tempUnit:         document.getElementById('s-tempunit').value,
     cursorBlinkSpeed: document.getElementById('s-cursorspeed').value,
     historyPersist:   document.getElementById('s-historypersist').value === 'on',
+    dialOpenOnLoad:   document.getElementById('s-dialonload').value === 'on',
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);

@@ -108,4 +108,5 @@ export const DEFAULT_PREFS = {
   tempUnit:         'auto',
   cursorBlinkSpeed: 'normal',
   historyPersist:   true,
+  dialOpenOnLoad:   false,
 };

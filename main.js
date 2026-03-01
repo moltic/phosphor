@@ -84,6 +84,9 @@ async function init() {
   // Boot sequence
   await printBootSequence();
 
+  // Open dial overlay on load if configured
+  if (prefs.dialOpenOnLoad) openDialOverlay();
+
   // Check for pending "add current tab" dial (queued by the background SW
   // when the user pressed Ctrl+Shift+D on another tab).
   const { _pendingTabDial } = await chrome.storage.local.get('_pendingTabDial');
