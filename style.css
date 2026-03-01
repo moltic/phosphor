@@ -425,8 +425,8 @@ html, body {
 
 #dial-overlay-close {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.65em;
   line-height: 1;
@@ -451,8 +451,8 @@ html, body {
 /* ── [DIALS] trigger button in status-line ───────────────────── */
 #dial-overlay-open {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.65em;
   line-height: 1;
@@ -477,8 +477,8 @@ html, body {
 /* ── [EDIT] / [DONE] toggle button ──────────────────────────── */
 #dial-edit-toggle {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.65em;
   line-height: 1;
@@ -533,8 +533,8 @@ html, body {
 /* Action + density stepper buttons share a base style */
 .dial-toolbar-btn {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.68em;
   line-height: 1;
@@ -638,7 +638,7 @@ html, body {
 .dial-toolbar-density-label {
   font-family: var(--font-stack);
   font-size: 0.6em;
-  color: var(--fg-dim);
+  color: var(--fg);
   letter-spacing: 0.08em;
   min-width: 4.2em;
   text-align: center;
@@ -657,8 +657,8 @@ html, body {
 
 .dial-chip {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.61em;
   line-height: 1;
@@ -667,7 +667,7 @@ html, body {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   user-select: none;
-  opacity: 0.6;
+  opacity: 0.75;
   transition:
     color       0.1s ease,
     border-color 0.1s ease,
@@ -911,15 +911,15 @@ html, body {
 
 .dial-empty-state__btn {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.82em;
   line-height: 1;
   padding: 0.36em 0.9em;
   cursor: pointer;
   letter-spacing: 0.07em;
-  opacity: 0.75;
+  opacity: 1;
   transition: color 0.12s ease, border-color 0.12s ease,
               opacity 0.12s ease, box-shadow 0.12s ease;
   user-select: none;
@@ -2039,8 +2039,8 @@ html.dial-layout--auto .dial-divider.row-divider {
 
 .dial-composer-btn {
   background: none;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--font-stack);
   font-size: 0.68em;
   line-height: 1;
@@ -2135,7 +2135,7 @@ html.dial-layout--auto .dial-divider.row-divider {
 
 .dial-sheet-close {
   background: none;
-  border: 1px solid var(--fg-dim);
+  border: 1px solid var(--fg);
   color: var(--fg);
   font-family: var(--font-stack);
   font-size: var(--dial-font-size);
@@ -2226,7 +2226,7 @@ html.dial-layout--auto .dial-divider.row-divider {
 
 .dial-edit-btn {
   background: none;
-  border: 1px solid var(--fg-dim);
+  border: 1px solid var(--fg);
   color: var(--fg);
   font-family: var(--font-stack);
   font-size: var(--dial-font-size);
@@ -2372,7 +2372,7 @@ html.dial-layout--auto .dial-divider.row-divider {
 
 .settings-btn {
   background: none;
-  border: 1px solid var(--fg-dim);
+  border: 1px solid var(--fg);
   color: var(--fg);
   font-family: var(--font-stack);
   font-size: var(--font-size);
