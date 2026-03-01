@@ -212,18 +212,6 @@ inputEl.addEventListener('keydown', e => {
       break;
     }
 
-    case ',': {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        if (settingsPanelEl.classList.contains('visible')) {
-          closeSettingsPanel();
-        } else {
-          openSettingsPanel();
-        }
-      }
-      break;
-    }
-
     case 'Escape': {
       // Clear current input (or cancel pending confirm)
       if (_pendingConfirm) break;  // let the confirm system handle it
@@ -238,6 +226,19 @@ inputEl.addEventListener('keydown', e => {
 
     default:
       break;
+  }
+});
+
+// ── Global keyboard shortcuts (settings toggle, etc.) ──────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+    e.preventDefault();
+    if (settingsPanelEl.classList.contains('visible')) {
+      closeSettingsPanel();
+    } else {
+      openSettingsPanel();
+    }
+    return;
   }
 });
 
