@@ -14,6 +14,9 @@ export const cursorEl     = document.getElementById('cursor');
 /** printLine writes here while a command is running; flushed atomically. */
 let _batchEl = null;
 
+/** Timer handle for the auto-dismiss of the ▼ MORE ▼ hint. */
+let _hintDismissTimer = null;
+
 // ============================================================
 //  Print helpers
 // ============================================================
@@ -89,18 +92,38 @@ export function endBatch() {
   if (_batchEl) {
     if (_batchEl.hasChildNodes()) {
       outputEl.appendChild(_batchEl);
-      _batchEl.scrollIntoView({ block: 'start', behavior: 'instant' });
+      // Scroll to the bottom so the last line of output is immediately visible,
+      // matching standard terminal behaviour.
+      outputEl.scrollTop = outputEl.scrollHeight;
     }
     _batchEl = null;
   }
   updateScrollHint();
 }
 
-/** Show/hide the ▼ MORE ▼ hint based on whether #output has content below the fold. */
+/** Show/hide the ▼ MORE ▼ hint based on whether #output has content below the fold.
+ *  When shown, the hint auto-dismisses after 2.5 s with a fade-out so it doesn't
+ *  linger while the user types their next command. */
 export function updateScrollHint() {
   const hasOverflow = outputEl.scrollHeight > outputEl.clientHeight;
   const atBottom    = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
-  scrollMoreEl.classList.toggle('visible', hasOverflow && !atBottom);
+  const shouldShow  = hasOverflow && !atBottom;
+
+  // Cancel any in-flight auto-dismiss before re-evaluating state.
+  if (_hintDismissTimer) { clearTimeout(_hintDismissTimer); _hintDismissTimer = null; }
+  scrollMoreEl.classList.remove('fading');
+  scrollMoreEl.classList.toggle('visible', shouldShow);
+
+  if (shouldShow) {
+    // After 2.5 s, start a 0.5 s opacity fade, then fully hide.
+    _hintDismissTimer = setTimeout(() => {
+      scrollMoreEl.classList.add('fading');
+      _hintDismissTimer = setTimeout(() => {
+        scrollMoreEl.classList.remove('visible', 'fading');
+        _hintDismissTimer = null;
+      }, 500);
+    }, 2500);
+  }
 }
 
 /** Return a reference to the currently-active batch element, or null. */

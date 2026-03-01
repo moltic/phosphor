@@ -198,6 +198,17 @@ inputEl.addEventListener('keydown', e => {
       break;
     }
 
+    case 'End': {
+      e.preventDefault();
+      // Move the caret to the end of the input text …
+      const len = inputEl.value.length;
+      inputEl.setSelectionRange(len, len);
+      // … and snap the output view to the bottom so the user can quickly
+      // return to the current prompt after scrolling through history.
+      outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'smooth' });
+      break;
+    }
+
     case 'Tab': {
       e.preventDefault();
       const raw   = inputEl.value;

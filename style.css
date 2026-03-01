@@ -2513,6 +2513,13 @@ html.dial-layout--auto .dial-divider.row-divider {
 #scroll-more.visible {
   display: block;
   cursor: pointer;
+  transition: opacity 0.5s ease;
+}
+
+/* Auto-dismiss fade-out state */
+#scroll-more.visible.fading {
+  opacity: 0;
+  pointer-events: none;
 }
 
 @keyframes scroll-hint-pulse {
