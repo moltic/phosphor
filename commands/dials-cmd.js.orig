@@ -31,17 +31,6 @@ function _findCategoryByLabel(store, label) {
   return store.categories.find(c => c.label.toLowerCase() === lo) ?? null;
 }
 
-/** Find a dial item by alias. Returns the item object or null. */
-function _findDialByAlias(store, alias, caseInsensitive = false) {
-  if (!alias) return null;
-  const items = store.categories.flatMap(c => c.items);
-  if (caseInsensitive) {
-    const lo = alias.toLowerCase();
-    return items.find(it => it.alias != null && it.alias.toLowerCase() === lo) ?? null;
-  }
-  return items.find(it => it.alias === alias) ?? null;
-}
-
 /** Return the implicit default category (first unlabelled, or first overall). */
 function _defaultCategory(store) {
   return store.categories.find(c => c.label === '') ?? store.categories[0];
@@ -110,7 +99,10 @@ export const dialsCommands = {
         }
 
         const store      = await loadDialStore();
-        const collision  = _findDialByAlias(store, alias, true);
+        const aliasLower = alias.toLowerCase();
+        const collision  = store.categories
+          .flatMap(c => c.items)
+          .find(it => it.alias != null && it.alias.toLowerCase() === aliasLower);
         if (collision) {
           printLine(`Alias "${collision.alias}" already exists. Use  dial rm ${collision.alias}  first.`, 'line-err');
           return;
@@ -145,7 +137,7 @@ export const dialsCommands = {
         if (!alias) { printLine('Usage:   dial rm [alias ...]', 'line-info'); return; }
 
         const store = await loadDialStore();
-        const found = _findDialByAlias(store, alias);
+        const found = store.categories.flatMap(c => c.items).find(it => it.alias === alias);
         if (!found) {
           printLine(`Alias "${alias}" not found.`, 'line-err');
           return;
@@ -176,11 +168,10 @@ export const dialsCommands = {
         for (let split = rest.length - 1; split >= 1; split--) {
           const trialAlias = rest.slice(0, split).join(' ').trim();
           const trialCat   = rest.slice(split).join(' ').trim();
-          const item = _findDialByAlias(store, trialAlias);
-          const srcCat = item ? store.categories.find(c => c.items.includes(item)) : null;
+          const srcCat = store.categories.find(c => c.items.some(it => it.alias === trialAlias));
           const dstCat = _findCategoryByLabel(store, trialCat);
           if (srcCat && dstCat) {
-            resolvedItem     = item;
+            resolvedItem     = srcCat.items.find(it => it.alias === trialAlias);
             resolvedSrcCat   = srcCat;
             resolvedDstCat   = dstCat;
             resolvedAlias    = trialAlias;
@@ -192,7 +183,7 @@ export const dialsCommands = {
           // Best-effort: detect which part failed for a helpful message.
           const guessAlias = rest.slice(0, -1).join(' ').trim();
           const guessCat   = rest[rest.length - 1];
-          const itemExists = _findDialByAlias(store, guessAlias);
+          const itemExists = store.categories.flatMap(c => c.items).find(it => it.alias === guessAlias);
           if (!itemExists) {
             printLine(`Dial "${guessAlias}" not found.`, 'line-err');
           } else {
@@ -235,7 +226,7 @@ export const dialsCommands = {
         for (let split = 1; split < rest.length; split++) {
           const trialAlias = rest.slice(0, split).join(' ').trim();
           const trialLabel = rest.slice(split).join(' ').trim();
-          const item = _findDialByAlias(store, trialAlias);
+          const item = store.categories.flatMap(c => c.items).find(it => it.alias === trialAlias);
           if (item && trialLabel) {
             resolvedItem  = item;
             resolvedAlias = trialAlias;
