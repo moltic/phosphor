@@ -373,23 +373,56 @@ html, body {
   text-shadow: 0 0 10px var(--glow-soft);
 }
 
-/* ── Speed-dial wrapper (positions the [EDIT] button) ───────── */
+/* ── Speed-dial overlay (full-screen, toggled on demand) ────── */
+@keyframes dial-overlay-in {
+  0%   { opacity: 0;   transform: scaleY(0.04); filter: brightness(4) blur(1px); }
+  40%  { opacity: 0.8; transform: scaleY(1.02); filter: brightness(1.3); }
+  100% { opacity: 1;   transform: scaleY(1);    filter: brightness(1); }
+}
+
 #speed-dial-wrap {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: none;
+  flex-direction: column;
+  background: var(--bg);
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  max-width: 960px;
+  margin: 0 auto;
+  box-shadow: 0 0 40px var(--glow-soft);
+}
+
+#speed-dial-wrap.visible {
+  display: flex;
+  animation: dial-overlay-in 0.22s ease-out forwards;
+}
+
+/* ── Overlay header row ──────────────────────────────────────── */
+#dial-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--fg-dim);
+  padding-bottom: 0.4em;
+  margin-bottom: 0.6em;
   flex-shrink: 0;
 }
 
-/* Hide wrapper entirely when no tiles exist and the toolbar has not mounted */
-#speed-dial-wrap:not(:has(.dial-tile, .dial-group-header, .dial-add-tile,
-                          #dial-toolbar, .dial-empty-state)) {
-  display: none;
+#dial-overlay-title {
+  font-size: 0.8em;
+  color: var(--fg-bright);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 8px var(--glow);
 }
 
-/* ── [EDIT] / [DONE] toggle button ──────────────────────────── */
-#dial-edit-toggle {
-  position: absolute;
-  top: 0.6em;
-  right: 0;
+#dial-overlay-actions {
+  display: flex;
+  gap: 0.5em;
+}
+
+#dial-overlay-close {
   background: none;
   border: 1px solid var(--fg-dim);
   color: var(--fg-dim);
@@ -403,7 +436,58 @@ html, body {
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
               box-shadow 0.15s ease;
   user-select: none;
-  z-index: 10;
+}
+
+#dial-overlay-close:hover,
+#dial-overlay-close:focus-visible {
+  opacity: 1;
+  color: var(--fg);
+  border-color: var(--fg);
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+/* ── [DIALS] trigger button in status-line ───────────────────── */
+#dial-overlay-open {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.65em;
+  line-height: 1;
+  padding: 0.18em 0.45em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease;
+  user-select: none;
+}
+
+#dial-overlay-open:hover,
+#dial-overlay-open:focus-visible {
+  opacity: 1;
+  color: var(--fg);
+  border-color: var(--fg);
+  outline: none;
+  box-shadow: 0 0 4px var(--glow-soft);
+}
+
+/* ── [EDIT] / [DONE] toggle button ──────────────────────────── */
+#dial-edit-toggle {
+  background: none;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-family: var(--font-stack);
+  font-size: 0.65em;
+  line-height: 1;
+  padding: 0.18em 0.45em;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease;
+  user-select: none;
 }
 
 #dial-edit-toggle:hover,
@@ -695,9 +779,9 @@ html, body {
   display: flex;
   flex-direction: column;
   font-size: var(--dial-font-size);
-  padding: 0.55em 0 0.65em;
-  border-bottom: 1px solid var(--fg-dim);
-  margin-bottom: 0.6em;
+  padding: 0.4em 0 0.65em;
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 /* ── Speed-dial Section ─────────────────────────────────────── */

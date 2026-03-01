@@ -30,7 +30,8 @@ import {
 } from './ui/settings.js';
 import { renderDials,
          ctxMenuEl, hideDialCtxMenu,
-         openCurrentTabDial }          from './ui/dials.js';
+         openCurrentTabDial,
+         openDialOverlay, closeDialOverlay, isDialOverlayOpen } from './ui/dials.js';
 import { tickClock }                  from './core/clock.js';
 import { commands, dispatch }         from './commands/index.js';
 import { printBootSequence }          from './commands/system.js';
@@ -167,9 +168,9 @@ inputEl.addEventListener('keydown', e => {
       const raw   = inputEl.value;
       const parts = raw.trimStart().split(/\s+/);
       if (raw === '') {
-        // Empty input: Tab enters the speed-dial grid
-        const firstTile = document.querySelector('#speed-dial .dial-tile');
-        if (firstTile) { firstTile.focus(); break; }
+        // Empty input: Tab opens the speed-dial overlay
+        openDialOverlay();
+        break;
       }
       if (parts.length === 1 && !raw.endsWith(' ')) {
         const prefix = parts[0];
@@ -229,7 +230,7 @@ inputEl.addEventListener('keydown', e => {
   }
 });
 
-// ── Global keyboard shortcuts (settings toggle, etc.) ──────────────────────
+// ── Global keyboard shortcuts (settings toggle, dial overlay, etc.) ──────────
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === ',') {
     e.preventDefault();
@@ -238,6 +239,11 @@ document.addEventListener('keydown', e => {
     } else {
       openSettingsPanel();
     }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+    e.preventDefault();
+    isDialOverlayOpen() ? closeDialOverlay() : openDialOverlay();
     return;
   }
 });
@@ -259,10 +265,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── Dismiss context menu on click outside ────────────────────────────────────
+// ── [DIALS] trigger button ────────────────────────────────────────────────────
+document.getElementById('dial-overlay-open')?.addEventListener('click', () => {
+  isDialOverlayOpen() ? closeDialOverlay() : openDialOverlay();
+});
+
+// ── Dismiss context menu / overlay on click outside ───────────────────────────
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
-  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, .dial-tile, .dial-composer, #dial-move-picker, .dial-toolbar-search')) {
+  // Close dial overlay when clicking outside of it (but not the open trigger)
+  if (isDialOverlayOpen() && !e.target.closest('#speed-dial-wrap, #dial-overlay-open')) {
+    closeDialOverlay();
+    return;
+  }
+  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, #speed-dial-wrap, .dial-composer, #dial-move-picker, .dial-toolbar-search')) {
     // Don't steal focus when user is selecting text in the output area
     const sel = window.getSelection();
     if (sel && sel.toString().length > 0) return;

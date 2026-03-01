@@ -22,7 +22,10 @@ import {
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const dialGridEl    = document.getElementById('speed-dial');
+const _wrapEl       = document.getElementById('speed-dial-wrap');
 const _editToggle   = document.getElementById('dial-edit-toggle');
+const _closeBtn     = document.getElementById('dial-overlay-close');
+const _openTrigger  = document.getElementById('dial-overlay-open');
 const _undoToastEl  = document.getElementById('dial-undo-toast');
 const _undoToastMsg = _undoToastEl?.querySelector('.dial-undo-toast-msg');
 const _undoToastBtn = _undoToastEl?.querySelector('.dial-undo-toast-btn');
@@ -56,8 +59,33 @@ if (_editToggle) {
   _editToggle.addEventListener('click', () => _isEditMode() ? _exitEditMode() : _enterEditMode());
 }
 
+// ── Dial overlay open / close ─────────────────────────────────────────────────
+
+export function openDialOverlay() {
+  _wrapEl.classList.add('visible');
+  _wrapEl.setAttribute('aria-hidden', 'false');
+  _wrapEl.focus();
+}
+
+export function closeDialOverlay() {
+  _wrapEl.classList.remove('visible');
+  _wrapEl.setAttribute('aria-hidden', 'true');
+  inputEl.focus();
+}
+
+export function isDialOverlayOpen() {
+  return _wrapEl.classList.contains('visible');
+}
+
+if (_closeBtn) {
+  _closeBtn.addEventListener('click', closeDialOverlay);
+}
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && _isEditMode()) { e.preventDefault(); _exitEditMode(); }
+  if (e.key === 'Escape') {
+    if (_isEditMode()) { e.preventDefault(); _exitEditMode(); return; }
+    if (isDialOverlayOpen()) { e.preventDefault(); closeDialOverlay(); return; }
+  }
 });
 
 // ── Letter-icon helpers ───────────────────────────────────────────────────────
@@ -1637,6 +1665,13 @@ export async function renderDials() {
   // Show the ⇄ move button only when multiple categories exist.
   dialGridEl.classList.toggle('has-multi-cats', store.categories.some(c => c.label));
   _applyDialFilter();
+
+  // ── Update [DIALS] trigger button with saved count ────────────────────────
+  if (_openTrigger) {
+    const count = store.categories.reduce((n, c) =>
+      n + c.items.filter(it => it.type !== 'divider').length, 0);
+    _openTrigger.textContent = count > 0 ? `[DIALS: ${count}]` : '[DIALS]';
+  }
 }
 
 // ── Dial toolbar filter application ──────────────────────────────────────────

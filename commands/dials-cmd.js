@@ -19,7 +19,7 @@ import {
   printLine, printBlank, printRule, endBatch,
 } from '../core/render.js';
 import { setPendingConfirm }                       from '../core/state.js';
-import { renderDials, removeDial }                 from '../ui/dials.js';
+import { renderDials, removeDial, openDialOverlay } from '../ui/dials.js';
 
 // ── DialStore helpers (used by add / move / rename / category) ────────────────
 
@@ -439,6 +439,19 @@ export const dialsCommands = {
         printBlank();
       }
     },
+  },
+
+  // ── menu / grid ─────────────────────────────────────────────────────────
+  menu: {
+    description: 'Open the speed-dial overlay.',
+    usage: 'menu',
+    run() { openDialOverlay(); },
+  },
+
+  grid: {
+    description: 'Open the speed-dial overlay.',
+    usage: 'grid',
+    run() { openDialOverlay(); },
   },
 
 };

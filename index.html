@@ -28,16 +28,9 @@
         <img id="logo" src="phos.png" alt="Phosphor" />
         <span id="status-label"></span>
         <span id="status-time" aria-live="off"></span>
+        <button id="dial-overlay-open" aria-label="Open speed dial">[DIALS]</button>
       </div>
     </header>
-
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!--  Speed-dial grid (populated by JS from storage)    -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <div id="speed-dial-wrap">
-      <div id="speed-dial" role="navigation" aria-label="Speed dial shortcuts"></div>
-      <button id="dial-edit-toggle" aria-label="Toggle speed-dial edit mode" title="Edit layout">[EDIT]</button>
-    </div>
 
     <!-- ═══════════════════════════════════════════════════ -->
     <!--  Main scrollable output area                       -->
@@ -77,6 +70,20 @@
     </div>
 
   </div><!-- /#terminal -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  Speed-dial overlay (full-screen, toggled on demand)   -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div id="speed-dial-wrap" role="dialog" aria-modal="true" aria-label="Speed dial" aria-hidden="true">
+    <div id="dial-overlay-header">
+      <span id="dial-overlay-title">■ SPEED DIAL</span>
+      <div id="dial-overlay-actions">
+        <button id="dial-edit-toggle" aria-label="Toggle speed-dial edit mode" title="Edit layout">[EDIT]</button>
+        <button id="dial-overlay-close" aria-label="Close speed dial">[CLOSE]</button>
+      </div>
+    </div>
+    <div id="speed-dial" role="navigation" aria-label="Speed dial shortcuts"></div>
+  </div>
 
   <!-- Undo toast — shown briefly after a speed-dial is removed -->
   <div id="dial-undo-toast" role="status" aria-live="assertive" aria-atomic="true">
