@@ -66,7 +66,7 @@ if (_editToggle) {
 export function updateDialOverlayTop() {
   const headerEl = document.getElementById('header');
   if (headerEl) {
-    _wrapEl.style.setProperty('--dial-overlay-top', (headerEl.offsetTop + headerEl.offsetHeight) + 'px');
+    _wrapEl.style.setProperty('--dial-overlay-top', (headerEl.offsetTop + headerEl.offsetHeight + 4) + 'px');
   }
 }
 
