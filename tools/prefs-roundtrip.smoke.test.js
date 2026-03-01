@@ -55,21 +55,46 @@ function makeMockStorage(syncInit = {}) {
 // ── Inlined from core/storage.js — Keep in sync ──────────────────────────────
 
 function makePrefsHelpers(chrome) {
+  let _cachedPrefs = null;
+  let _prefsPromise = null;
+
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'sync' && changes.prefs) {
+        const stored = changes.prefs.newValue || {};
+        const merged = { ...DEFAULT_PREFS, ...stored };
+        if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+        if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+        _cachedPrefs = merged;
+      }
+    });
+  }
+
   /** Load user preferences; falls back to DEFAULT_PREFS for any missing key. */
   async function loadPrefs() {
-    const data   = await chrome.storage.sync.get({ prefs: {} });
-    const stored = data.prefs || {};
-    const merged = { ...DEFAULT_PREFS, ...stored };
+    if (_cachedPrefs) return _cachedPrefs;
+    if (_prefsPromise) return _prefsPromise;
 
-    // Legacy migration: older versions stored a single `fontSize`.
-    if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
-    if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+    _prefsPromise = (async () => {
+      const data   = await chrome.storage.sync.get({ prefs: {} });
+      const stored = data.prefs || {};
+      const merged = { ...DEFAULT_PREFS, ...stored };
 
-    return merged;
+      // Legacy migration: older versions stored a single `fontSize`.
+      if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+      if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+
+      _cachedPrefs = merged;
+      _prefsPromise = null;
+      return merged;
+    })();
+
+    return _prefsPromise;
   }
 
   /** Persist user preferences to chrome.storage.sync. */
   async function savePrefs(prefs) {
+    _cachedPrefs = prefs;
     await chrome.storage.sync.set({ prefs });
   }
 
