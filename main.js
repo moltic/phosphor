@@ -8,6 +8,7 @@ import {
   beginBatch, endBatch,
   fitBanner, updateBannerMetrics,
   clearScreen,
+  isPaging, advancePage,
 } from './core/render.js';
 
 import {
@@ -125,10 +126,15 @@ async function init() {
 //  Event wiring
 // ============================================================
 
-// Scroll hint — clicking the hint scrolls to the bottom
+// Scroll hint — clicking scrolls to the bottom; in pager mode it advances a page
 outputEl.addEventListener('scroll', updateScrollHint);
 document.getElementById('scroll-more')?.addEventListener('click', () => {
-  outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'smooth' });
+  if (isPaging()) {
+    advancePage();
+  } else {
+    outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'smooth' });
+  }
+  inputEl.focus();
 });
 
 // Keep visible display in sync with hidden input
@@ -144,6 +150,14 @@ inputEl.addEventListener('keydown', e => {
   if (_activeGame) {
     e.preventDefault();
     _activeGame.onKey(e);
+    return;
+  }
+
+  // Pager intercept: Space or Enter advances to the next screenful while a
+  // long command output (help, missions …) is being revealed page-by-page.
+  if (isPaging() && (e.key === ' ' || e.key === 'Enter')) {
+    e.preventDefault();
+    advancePage();
     return;
   }
 

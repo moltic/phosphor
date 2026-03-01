@@ -17,6 +17,64 @@ let _batchEl = null;
 /** Timer handle for the auto-dismiss of the ▼ MORE ▼ hint. */
 let _hintDismissTimer = null;
 
+// ── Pager state ───────────────────────────────────────────────────────────────
+/**
+ * Non-null while a paginated response is waiting for user input.
+ * @type {{ queue: ChildNode[], batchEl: HTMLElement } | null}
+ */
+let _pager = null;
+
+/** True while a paginated command batch is waiting for Space / Enter. */
+export function isPaging() { return _pager !== null; }
+
+/**
+ * Reveal the next screenful of a paginated batch.
+ * Called from main.js when the user presses Space or Enter during paging.
+ */
+export function advancePage() {
+  if (!_pager) return;
+  const { queue, batchEl } = _pager;
+
+  // Cancel any auto-dismiss timer so we can take over the hint element.
+  if (_hintDismissTimer) { clearTimeout(_hintDismissTimer); _hintDismissTimer = null; }
+  scrollMoreEl.classList.remove('fading', 'visible', 'pager-mode');
+
+  const startHeight = outputEl.scrollHeight;
+  while (queue.length > 0) {
+    const el = queue.shift();
+    batchEl.appendChild(el);
+    // Stop once we've added roughly one screenful of new content.
+    if (outputEl.scrollHeight - startHeight >= outputEl.clientHeight) break;
+  }
+
+  outputEl.scrollTop = outputEl.scrollHeight;
+
+  if (queue.length === 0) {
+    // All pages revealed — exit pager mode.
+    _pager = null;
+    scrollMoreEl.textContent = '▼  MORE  ▼';
+    updateScrollHint();
+  } else {
+    // More pages remain — show persistent press-any-key prompt.
+    scrollMoreEl.textContent = '━━  MORE  (Space / Enter)  ━━';
+    scrollMoreEl.classList.add('visible', 'pager-mode');
+  }
+}
+
+/**
+ * Cancel paging early, flushing all remaining queued lines immediately.
+ * Called by beginBatch() so a new command always starts from a clean slate.
+ */
+function _cancelPager() {
+  const { queue, batchEl } = _pager;
+  for (const el of queue) batchEl.appendChild(el);
+  _pager = null;
+  if (_hintDismissTimer) { clearTimeout(_hintDismissTimer); _hintDismissTimer = null; }
+  scrollMoreEl.classList.remove('pager-mode', 'visible', 'fading');
+  scrollMoreEl.textContent = '▼  MORE  ▼';
+  outputEl.scrollTop = outputEl.scrollHeight;
+}
+
 // ============================================================
 //  Print helpers
 // ============================================================
@@ -80,6 +138,8 @@ export function clearScreen() {
  * Call before running a command so all its lines are batched together.
  */
 export function beginBatch() {
+  // If a previous command is still mid-page, flush all remaining content now.
+  if (_pager) _cancelPager();
   _batchEl = document.createElement('div');
   _batchEl.className = 'cmd-output-block';
 }
@@ -91,9 +151,22 @@ export function beginBatch() {
 export function endBatch() {
   if (_batchEl) {
     if (_batchEl.hasChildNodes()) {
+      // Measure how much height this batch adds so we can decide whether to page.
+      const heightBefore = outputEl.scrollHeight;
       outputEl.appendChild(_batchEl);
-      // Scroll to the bottom so the last line of output is immediately visible,
-      // matching standard terminal behaviour.
+      const batchHeight = outputEl.scrollHeight - heightBefore;
+
+      // If the new batch is taller than one viewport, activate the pager.
+      if (outputEl.clientHeight > 0 && batchHeight > outputEl.clientHeight) {
+        // Pull all children out of the (now-live) batch element into the queue.
+        const queue = [..._batchEl.childNodes];
+        _batchEl.innerHTML = '';
+        _pager = { queue, batchEl: _batchEl };
+        _batchEl = null;
+        advancePage(); // shows first screenful + sets the hint
+        return;
+      }
+
       outputEl.scrollTop = outputEl.scrollHeight;
     }
     _batchEl = null;
@@ -103,8 +176,10 @@ export function endBatch() {
 
 /** Show/hide the ▼ MORE ▼ hint based on whether #output has content below the fold.
  *  When shown, the hint auto-dismisses after 2.5 s with a fade-out so it doesn't
- *  linger while the user types their next command. */
+ *  linger while the user types their next command.
+ *  No-op while the pager is active (pager controls the hint element directly). */
 export function updateScrollHint() {
+  if (_pager) return; // pager owns the hint while paginating
   const hasOverflow = outputEl.scrollHeight > outputEl.clientHeight;
   const atBottom    = outputEl.scrollTop + outputEl.clientHeight >= outputEl.scrollHeight - 4;
   const shouldShow  = hasOverflow && !atBottom;

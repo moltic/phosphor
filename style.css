@@ -2534,6 +2534,20 @@ html.dial-layout--auto .dial-divider.row-divider {
   text-shadow: 0 0 6px var(--glow-soft);
 }
 
+/* Pager mode — persistent press-any-key prompt (overrides auto-dismiss) */
+#scroll-more.pager-mode {
+  color: var(--fg);
+  letter-spacing: 0.2em;
+  animation: scroll-hint-pulse 0.9s ease-in-out infinite;
+  cursor: pointer;
+}
+
+/* Prevent the auto-dismiss fade-out from hiding the pager prompt */
+#scroll-more.pager-mode.fading {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Wrapper inserted once per command so aria-live fires a single announcement */
 .cmd-output-block {
   display: contents; /* no box of its own; children participate directly in #output layout */
