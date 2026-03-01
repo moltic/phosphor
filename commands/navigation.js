@@ -37,7 +37,7 @@ export const navigationCommands = {
         return;
       }
       const query = args.join(' ');
-      printLine(`Asking Gemini: "${query}"`, 'line-ok');
+      printLine(`Opening Gemini — press Enter to submit: "${query}"`, 'line-ok');
       window.location.href =
         `https://gemini.google.com/app?q=${encodeURIComponent(query)}`;
     },
