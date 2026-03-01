@@ -212,6 +212,7 @@ export const settingsPanelEl = (() => {
     ['off', 'OFF'], ['low', 'LOW'], ['medium', 'MEDIUM'], ['high', 'HIGH'],
   ]);
   const soundsSel          = makeSelect('s-sounds',        [['off', 'OFF'], ['on', 'ON']]);
+  const bootSoundSel        = makeSelect('s-bootsound',      [['always', 'ALWAYS'], ['daily', 'FIRST RUN DAILY']]);
   const reducedMotionSel   = makeSelect('s-reducedmotion', [['off', 'OFF'], ['on', 'ON']]);
   const autoSkinSel        = makeSelect('s-autoskin',      [['off', 'OFF'], ['on', 'ON']]);
 
@@ -248,6 +249,7 @@ export const settingsPanelEl = (() => {
   // ── Atmospheric polish section ─────────────────────────────────────────
   inner.appendChild(makeRow('CRT INTENSITY',    crtIntensitySel));
   inner.appendChild(makeRow('SOUNDS',           soundsSel));
+  inner.appendChild(makeRow('OPEN SOUND',        bootSoundSel));
   inner.appendChild(makeRow('REDUCE MOTION',    reducedMotionSel));
   inner.appendChild(makeRow('AUTO SKIN',        autoSkinSel));
 
@@ -288,6 +290,7 @@ export const settingsPanelEl = (() => {
       historyPersist:   historyPersistSel.value === 'on',
       crtIntensity:     crtIntensitySel.value,
       sounds:           soundsSel.value === 'on',
+      bootSoundMode:    bootSoundSel.value,
       reducedMotion:    reducedMotionSel.value === 'on',
       autoSkin:         autoSkinSel.value === 'on',
     };
@@ -351,6 +354,7 @@ export async function openSettingsPanel() {
   document.getElementById('s-dialonload').value      = prefs.dialOpenOnLoad  === true  ? 'on'  : 'off';
   document.getElementById('s-crtintensity').value   = prefs.crtIntensity  || 'medium';
   document.getElementById('s-sounds').value          = prefs.sounds         === true  ? 'on'  : 'off';
+  document.getElementById('s-bootsound').value        = prefs.bootSoundMode  || 'always';
   document.getElementById('s-reducedmotion').value   = prefs.reducedMotion  === true  ? 'on'  : 'off';
   document.getElementById('s-autoskin').value        = prefs.autoSkin       === true  ? 'on'  : 'off';
   settingsPanelEl.classList.add('visible');
@@ -381,6 +385,7 @@ export async function commitSettings() {
     dialOpenOnLoad:   document.getElementById('s-dialonload').value === 'on',
     crtIntensity:     document.getElementById('s-crtintensity').value,
     sounds:           document.getElementById('s-sounds').value === 'on',
+    bootSoundMode:    document.getElementById('s-bootsound').value,
     reducedMotion:    document.getElementById('s-reducedmotion').value === 'on',
     autoSkin:         document.getElementById('s-autoskin').value === 'on',
   };

@@ -147,6 +147,14 @@ export async function playSoundIfEnabled(name) {
     const prefs = await loadPrefs();
     if (!prefs.sounds) return;
 
+    // Boot chime daily-gate: when mode is 'daily' only play once per calendar day.
+    if (name === 'boot' && prefs.bootSoundMode === 'daily') {
+      const today   = new Date().toISOString().slice(0, 10);  // 'YYYY-MM-DD'
+      const stored  = await chrome.storage.local.get({ lastBootSoundDate: '' });
+      if (stored.lastBootSoundDate === today) return;
+      await chrome.storage.local.set({ lastBootSoundDate: today });
+    }
+
     const fn = _SOUNDS[name];
     if (!fn) return;
 

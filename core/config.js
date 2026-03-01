@@ -190,6 +190,8 @@ export const DEFAULT_PREFS = {
   crtIntensity:     'medium',
   /** Retro sound effects via Web Audio API (no external files). */
   sounds:           false,
+  /** When to play the open/boot chime: 'always' | 'daily' (once per day). */
+  bootSoundMode:    'always',
   /** Honour reduced-motion even without OS setting (user preference). */
   reducedMotion:    false,
   /** Auto-choose a palette based on current season + time of day. */
