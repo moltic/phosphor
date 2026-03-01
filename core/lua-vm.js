@@ -32,7 +32,7 @@ export function initLuaVM() {
   if (_initPromise) return _initPromise;
 
   _initPromise = (async () => {
-    const { LuaFactory } = globalThis.wasmoon;
+    const { LuaFactory } = globalThis.wasmoon ?? {};
     if (!LuaFactory) throw new Error('wasmoon UMD bundle not loaded — check index.html');
 
     // Tell Wasmoon where to fetch the WASM binary.  chrome.runtime.getURL()
@@ -54,7 +54,13 @@ export function initLuaVM() {
     // makes it explicit and prevents any accidental stub leakage.
     _engine.global.set('io', null);
     _engine.global.set('os', null);
-  })();
+  })().catch(err => {
+    // Reset so the next `lua` command can retry rather than returning a
+    // permanently-rejected promise with no user-visible error.
+    _initPromise = null;
+    _engine = null;
+    throw err;
+  });
 
   return _initPromise;
 }

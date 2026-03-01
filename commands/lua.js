@@ -1,8 +1,8 @@
 // ── commands/lua.js ───────────────────────────────────────────────────────────
 // `lua` — execute a Lua 5.4 snippet in the Wasmoon WebAssembly sandbox.
 
-import { printLine }        from '../core/render.js';
-import { runLua, isLuaReady } from '../core/lua-vm.js';
+import { printLine }      from '../core/render.js';
+import { initLuaVM, runLua } from '../core/lua-vm.js';
 
 // Strips Lua's verbose source prefix, e.g. [string "..."]:1: → ""
 const LUA_PREFIX_RE = /^\[string ".*?"\]:\d+:\s*/;
@@ -19,8 +19,12 @@ export const luaCommands = {
         return;
       }
 
-      if (!isLuaReady()) {
-        printLine('Lua VM is still initializing — please try again in a moment.', 'line-err');
+      // Await init directly — resolves instantly if already warm, waits if still
+      // loading, or surfaces the real error message if something went wrong.
+      try {
+        await initLuaVM();
+      } catch (err) {
+        printLine(`Lua VM failed to initialize: ${err.message}`, 'line-err');
         return;
       }
 
