@@ -13,7 +13,7 @@
 //       label:     string,   // "" for the implicit default section
 //       collapsed: boolean,
 //       items: [
-//         { id, type:"link"|"weather", alias, label, url, icon? }
+//         { id, type:"link"|"weather"|"divider", alias, label, url, icon? }
 //         ...
 //       ]
 //     }, ...
@@ -24,7 +24,7 @@
 // legacy flat-array representation so that all existing UI and command code
 // continues to work unmodified — group-header entries are re-emitted for named
 // categories, weather items are re-emitted with type:"weather", dividers are
-// not represented in the new model.
+// preserved as items with type:"divider".
 
 import { DEFAULT_PREFS } from './config.js';
 
@@ -37,7 +37,7 @@ export const DIAL_STORE_VERSION = 1;
  * Convert the legacy flat dials array to a versioned DialStore.
  *
  *   – group-header entries  → new named category
- *   – divider entries       → dropped
+ *   – divider entries       → item with type:"divider" inside the current category
  *   – weather / link items  → items inside the current category
  *
  * Items that appear before the first group-header land in an implicit
@@ -53,8 +53,13 @@ export function flatArrayToDialStore(flatDials) {
   categories.push(currentCat);
 
   for (const d of flatDials) {
-    // ── dividers are not represented in the new model
-    if (d.type === 'divider') continue;
+    // ── dividers → item within current category
+    if (d.type === 'divider') {
+      const item = { id: d.alias, type: 'divider', alias: d.alias };
+      if (d.col) item.col = true;
+      currentCat.items.push(item);
+      continue;
+    }
 
     // ── group-header → new category
     if (d.type === 'group-header') {
@@ -103,6 +108,7 @@ export function flatArrayToDialStore(flatDials) {
  *
  *   – named categories     → group-header entry followed by their items
  *   – unnamed categories   → items only (no header emitted)
+ *   – divider items        → { type:'divider', alias, col? }
  *   – weather items        → { type:'weather', alias, label, url }
  *   – link items           → { alias, label, url, icon? }
  *
@@ -117,7 +123,11 @@ export function dialStoreToFlatArray(store) {
       flat.push({ type: 'group-header', alias: cat.id, label: cat.label });
     }
     for (const item of cat.items) {
-      if (item.type === 'weather') {
+      if (item.type === 'divider') {
+        const d = { type: 'divider', alias: item.alias };
+        if (item.col) d.col = true;
+        flat.push(d);
+      } else if (item.type === 'weather') {
         flat.push({ type: 'weather', alias: item.alias, label: item.label, url: item.url });
       } else {
         const d = { alias: item.alias, label: item.label, url: item.url };
@@ -275,7 +285,7 @@ export async function savePrefs(prefs) {
  *   6. Sets the `_dialsMigratedV1` flag so this never runs again.
  *
  * Group-header entries → named categories.
- * Divider entries      → dropped (not representable in v1).
+ * Divider entries      → preserved as type:"divider" items within their category.
  * Weather items        → preserved as type:"weather" items.
  * Link items           → preserved as type:"link" items.
  */
@@ -304,12 +314,12 @@ export async function migrateDialsToV1() {
     await chrome.storage.sync.set({ dialStore: store });
 
     const totalItems = store.categories.reduce((n, c) => n + c.items.length, 0);
-    const divDropped = legacyDials.filter(d => d.type === 'divider').length;
+    const divCount = legacyDials.filter(d => d.type === 'divider').length;
     console.info(
       `[Phosphor] dials → dialStore v1:`,
       `${store.categories.length} categor${store.categories.length === 1 ? 'y' : 'ies'},`,
       `${totalItems} item${totalItems === 1 ? '' : 's'}`,
-      divDropped ? `(${divDropped} divider${divDropped === 1 ? '' : 's'} dropped)` : '',
+      divCount ? `(${divCount} divider${divCount === 1 ? '' : 's'} preserved)` : '',
     );
   }
 

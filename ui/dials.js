@@ -1436,6 +1436,45 @@ function _ensureNoResults() {
   return _noResultsEl;
 }
 
+// ── Divider element factories ────────────────────────────────────────────────
+
+/** Create a new .dial-divider element and bind drag + context-menu events. */
+function _createDividerEl(dial) {
+  const isCol = dial.col === true;
+  const el = document.createElement('div');
+  el.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
+  el.dataset.alias = dial.alias;
+  el.draggable = true;
+  el.title = isCol
+    ? 'Column Divider — drag to reorder, right-click to remove'
+    : 'Row Divider — drag to reorder, right-click to remove';
+
+  bindDragEvents(el, dial, { isDivider: true });
+
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    showDialCtxMenu(e.clientX, e.clientY, dial.alias, /* isDivider */ true);
+  });
+
+  el._dialData = { ...dial };
+  return el;
+}
+
+/**
+ * Patch a cached divider element in-place when its col/row distinction changes.
+ */
+function _patchDividerEl(el, dial) {
+  const isCol  = dial.col === true;
+  const wasCol = el.classList.contains('col-divider');
+  if (isCol !== wasCol) {
+    el.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
+    el.title = isCol
+      ? 'Column Divider — drag to reorder, right-click to remove'
+      : 'Row Divider — drag to reorder, right-click to remove';
+  }
+  el._dialData = { ...dial };
+}
+
 // ── renderDials (incremental / diffing) ──────────────────────────────────────
 
 /**
@@ -1468,6 +1507,17 @@ export async function renderDials() {
     // ── Build / patch tile elements for this category's body ─────────────
     const desiredTileEls = cat.items.map(item => {
       desiredAliases.add(item.alias);
+
+      // Dividers have no label/url — handle them separately.
+      if (item.type === 'divider') {
+        const dial = { alias: item.alias, type: 'divider', col: item.col === true };
+        const cached = _dialNodeCache.get(item.alias);
+        if (cached) { _patchDividerEl(cached, dial); return cached; }
+        const el = _createDividerEl(dial);
+        _dialNodeCache.set(item.alias, el);
+        return el;
+      }
+
       const dial = { alias: item.alias, label: item.label, url: item.url, type: item.type };
       if (item.icon) dial.icon = item.icon;
       dial._faviconUrl = getFaviconUrl(dial);

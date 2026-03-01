@@ -23,7 +23,13 @@ function flatArrayToDialStore(flatDials) {
   categories.push(currentCat);
 
   for (const d of flatDials) {
-    if (d.type === 'divider') continue;
+    // ── dividers → item within current category
+    if (d.type === 'divider') {
+      const item = { id: d.alias, type: 'divider', alias: d.alias };
+      if (d.col) item.col = true;
+      currentCat.items.push(item);
+      continue;
+    }
 
     if (d.type === 'group-header') {
       currentCat = { id: d.alias, label: d.label || '', collapsed: false, items: [] };
@@ -64,7 +70,11 @@ function dialStoreToFlatArray(store) {
       flat.push({ type: 'group-header', alias: cat.id, label: cat.label });
     }
     for (const item of cat.items) {
-      if (item.type === 'weather') {
+      if (item.type === 'divider') {
+        const d = { type: 'divider', alias: item.alias };
+        if (item.col) d.col = true;
+        flat.push(d);
+      } else if (item.type === 'weather') {
         flat.push({ type: 'weather', alias: item.alias, label: item.label, url: item.url });
       } else {
         const d = { alias: item.alias, label: item.label, url: item.url };
@@ -196,7 +206,7 @@ test('icon field preserved on link items', () => {
   assert.equal(store.categories[0].items[0].icon, '📖');
 });
 
-test('dividers are dropped', () => {
+test('dividers are preserved as items', () => {
   const flat = [
     { alias: 'gh',         label: 'GitHub', url: 'https://github.com' },
     { type: 'divider',     alias: '__div_1__' },
@@ -204,8 +214,10 @@ test('dividers are dropped', () => {
     { alias: 'hn',         label: 'HN',     url: 'https://news.ycombinator.com' },
   ];
   const store = flatArrayToDialStore(flat);
-  assert.equal(store.categories[0].items.length, 2);
-  assert(!store.categories[0].items.some(i => i.type === 'divider'));
+  assert.equal(store.categories[0].items.length, 4);
+  const divs = store.categories[0].items.filter(i => i.type === 'divider');
+  assert.equal(divs.length, 2);
+  assert.equal(divs[1].col, true);
 });
 
 test('group headers become named categories', () => {
@@ -290,7 +302,7 @@ test('sequential group-headers produce separate named categories (first may be e
   assert.equal(store.categories[1].items.length, 1);
 });
 
-test('all-dividers flat array → single empty default category', () => {
+test('all-dividers flat array → single default category with divider items', () => {
   const flat = [
     { type: 'divider', alias: '__div_1__' },
     { type: 'divider', alias: '__div_2__', col: true },
@@ -298,7 +310,9 @@ test('all-dividers flat array → single empty default category', () => {
   const store = flatArrayToDialStore(flat);
   assert.equal(store.categories.length, 1);
   assert.equal(store.categories[0].label, '');
-  assert.equal(store.categories[0].items.length, 0);
+  assert.equal(store.categories[0].items.length, 2);
+  assert.equal(store.categories[0].items[0].type, 'divider');
+  assert.equal(store.categories[0].items[1].col, true);
 });
 
 // ── Suite: dialStoreToFlatArray ───────────────────────────────────────────────
@@ -394,16 +408,15 @@ test('links + weather + groups survive flat → store → flat', () => {
   assert.deepEqual(roundTrip, original);
 });
 
-test('dividers are absent after round-trip (dropped by design)', () => {
+test('dividers survive flat → store → flat round-trip', () => {
   const original = [
     { alias: 'gh', label: 'GitHub', url: 'https://github.com' },
     { type: 'divider', alias: '__div_1__' },
     { alias: 'hn', label: 'HN',    url: 'https://news.ycombinator.com' },
+    { type: 'divider', alias: '__div_2__', col: true },
   ];
   const roundTrip = dialStoreToFlatArray(flatArrayToDialStore(original));
-  assert.equal(roundTrip.length, 2);
-  assert.equal(roundTrip[0].alias, 'gh');
-  assert.equal(roundTrip[1].alias, 'hn');
+  assert.deepEqual(roundTrip, original);
 });
 
 test('icon field survives round-trip on link items', () => {
@@ -517,7 +530,7 @@ await asyncTest('group-headers become named categories', async () => {
   assert.equal(store.categories[1].items[0].alias, 'jira');
 });
 
-await asyncTest('dividers are dropped during migration', async () => {
+await asyncTest('dividers are preserved during migration', async () => {
   const legacy = [
     { alias: 'gh', label: 'GitHub', url: 'https://github.com' },
     { type: 'divider', alias: '__div_1__' },
@@ -528,8 +541,12 @@ await asyncTest('dividers are dropped during migration', async () => {
   await migrateDialsToV1(chrome);
 
   const flat = dialStoreToFlatArray(chrome.storage.sync._db.dialStore);
-  assert(!flat.some(d => d.type === 'divider'), 'no dividers should survive migration');
-  assert.equal(flat.length, 2);
+  const dividers = flat.filter(d => d.type === 'divider');
+  assert.equal(dividers.length, 2, 'both dividers should survive migration');
+  assert.equal(dividers[0].alias, '__div_1__');
+  assert.equal(dividers[1].alias, '__div_2__');
+  assert.equal(dividers[1].col, true);
+  assert.equal(flat.length, 4);
 });
 
 // ── Summary ───────────────────────────────────────────────────────────────────
