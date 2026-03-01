@@ -43,6 +43,26 @@ import { notifyAchievement }          from './commands/profile.js';
 import { initLaunchPanel }            from './ui/launch-panel.js';
 import { initLuaVM }                  from './core/lua-vm.js';
 
+function focusPrompt() {
+  inputEl.focus({ preventScroll: true });
+  const len = inputEl.value.length;
+  inputEl.setSelectionRange(len, len);
+}
+
+let _startupFocusTimer = null;
+function scheduleStartupFocusRetries() {
+  if (_startupFocusTimer !== null) return;
+  let attempts = 0;
+  _startupFocusTimer = setInterval(() => {
+    attempts++;
+    focusPrompt();
+    if (document.activeElement === inputEl || attempts >= 20) {
+      clearInterval(_startupFocusTimer);
+      _startupFocusTimer = null;
+    }
+  }, 100);
+}
+
 // ============================================================
 //  init
 // ============================================================
@@ -50,17 +70,12 @@ import { initLuaVM }                  from './core/lua-vm.js';
 async function init() {
   setSessionStart(Date.now());
 
-  const focusPrompt = () => {
-    inputEl.focus({ preventScroll: true });
-    const len = inputEl.value.length;
-    inputEl.setSelectionRange(len, len);
-  };
-
   // Claim keyboard focus as early as possible so first keystrokes land in the
   // prompt (not the browser omnibox) while startup output is still rendering.
   requestAnimationFrame(focusPrompt);
   setTimeout(focusPrompt, 0);
   setTimeout(focusPrompt, 120);
+  scheduleStartupFocusRetries();
 
   // Kick off the Lua VM in the background — it fetches and compiles the WASM
   // binary (~260 KB) so we start it early without blocking the rest of init.
@@ -388,12 +403,17 @@ document.addEventListener('visibilitychange', () => {
   } else {
     cursorEl.style.animationPlayState = 'running';
     inputEl.focus();
+    scheduleStartupFocusRetries();
     if (_countdownInterval === null) {
       tickClock();
       setClockInterval(setInterval(tickClock, 1_000));
     }
   }
 });
+
+window.addEventListener('focus', scheduleStartupFocusRetries);
+window.addEventListener('load', scheduleStartupFocusRetries);
+window.addEventListener('pageshow', scheduleStartupFocusRetries);
 
 // ── Sync change listener ──────────────────────────────────────────────────────
 chrome.storage.onChanged.addListener((changes, area) => {
