@@ -1,5 +1,5 @@
 // ============================================================
-//  _archive/script.legacy.js
+//  archive/script.legacy.js
 //
 //  ██  ARCHIVED — DO NOT LOAD  ██
 //

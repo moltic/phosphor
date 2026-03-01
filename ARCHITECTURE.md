@@ -60,12 +60,12 @@ tools/
 
 fonts/              ← self-hosted VT323 font files (referenced in style.css)
 
-_archive/
+archive/
   script.legacy.js  ← original pre-modular monolith; NOT loaded by the extension
 ```
 
 > The full legacy source lives in
-> `_archive/script.legacy.js` for historical reference only.  It must never be
+> `archive/script.legacy.js` for historical reference only.  It must never be
 > `import`-ed or added to `index.html`.
 
 ---
@@ -292,5 +292,5 @@ Get-ChildItem tools\*.test.js | ForEach-Object { node $_.FullName }
    `ui/` or `core/render.js`.
 5. **Write a test** → new pure logic should get a test in `tools/`.  Follow the
    inline-copy pattern or the chrome mock pattern — whichever is simpler.
-6. **Legacy file** → `_archive/script.legacy.js` is read-only history.
+6. **Legacy file** → `archive/script.legacy.js` is read-only history.
    Do not edit it or re-introduce any of its code.
