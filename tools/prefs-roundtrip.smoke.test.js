@@ -33,8 +33,12 @@ const DEFAULT_PREFS = {
 // ── Minimal chrome.storage mock ───────────────────────────────────────────────
 function makeMockStorage(syncInit = {}) {
   const db = { ...syncInit };
+  const listeners = [];
   const chrome = {
     storage: {
+      onChanged: {
+        addListener(cb) { listeners.push(cb); }
+      },
       sync: {
         async get(defaults) {
           const result = {};
@@ -43,7 +47,14 @@ function makeMockStorage(syncInit = {}) {
           }
           return result;
         },
-        async set(obj) { Object.assign(db, obj); },
+        async set(obj) {
+          const changes = {};
+          for (const [k, v] of Object.entries(obj)) {
+            changes[k] = { newValue: v, oldValue: db[k] };
+          }
+          Object.assign(db, obj);
+          for (const cb of listeners) cb(changes, 'sync');
+        },
         /** Expose the raw DB so tests can inspect it directly. */
         _db: db,
       },
@@ -55,17 +66,42 @@ function makeMockStorage(syncInit = {}) {
 // ── Inlined from core/storage.js — Keep in sync ──────────────────────────────
 
 function makePrefsHelpers(chrome) {
+  let _cachedPrefs = null;
+  let _prefsInitPromise = null;
+
   /** Load user preferences; falls back to DEFAULT_PREFS for any missing key. */
   async function loadPrefs() {
-    const data   = await chrome.storage.sync.get({ prefs: {} });
-    const stored = data.prefs || {};
-    const merged = { ...DEFAULT_PREFS, ...stored };
+    if (_cachedPrefs) return _cachedPrefs;
 
-    // Legacy migration: older versions stored a single `fontSize`.
-    if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
-    if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+    if (!_prefsInitPromise) {
+      _prefsInitPromise = (async () => {
+        const data   = await chrome.storage.sync.get({ prefs: {} });
+        const stored = data.prefs || {};
+        const merged = { ...DEFAULT_PREFS, ...stored };
 
-    return merged;
+        // Legacy migration: older versions stored a single `fontSize`.
+        if (!('terminalSize' in stored) && ('fontSize' in stored)) merged.terminalSize = stored.fontSize;
+        if (!('dialSize'     in stored) && ('fontSize' in stored)) merged.dialSize     = stored.fontSize;
+
+        _cachedPrefs = merged;
+
+        if (chrome.storage.onChanged) {
+          chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'sync' && changes.prefs) {
+              const newStored = changes.prefs.newValue || {};
+              _cachedPrefs = { ...DEFAULT_PREFS, ...newStored };
+              // Legacy migration: older versions stored a single `fontSize`.
+              if (!('terminalSize' in newStored) && ('fontSize' in newStored)) _cachedPrefs.terminalSize = newStored.fontSize;
+              if (!('dialSize'     in newStored) && ('fontSize' in newStored)) _cachedPrefs.dialSize     = newStored.fontSize;
+            }
+          });
+        }
+
+        return merged;
+      })();
+    }
+
+    return _prefsInitPromise;
   }
 
   /** Persist user preferences to chrome.storage.sync. */
