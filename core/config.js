@@ -109,4 +109,5 @@ export const DEFAULT_PREFS = {
   cursorBlinkSpeed: 'normal',
   historyPersist:   true,
   dialOpenOnLoad:   false,
+  onboardingDone:   false,
 };

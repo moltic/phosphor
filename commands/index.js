@@ -8,6 +8,7 @@ import { dialsCommands }                     from './dials-cmd.js';
 import { systemCommands }                    from './system.js';
 import { funCommands }                       from './fun.js';
 import { dataCommands }                      from './data.js';
+import { onboardingCommands }                from './onboarding.js';
 import {
   beginBatch, endBatch, printLine,
 } from '../core/render.js';
@@ -21,6 +22,7 @@ export const commands = {
   ...systemCommands,
   ...funCommands,
   ...dataCommands,
+  ...onboardingCommands,
 };
 
 // Inject the full registry into help.js (avoids circular import).

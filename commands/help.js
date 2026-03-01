@@ -53,6 +53,7 @@ export const helpCommands = {
 
       // Group commands by category for easier scanning
       const CATEGORIES = [
+        { label: 'GETTING STARTED', keys: ['tour', 'skip-tour'] },
         { label: 'NAVIGATION',  keys: ['g', 'l'] },
         { label: 'NOTES',       keys: ['n', 'ls', 'nuke'] },
         { label: 'SPEED DIAL',  keys: ['dial'] },
@@ -98,8 +99,11 @@ export const helpCommands = {
       printLine('  Keyboard shortcuts', 'line-head');
       printRule('─', 38);
       printLine('  ↑ / ↓          Navigate command history', 'line-info');
-      printLine('  Tab            Auto-complete command name', 'line-info');
+      printLine('  Tab            Open speed-dial overlay (empty input)', 'line-info');
+      printLine('  Tab            Auto-complete command name (partial input)', 'line-info');
+      printLine('  Ctrl+D / ⌘D    Toggle speed-dial overlay', 'line-info');
       printLine('  Ctrl+L / ⌘L    Clear the terminal screen', 'line-info');
+      printLine('  Ctrl+, / ⌘,    Open / close Settings panel', 'line-info');
       printLine('  Escape         Clear current input line', 'line-info');
       printLine('  Ctrl+Shift+S   Add current tab as a speed-dial tile', 'line-info');
       printLine('  (Run  keys  for a full shortcut reference)', 'line-info');
@@ -121,13 +125,15 @@ export const helpCommands = {
         '║' + (' ' + k).padEnd(K) + '║' + (' ' + a).padEnd(A) + '║';
 
       const shortcuts = [
-        ['↑ / ↓',        'Navigate command history'],
-        ['Tab',           'Auto-complete command name'],
+        ['↑ / ↓',         'Navigate command history'],
+        ['Tab (empty)',    'Open the speed-dial overlay'],
+        ['Tab (partial)',  'Auto-complete command name'],
+        ['Ctrl+D / ⌘D',   'Toggle speed-dial overlay'],
         ['Ctrl+L / ⌘L',   'Clear the terminal screen'],
-        ['Escape',        'Clear / cancel current input'],
-        ['Ctrl+Shift+S',   'Add current tab as a speed-dial tile'],
         ['Ctrl+, / ⌘,',   'Open / close Settings panel'],
-        ['Right-click',   'Paste or open browser context menu'],
+        ['Escape',         'Clear / cancel current input'],
+        ['Ctrl+Shift+S',   'Add current tab as a speed-dial tile'],
+        ['Right-click',    'Paste or open browser context menu'],
       ];
 
       printBlank();

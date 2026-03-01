@@ -14,6 +14,7 @@ import {
 import { cmdHistory, sessionStart, setPendingConfirm } from '../core/state.js';
 import { formatTimestamp }                  from '../core/clock.js';
 import { applyPrefs, openSettingsPanel } from '../ui/settings.js';
+import { printFirstRunTutorial, pickTryHint } from './onboarding.js';
 
 // ── BBS handle generator ──────────────────────────────────────────────────────
 const _HANDLE_ADJ = [
@@ -56,6 +57,18 @@ export async function printBootSequence() {
   if (notes.length > 0) {
     const plural = notes.length === 1 ? 'note' : 'notes';
     printLine(`  ${notes.length} ${plural} stored.  Type  ls  to view.`, 'line-info');
+    printBlank();
+  }
+
+  // ── First-run tutorial ───────────────────────────────────────────
+  // Show the page-1 tour on every boot until the user types skip-tour.
+  if (!prefs.onboardingDone) {
+    printFirstRunTutorial();
+  } else {
+    // ── Rotating "try this next" hint ────────────────────────────
+    // One short tip per session, cycles through the full hint list.
+    const hint = pickTryHint(prefs.sessionCount || 1);
+    printLine(`  TRY  ─  ${hint}`, 'line-info');
     printBlank();
   }
 }

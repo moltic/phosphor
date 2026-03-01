@@ -214,6 +214,19 @@ export const settingsPanelEl = (() => {
   inner.appendChild(makeRow('CURSOR SPEED',     cursorSpeedSelect));
   inner.appendChild(makeRow('HISTORY PERSIST',  historyPersistSel));
   inner.appendChild(makeRow('DIALS ON LOAD',    dialOnLoadSel));
+
+  // ── Contextual onboarding hint ────────────────────────────────────
+  const hintEl = document.createElement('div');
+  hintEl.className = 'settings-onboarding-hint';
+  hintEl.setAttribute('aria-label', 'Terminal shortcut hints');
+  hintEl.innerHTML = [
+    '<span class="settings-onboarding-hint__label">TERMINAL SHORTCUTS</span>',
+    '<span>theme [name]  ─  change theme without opening this panel</span>',
+    '<span>Ctrl+,  /  ⌘,  ─  open or close this panel from anywhere</span>',
+    '<span>tour  ─  replay the getting-started guide any time</span>',
+  ].join('');
+  inner.appendChild(hintEl);
+
   inner.appendChild(actionsEl);
 
   // ── Live preview: apply changes instantly as the user adjusts controls ────

@@ -254,6 +254,18 @@ function _ensureEmptyState() {
   orEl.textContent = '── or ──';
   _emptyStateEl.appendChild(orEl);
 
+  // Terminal command hint
+  const cmdHintEl = document.createElement('p');
+  cmdHintEl.className = 'dial-empty-state__kbd';
+  cmdHintEl.innerHTML = 'type <kbd>dial add [alias] [url]</kbd> in the terminal below';
+  _emptyStateEl.appendChild(cmdHintEl);
+
+  const orEl2 = document.createElement('span');
+  orEl2.className = 'dial-empty-state__or';
+  orEl2.setAttribute('aria-hidden', 'true');
+  orEl2.textContent = '── or ──';
+  _emptyStateEl.appendChild(orEl2);
+
   const kbdEl = document.createElement('p');
   kbdEl.className = 'dial-empty-state__kbd';
   const isMac = navigator.platform?.startsWith('Mac') ||
@@ -261,6 +273,12 @@ function _ensureEmptyState() {
   const shortcut = isMac ? '⌘⇧S' : 'Ctrl+Shift+S';
   kbdEl.innerHTML = `press <kbd>${shortcut}</kbd> on any tab to capture it here`;
   _emptyStateEl.appendChild(kbdEl);
+
+  // Tour hint
+  const tourHintEl = document.createElement('p');
+  tourHintEl.className = 'dial-empty-state__tour-hint';
+  tourHintEl.innerHTML = 'New here? type <kbd>tour</kbd> in the terminal for a guided walkthrough';
+  _emptyStateEl.appendChild(tourHintEl);
 
   return _emptyStateEl;
 }

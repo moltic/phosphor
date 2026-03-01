@@ -164,7 +164,10 @@ export const notesCommands = {
       printRule('─');
 
       if (notes.length === 0) {
-        printLine('  (no notes yet — use:  n [text])', 'line-info');
+        printLine('  No notes yet.', 'line-info');
+        printLine('  ▸  n [text]            save a note', 'line-info');
+        printLine('  ▸  n hello world       try it right now', 'line-info');
+        printLine('  ▸  tour 2              see the full notes guide', 'line-info');
       } else {
         pageNotes.forEach((note, i) => {
           const globalIdx = String(start + i + 1).padStart(3, ' ');
@@ -184,7 +187,10 @@ export const notesCommands = {
       printLine('  SPEED DIAL', 'line-head');
       printRule('─');
       if (dials.length === 0) {
-        printLine('  (no dials — use:  dial add [alias ...] [url])', 'line-info');
+        printLine('  No speed dials yet.', 'line-info');
+        printLine('  ▸  dial add gh https://github.com   add one now', 'line-info');
+        printLine('  ▸  press  Tab  to open the overlay  and click  [ + ADD LINK ]', 'line-info');
+        printLine('  ▸  tour 3                           see the full dials guide', 'line-info');
       } else {
         dials.forEach(d => {
           if (d.type === 'divider')      { printLine('  ─── [divider] ───', 'line-info'); return; }
