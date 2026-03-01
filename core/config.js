@@ -46,6 +46,7 @@ export const ALIASES = {
 
 // ── Theme palettes ────────────────────────────────────────────────────────────
 export const THEMES = {
+  // ── Original four ──────────────────────────────────────────────────────────
   amber: {
     '--bg':          '#0a0800',
     '--fg':          '#ffb000',
@@ -82,7 +83,81 @@ export const THEMES = {
     '--glow-soft':   'rgba(200, 200, 200, 0.12)',
     '--scanline-bg': 'rgba(0, 0, 0, 0.15)',
   },
+  // ── New phosphor packs ─────────────────────────────────────────────────────
+  /** Crimson — blood-red phosphor; autumn / night mood. */
+  crimson: {
+    '--bg':          '#0d0002',
+    '--fg':          '#ff3030',
+    '--fg-dim':      '#aa1818',
+    '--fg-bright':   '#ff7060',
+    '--glow':        'rgba(255, 48, 48, 0.60)',
+    '--glow-soft':   'rgba(255, 48, 48, 0.22)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.12)',
+  },
+  /** Matrix — deep saturated green; spring growth / "the grid" feel. */
+  matrix: {
+    '--bg':          '#000d00',
+    '--fg':          '#00e040',
+    '--fg-dim':      '#007828',
+    '--fg-bright':   '#66ff99',
+    '--glow':        'rgba(0, 224, 64, 0.62)',
+    '--glow-soft':   'rgba(0, 224, 64, 0.22)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.14)',
+  },
+  /** Ice — pale blue-grey; winter / cold-clock feel. */
+  ice: {
+    '--bg':          '#01080f',
+    '--fg':          '#8ecfea',
+    '--fg-dim':      '#4a849e',
+    '--fg-bright':   '#c8eeff',
+    '--glow':        'rgba(142, 207, 234, 0.50)',
+    '--glow-soft':   'rgba(142, 207, 234, 0.18)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.10)',
+  },
+  /** Phosphor-warm — brighter, hotter amber; summer noon heat. */
+  warm: {
+    '--bg':          '#0b0700',
+    '--fg':          '#ffc840',
+    '--fg-dim':      '#cc8800',
+    '--fg-bright':   '#ffe88a',
+    '--glow':        'rgba(255, 200, 64, 0.65)',
+    '--glow-soft':   'rgba(255, 200, 64, 0.26)',
+    '--scanline-bg': 'rgba(0, 0, 0, 0.09)',
+  },
 };
+
+// ── Seasonal / time-based auto-skin ─────────────────────────────────────────
+/**
+ * Return the theme name that best fits the current season + time of day.
+ * Only called when prefs.autoSkin === true; the returned name is used in
+ * place of prefs.theme (the stored theme is left untouched).
+ *
+ * Mapping (northern-hemisphere seasons, approximate):
+ *   Winter (Dec–Feb)   night → blue,   day  → ice
+ *   Spring (Mar–May)   any   → matrix        (growth, fresh green)
+ *   Summer (Jun–Aug)   day   → warm,   dusk  → amber
+ *   Autumn (Sep–Nov)   eve   → crimson, rest → amber
+ */
+export function getAutoSkin() {
+  const now  = new Date();
+  const m    = now.getMonth() + 1;  // 1-12
+  const h    = now.getHours();      // 0-23
+
+  if (m === 12 || m <= 2) {
+    // Winter
+    return (h >= 20 || h < 6) ? 'blue' : 'ice';
+  }
+  if (m >= 3 && m <= 5) {
+    // Spring — matrix all day, warmer at evening
+    return h >= 18 ? 'amber' : 'matrix';
+  }
+  if (m >= 6 && m <= 8) {
+    // Summer — bright warm tones
+    return (h >= 9 && h < 19) ? 'warm' : 'amber';
+  }
+  // Autumn — red evening, amber by day
+  return (h >= 16 && h < 22) ? 'crimson' : 'amber';
+}
 
 export const FONT_SIZES = {
   small:  '16.8px',
@@ -110,4 +185,13 @@ export const DEFAULT_PREFS = {
   historyPersist:   true,
   dialOpenOnLoad:   false,
   onboardingDone:   false,
+  // ── Atmospheric polish (all opt-in / restrained defaults) ───────────────
+  /** CRT effect intensity: 'off' | 'low' | 'medium' | 'high' */
+  crtIntensity:     'medium',
+  /** Retro sound effects via Web Audio API (no external files). */
+  sounds:           false,
+  /** Honour reduced-motion even without OS setting (user preference). */
+  reducedMotion:    false,
+  /** Auto-choose a palette based on current season + time of day. */
+  autoSkin:         false,
 };

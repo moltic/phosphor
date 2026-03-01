@@ -5,6 +5,7 @@
 
 import { THEMES }                           from '../core/config.js';
 import { loadPrefs, savePrefs, loadNotes }  from '../core/storage.js';
+import { playSoundIfEnabled }               from '../core/sounds.js';
 import {
   clearScreen, printLine, printBlank, printRule,
   printBannerHtml, renderBanner,
@@ -115,6 +116,9 @@ export async function printBootSequence() {
     printLine(`  TRY  ─  ${hint}`, 'line-info');
     printBlank();
   }
+
+  // ── Boot chime (opt-in, Web Audio, fire-and-forget) ─────────────
+  playSoundIfEnabled('boot');
 }
 
 export const systemCommands = {

@@ -3,6 +3,7 @@
 // countdown, maze.
 
 import { CONFIG }               from '../core/config.js';
+import { playSoundIfEnabled }   from '../core/sounds.js';
 import {
   printLine, printBlank, printRule,
   outputEl, endBatch, getBatchEl,
@@ -661,10 +662,14 @@ export const funCommands = {
 
           stopCountdown();
           printLine('⏱  COUNTDOWN REACHED ZERO!', 'line-err');
+          playSoundIfEnabled('countdownEnd');
           awardAchievement('countdown_complete').then(r => notifyAchievement(r));
           triggerMission('run_countdown').then(r => notifyMission(r));
           return;
         }
+
+        // Tick beep for final 10 seconds
+        if (remaining <= 10) playSoundIfEnabled('countdownTick');
 
         remaining--;
       }

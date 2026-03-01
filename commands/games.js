@@ -12,6 +12,7 @@ import { setPendingConfirm, setActiveGame, clearActiveGame } from '../core/state
 import { loadGameScores, saveGameScore }                     from '../core/storage.js';
 import { awardAchievement, loadProfile }                     from '../core/progression.js';
 import { notifyAchievement }                                 from './profile.js';
+import { playSoundIfEnabled }                                from '../core/sounds.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Shared helpers
@@ -191,6 +192,7 @@ async function runHangman() {
 
     printLine('  ╔══════════════════════════════════╗', 'line-ok');
     printLine('  ║  ★  YOU WIN!                    ║', 'line-ok');
+    playSoundIfEnabled('reward');
     printLine(`  ║  Word:   ${word.toUpperCase().padEnd(24)} ║`, 'line-ok');
     printLine(`  ║  Wrong:  ${String(wrong).padEnd(24)} ║`, 'line-ok');
     printLine(`  ║  Score:  ${String(score).padEnd(24)} ║`, 'line-ok');
@@ -211,6 +213,7 @@ async function runHangman() {
 
   } else {
     printLine(`  ✗  HANGED.  The word was: ${word.toUpperCase()}`, 'line-err');
+    playSoundIfEnabled('fail');
     printBlank();
   }
 }
@@ -296,6 +299,7 @@ async function runBullsCows() {
     printBlank();
     printLine('  ╔══════════════════════════════════╗', 'line-ok');
     printLine('  ║  ★  CODE CRACKED!               ║', 'line-ok');
+    playSoundIfEnabled('reward');
     printLine(`  ║  Number: ${secret.padEnd(25)} ║`, 'line-ok');
     printLine(`  ║  Guesses: ${String(guessNum).padEnd(24)} ║`, 'line-ok');
     printLine(`  ║  Score:   ${String(score).padEnd(24)} ║`, 'line-ok');
@@ -551,6 +555,7 @@ function runChaseMaze() {
         // ── Caught?
         if (pr === gr && pc === gc) {
           pre.textContent = _renderChaseMaze(grid, ROWS, COLS, pr, pc, gr, gc, steps);
+          playSoundIfEnabled('fail');
           finish('  ✗  CAUGHT by the ghost!  Game over.', 'line-err');
           return;
         }
@@ -559,6 +564,7 @@ function runChaseMaze() {
         if (pr === ROWS - 1 && pc === COLS - 1) {
           const score = Math.max(50, 500 - steps * 5);
           pre.textContent = _renderChaseMaze(grid, ROWS, COLS, pr, pc, gr, gc, steps);
+          playSoundIfEnabled('reward');
           finish(`  ★  ESCAPED!  Steps: ${steps}  ─  Score: ${score}`, 'line-ok');
 
           // Fire-and-forget async: save score + achievements (we're in a sync keydown)

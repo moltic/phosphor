@@ -1,7 +1,7 @@
 // ── ui/settings.js ───────────────────────────────────────────────────────────
 // applyPrefs, settings panel UI, greeting helpers.
 
-import { APP_TITLE, THEMES, FONT_SIZES, DEFAULT_PREFS } from '../core/config.js';
+import { APP_TITLE, THEMES, FONT_SIZES, DEFAULT_PREFS, getAutoSkin } from '../core/config.js';
 import { loadPrefs, savePrefs }                          from '../core/storage.js';
 import { cmdHistory, setCmdHistory }                     from '../core/state.js';
 import {
@@ -44,9 +44,26 @@ export function getGreetingBucket() {
  */
 export async function applyPrefs(prefs) {
   _cachedPrefs = prefs;
-  const root    = document.documentElement;
-  const palette = THEMES[prefs.theme] || THEMES.amber;
+  const root = document.documentElement;
+
+  // ── Theme palette (auto-skin may override stored theme) ──────────────────
+  const effectiveTheme = (prefs.autoSkin) ? getAutoSkin() : (prefs.theme || 'amber');
+  const palette = THEMES[effectiveTheme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
+
+  // ── CRT intensity ─────────────────────────────────────────────────────────
+  // Classes on <html> drive the CSS in style.css.
+  const intensity = prefs.crtIntensity || 'medium';
+  ['off', 'low', 'medium', 'high'].forEach(lvl =>
+    root.classList.toggle(`crt--${lvl}`, intensity === lvl)
+  );
+
+  // Remove the default fallback class when a named level is active so that
+  // the cascade is unambiguous (medium needs no overrides, so it's a no-op
+  // in CSS, but the class is set for consistency / JS introspection).
+
+  // ── Reduced-motion (user preference, independent of OS setting) ──────────
+  root.classList.toggle('reduced-motion--on', prefs.reducedMotion === true);
 
   const terminalSize = prefs.terminalSize || prefs.fontSize || DEFAULT_PREFS.terminalSize;
   const dialSize     = prefs.dialSize     || prefs.fontSize || DEFAULT_PREFS.dialSize;
@@ -145,7 +162,14 @@ export const settingsPanelEl = (() => {
   }
 
   const themeSelect = makeSelect('s-theme', [
-    ['amber', 'AMBER'], ['green', 'GREEN'], ['blue', 'BLUE'], ['white', 'WHITE'],
+    ['amber',   'AMBER'],
+    ['green',   'GREEN'],
+    ['blue',    'BLUE'],
+    ['white',   'WHITE'],
+    ['crimson', 'CRIMSON'],
+    ['matrix',  'MATRIX'],
+    ['ice',     'ICE'],
+    ['warm',    'WARM'],
   ]);
   const terminalSizeSelect = makeSelect('s-terminalsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
@@ -183,6 +207,13 @@ export const settingsPanelEl = (() => {
   const cursorSpeedSelect  = makeSelect('s-cursorspeed',   [['slow', 'SLOW'], ['normal', 'NORMAL'], ['fast', 'FAST']]);
   const historyPersistSel  = makeSelect('s-historypersist',[['on', 'ON'], ['off', 'OFF']]);
   const dialOnLoadSel      = makeSelect('s-dialonload',    [['off', 'OFF'], ['on', 'ON']]);
+  // ── Atmospheric polish ──────────────────────────────────────────────────
+  const crtIntensitySel    = makeSelect('s-crtintensity',  [
+    ['off', 'OFF'], ['low', 'LOW'], ['medium', 'MEDIUM'], ['high', 'HIGH'],
+  ]);
+  const soundsSel          = makeSelect('s-sounds',        [['off', 'OFF'], ['on', 'ON']]);
+  const reducedMotionSel   = makeSelect('s-reducedmotion', [['off', 'OFF'], ['on', 'ON']]);
+  const autoSkinSel        = makeSelect('s-autoskin',      [['off', 'OFF'], ['on', 'ON']]);
 
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
@@ -214,6 +245,11 @@ export const settingsPanelEl = (() => {
   inner.appendChild(makeRow('CURSOR SPEED',     cursorSpeedSelect));
   inner.appendChild(makeRow('HISTORY PERSIST',  historyPersistSel));
   inner.appendChild(makeRow('DIALS ON LOAD',    dialOnLoadSel));
+  // ── Atmospheric polish section ─────────────────────────────────────────
+  inner.appendChild(makeRow('CRT INTENSITY',    crtIntensitySel));
+  inner.appendChild(makeRow('SOUNDS',           soundsSel));
+  inner.appendChild(makeRow('REDUCE MOTION',    reducedMotionSel));
+  inner.appendChild(makeRow('AUTO SKIN',        autoSkinSel));
 
   // ── Contextual onboarding hint ────────────────────────────────────
   const hintEl = document.createElement('div');
@@ -221,9 +257,10 @@ export const settingsPanelEl = (() => {
   hintEl.setAttribute('aria-label', 'Terminal shortcut hints');
   hintEl.innerHTML = [
     '<span class="settings-onboarding-hint__label">TERMINAL SHORTCUTS</span>',
-    '<span>theme [name]  ─  change theme without opening this panel</span>',
+    '<span>theme [name]  ─  change theme  (amber green blue white crimson matrix ice warm)</span>',
     '<span>Ctrl+,  /  ⌘,  ─  open or close this panel from anywhere</span>',
     '<span>tour  ─  replay the getting-started guide any time</span>',
+    '<span>AUTO SKIN on  ─  palette auto-selects by season &amp; time of day</span>',
   ].join('');
   inner.appendChild(hintEl);
 
@@ -233,6 +270,7 @@ export const settingsPanelEl = (() => {
   const livePreviewFields = [
     themeSelect, terminalSizeSelect, dialLayoutSelect, dialSizeSelect,
     scanSelect, cursorSpeedSelect, greetingSelect,
+    crtIntensitySel, reducedMotionSel, autoSkinSel,
   ];
   function _livePreview() {
     const previewPrefs = {
@@ -248,6 +286,10 @@ export const settingsPanelEl = (() => {
       tempUnit:         tempUnitSelect.value,
       cursorBlinkSpeed: cursorSpeedSelect.value,
       historyPersist:   historyPersistSel.value === 'on',
+      crtIntensity:     crtIntensitySel.value,
+      sounds:           soundsSel.value === 'on',
+      reducedMotion:    reducedMotionSel.value === 'on',
+      autoSkin:         autoSkinSel.value === 'on',
     };
     applyPrefs(previewPrefs);
   }
@@ -307,6 +349,10 @@ export async function openSettingsPanel() {
   document.getElementById('s-cursorspeed').value   = prefs.cursorBlinkSpeed || 'normal';
   document.getElementById('s-historypersist').value = prefs.historyPersist === false ? 'off' : 'on';
   document.getElementById('s-dialonload').value      = prefs.dialOpenOnLoad  === true  ? 'on'  : 'off';
+  document.getElementById('s-crtintensity').value   = prefs.crtIntensity  || 'medium';
+  document.getElementById('s-sounds').value          = prefs.sounds         === true  ? 'on'  : 'off';
+  document.getElementById('s-reducedmotion').value   = prefs.reducedMotion  === true  ? 'on'  : 'off';
+  document.getElementById('s-autoskin').value        = prefs.autoSkin       === true  ? 'on'  : 'off';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -333,6 +379,10 @@ export async function commitSettings() {
     cursorBlinkSpeed: document.getElementById('s-cursorspeed').value,
     historyPersist:   document.getElementById('s-historypersist').value === 'on',
     dialOpenOnLoad:   document.getElementById('s-dialonload').value === 'on',
+    crtIntensity:     document.getElementById('s-crtintensity').value,
+    sounds:           document.getElementById('s-sounds').value === 'on',
+    reducedMotion:    document.getElementById('s-reducedmotion').value === 'on',
+    autoSkin:         document.getElementById('s-autoskin').value === 'on',
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);
