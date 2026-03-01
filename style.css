@@ -441,6 +441,10 @@ html, body {
   flex-shrink: 0;
 }
 
+.dial-toolbar-group--density {
+  margin-left: auto;
+}
+
 /* Action + density stepper buttons share a base style */
 .dial-toolbar-btn {
   background: none;

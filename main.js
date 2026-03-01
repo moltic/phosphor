@@ -262,7 +262,7 @@ document.addEventListener('keydown', e => {
 // ── Dismiss context menu on click outside ────────────────────────────────────
 document.addEventListener('click', e => {
   if (!e.target.closest('#dial-ctx-menu')) hideDialCtxMenu();
-  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, .dial-tile, .dial-composer, #dial-move-picker')) {
+  if (!e.target.closest('#dial-ctx-menu, #dial-side-sheet, #settings-panel, .dial-tile, .dial-composer, #dial-move-picker, .dial-toolbar-search')) {
     // Don't steal focus when user is selecting text in the output area
     const sel = window.getSelection();
     if (sel && sel.toString().length > 0) return;
