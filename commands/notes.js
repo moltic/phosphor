@@ -9,6 +9,8 @@ import {
 } from '../core/render.js';
 import { setPendingConfirm }                    from '../core/state.js';
 import { formatTimestamp }                      from '../core/clock.js';
+import { awardAchievement }                     from '../core/progression.js';
+import { notifyAchievement }                    from './profile.js';
 
 export const notesCommands = {
 
@@ -114,6 +116,10 @@ export const notesCommands = {
       notes.push({ id, text, ts });
       await saveNotes(notes);
       printLine(`✓ Note saved  [${formatTimestamp(ts)}]`, 'line-ok');
+
+      // Achievement hooks — idempotent, safe to call on every save.
+      notifyAchievement(await awardAchievement('first_note'));
+      if (notes.length >= 5) notifyAchievement(await awardAchievement('five_notes'));
     },
   },
 

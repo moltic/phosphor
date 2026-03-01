@@ -20,6 +20,8 @@ import {
 } from '../core/render.js';
 import { setPendingConfirm }                       from '../core/state.js';
 import { renderDials, removeDial, openDialOverlay } from '../ui/dials.js';
+import { awardAchievement }                        from '../core/progression.js';
+import { notifyAchievement }                       from './profile.js';
 
 // ── DialStore helpers (used by add / move / rename / category) ────────────────
 
@@ -124,6 +126,10 @@ export const dialsCommands = {
         await renderDials();
         const catNote = targetCat.label ? `  [${targetCat.label}]` : '';
         printLine(`✓ Dial "${alias}"  →  ${url}${catNote}`, 'line-ok');
+
+        // First dial achievement — count total items across all categories.
+        const totalItems = store.categories.reduce((n, c) => n + c.items.length, 0);
+        if (totalItems === 1) notifyAchievement(await awardAchievement('first_dial'));
 
       // ── dial rm ──────────────────────────────────────────────────
       } else if (sub === 'rm') {

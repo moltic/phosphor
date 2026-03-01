@@ -12,6 +12,8 @@ import {
   clockInterval,      setClockInterval,      clearClockInterval,
 } from '../core/state.js';
 import { tickClock }            from '../core/clock.js';
+import { awardAchievement }     from '../core/progression.js';
+import { notifyAchievement }    from './profile.js';
 
 // ── Fortune quotes ────────────────────────────────────────────────────────────
 const FORTUNES = [
@@ -93,6 +95,9 @@ export const funCommands = {
       printLine(blank,  'line-sep');
       printLine(bottom, 'line-sep');
       printBlank();
+
+      // Achievement — fire-and-forget (idempotent after first run).
+      awardAchievement('fortune_read').then(r => notifyAchievement(r));
     },
   },
 
@@ -465,6 +470,7 @@ export const funCommands = {
           pre.remove();
           printLine('MATRIX PROTOCOL TERMINATED.', 'line-ok');
           printBlank();
+          awardAchievement('matrix_run').then(r => notifyAchievement(r));
         }
       }, TICK_MS);
 
@@ -559,6 +565,7 @@ export const funCommands = {
             out.textContent = grantedLines.join('\n');
             outputEl.appendChild(out);
             outputEl.scrollTop = outputEl.scrollHeight;
+            awardAchievement('hack_complete').then(r => notifyAchievement(r));
             resolve();
             return;
           }
@@ -644,6 +651,7 @@ export const funCommands = {
 
           stopCountdown();
           printLine('⏱  COUNTDOWN REACHED ZERO!', 'line-err');
+          awardAchievement('countdown_complete').then(r => notifyAchievement(r));
           return;
         }
 
@@ -735,6 +743,9 @@ export const funCommands = {
       printBlank();
       printLine(`  ${cols}x${rows} maze  |  enter: top-left  |  exit: bottom-right`, 'line-info');
       printBlank();
+
+      // Achievement — fire-and-forget (idempotent after first generation).
+      awardAchievement('maze_generated').then(r => notifyAchievement(r));
     },
   },
 

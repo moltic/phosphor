@@ -4,10 +4,13 @@
 import { DEFAULT_PREFS }                             from '../core/config.js';
 import { loadDials, loadNotes, loadPrefs,
          saveDials, saveNotes, savePrefs }           from '../core/storage.js';
+import { loadProfile, saveProfile }                  from '../core/progression.js';
 import { printLine, beginBatch, endBatch }            from '../core/render.js';
 import { renderDials }                               from '../ui/dials.js';
 import { applyPrefs }                                from '../ui/settings.js';
 import { setPendingConfirm }                         from '../core/state.js';
+import { awardAchievement }                          from '../core/progression.js';
+import { notifyAchievement }                         from './profile.js';
 
 export const dataCommands = {
 
@@ -69,7 +72,7 @@ export const dataCommands = {
           }
 
           // Warn the user that import is destructive (terminal-style confirmation)
-          printLine('Importing will replace all your current dials, notes, and preferences.', 'line-err');
+          printLine('Importing will replace all your current dials, notes, preferences, and operator profile.', 'line-err');
           printLine('Consider running "export" first to back up your data.', 'line-info');
           printLine('Type  CONFIRM  to proceed, or anything else to abort:', 'line-info');
           endBatch();
@@ -87,6 +90,7 @@ export const dataCommands = {
           if (Array.isArray(payload.dials))                        saves.push(saveDials(payload.dials));
           if (Array.isArray(payload.notes))                        saves.push(saveNotes(payload.notes));
           if (payload.prefs && typeof payload.prefs === 'object')  saves.push(savePrefs({ ...DEFAULT_PREFS, ...payload.prefs }));
+          if (payload.profile && typeof payload.profile === 'object') saves.push(saveProfile(payload.profile));
 
           await Promise.all(saves);
 
@@ -95,7 +99,7 @@ export const dataCommands = {
 
           const dc = Array.isArray(payload.dials) ? payload.dials.length : 0;
           const nc = Array.isArray(payload.notes) ? payload.notes.length : 0;
-          printLine(`✓ Imported ${dc} dial(s), ${nc} note(s).`, 'line-ok');
+          printLine(`✓ Imported ${dc} dial(s), ${nc} note(s)${payload.profile ? ', and operator profile' : ''}.`, 'line-ok');
           if (payload._exported) printLine(`  Backup dated: ${payload._exported.slice(0, 10)}`, 'line-info');
           printLine('  All data has been restored.', 'line-info');
           resolve();

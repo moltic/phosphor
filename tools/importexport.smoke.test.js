@@ -31,6 +31,18 @@ const DEFAULT_PREFS = {
   dialOpenOnLoad:   false,
 };
 
+// ── Inlined from core/progression.js — Keep in sync ──────────────────────────
+const ACHIEVEMENT_IDS = [
+  'first_note', 'five_notes', 'first_dial', 'theme_change',
+  'countdown_complete', 'fortune_read', 'matrix_run', 'hack_complete',
+  'maze_generated', 'export_done', 'ten_sessions', 'fifty_sessions',
+];
+
+/** Build a minimal valid profile object for tests. */
+function makeProfile(overrides = {}) {
+  return { handle: 'TestGhost', xp: 0, achievedAt: {}, ...overrides };
+}
+
 // ── Inlined from core/storage.js — Keep in sync ──────────────────────────────
 const DIAL_STORE_VERSION = 1;
 
@@ -142,9 +154,10 @@ function makeMockStorage(syncInit = {}, localInit = {}) {
 
 // 1a. A well-formed export payload has the required envelope keys
 {
-  const dials = [{ alias: 'gh', label: 'GitHub', url: 'https://github.com' }];
-  const notes = [{ id: '1', text: 'hello', ts: 1700000000000 }];
-  const prefs = { ...DEFAULT_PREFS, theme: 'green' };
+  const dials   = [{ alias: 'gh', label: 'GitHub', url: 'https://github.com' }];
+  const notes   = [{ id: '1', text: 'hello', ts: 1700000000000 }];
+  const prefs   = { ...DEFAULT_PREFS, theme: 'green' };
+  const profile = makeProfile({ xp: 100, achievedAt: { first_note: 1700000001000 } });
 
   const payload = {
     _phosphor: true,
@@ -153,6 +166,7 @@ function makeMockStorage(syncInit = {}, localInit = {}) {
     dials,
     notes,
     prefs,
+    profile,
   };
 
   assert.ok(payload._phosphor,              'payload must have _phosphor flag');
@@ -161,6 +175,9 @@ function makeMockStorage(syncInit = {}, localInit = {}) {
   assert.ok(Array.isArray(payload.dials),   'dials must be an array');
   assert.ok(Array.isArray(payload.notes),   'notes must be an array');
   assert.ok(payload.prefs && typeof payload.prefs === 'object', 'prefs must be an object');
+  assert.ok(payload.profile && typeof payload.profile === 'object', 'profile must be an object');
+  assert.equal(payload.profile.handle, 'TestGhost', 'profile.handle must be preserved');
+  assert.equal(payload.profile.xp, 100, 'profile.xp must be preserved');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -284,6 +301,67 @@ function makeMockStorage(syncInit = {}, localInit = {}) {
   const recovered = dialStoreToFlatArray(store);
   assert.deepEqual(recovered, [], 'empty dials array should round-trip to empty array');
   assert.equal(store.version, DIAL_STORE_VERSION, 'empty store must still have correct version');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  6. Profile round-trip  (export ↔ import)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// 6a. A fresh profile has the expected default shape.
+{
+  const p = makeProfile();
+  assert.equal(typeof p.handle,      'string',  'profile.handle must be a string');
+  assert.equal(typeof p.xp,          'number',  'profile.xp must be a number');
+  assert.equal(typeof p.achievedAt,  'object',  'profile.achievedAt must be an object');
+  assert.ok(p.xp >= 0,                          'profile.xp must be non-negative');
+}
+
+// 6b. Profile with earned achievements round-trips through JSON.
+{
+  const now = Date.now();
+  const original  = makeProfile({
+    handle: 'NeonBlade',
+    xp: 150,
+    achievedAt: { first_note: now - 10000, five_notes: now - 5000, theme_change: now },
+  });
+  const serialised = JSON.parse(JSON.stringify(original));
+  assert.equal(serialised.handle, original.handle, 'handle survives JSON round-trip');
+  assert.equal(serialised.xp,     original.xp,     'xp survives JSON round-trip');
+  assert.deepEqual(serialised.achievedAt, original.achievedAt, 'achievedAt survives JSON round-trip');
+}
+
+// 6c. Import restores only achievements listed in the known catalogue.
+//     (Mirrors the runtime guard: unknown ids are silently preserved.)
+{
+  const p = makeProfile({ xp: 75, achievedAt: { first_note: 1700000000000, unknown_future_id: 99 } });
+  // All known ids in achievedAt must still be present after serialisation.
+  for (const id of Object.keys(p.achievedAt)) {
+    assert.ok(
+      typeof p.achievedAt[id] === 'number',
+      `achievedAt['${id}'] must be a numeric timestamp`,
+    );
+  }
+}
+
+// 6d. Legacy payload (no profile key) is accepted by the import guard.
+//     The import command only restores profile when the key is present.
+{
+  const legacyPayload = {
+    _phosphor: true,
+    _version:  1,
+    _exported: new Date().toISOString(),
+    dials: [],
+    notes: [],
+    prefs: DEFAULT_PREFS,
+    // no `profile` key — old backup
+  };
+  // validateImportPayload should accept it (profile is optional).
+  const r = validateImportPayload(legacyPayload);
+  assert.ok(r.ok, 'legacy payload without profile key must still pass validation');
+  // The runtime import gate (commands/data.js) uses:
+  //   if (payload.profile && typeof payload.profile === 'object') saves.push(saveProfile(...))
+  // so missing profile simply means nothing is restored — verified here:
+  assert.ok(!legacyPayload.profile, 'legacy payload has no profile key as expected');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

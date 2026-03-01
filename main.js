@@ -36,6 +36,8 @@ import { renderDials,
 import { tickClock }                  from './core/clock.js';
 import { commands, dispatch }         from './commands/index.js';
 import { printBootSequence }          from './commands/system.js';
+import { awardAchievement }           from './core/progression.js';
+import { notifyAchievement }          from './commands/profile.js';
 
 // ============================================================
 //  init
@@ -65,6 +67,13 @@ async function init() {
   prefs.sessionCount = (prefs.sessionCount || 0) + 1;
   await savePrefs(prefs);
 
+  // Check session-milestone achievements.
+  // awardAchievement is idempotent so these are safe to call every boot;
+  // they only fire (store + notify) once, the first time the threshold is met.
+  const _sessionMilestones = [];
+  if (prefs.sessionCount >= 10)  _sessionMilestones.push(awardAchievement('ten_sessions'));
+  if (prefs.sessionCount >= 50)  _sessionMilestones.push(awardAchievement('fifty_sessions'));
+
   await applyPrefs(prefs);
   updateDialOverlayTop();
 
@@ -86,6 +95,14 @@ async function init() {
 
   // Boot sequence
   await printBootSequence();
+
+  // Flush any newly-earned session-milestone achievement toasts.
+  // These are resolved here (after boot output) so the toasts appear at the
+  // end of the startup text rather than interrupting it.
+  if (_sessionMilestones.length > 0) {
+    const results = await Promise.all(_sessionMilestones);
+    for (const r of results) notifyAchievement(r);
+  }
 
   // Open dial overlay on load if configured
   if (prefs.dialOpenOnLoad) openDialOverlay();

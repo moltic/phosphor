@@ -9,6 +9,8 @@
 | Change how the terminal renders text | `core/render.js` |
 | Add a UI widget or tweak styles | `ui/` + `style.css` |
 | Touch storage / prefs | `core/storage.js` · `core/config.js` |
+| Add or edit an achievement | `core/progression.js` (ACHIEVEMENTS table) |
+| Touch profile / rank / XP commands | `commands/profile.js` |
 | Write a test | `tools/*.test.js` |
 
 ---
@@ -28,6 +30,7 @@ core/
   render.js         ← DOM print helpers, batch system, banner pipeline
   storage.js        ← chrome.storage CRUD: dials, notes, prefs, migrations
   clock.js          ← tickClock() + formatTimestamp()
+  progression.js    ← operator profile, XP/rank, achievements (pure data + chrome.storage)
 
 ui/
   settings.js       ← applyPrefs(), settings panel, greeting helpers
@@ -43,8 +46,10 @@ commands/
   notes.js          ← n, ls, rm, nuke (note CRUD)
   dials-cmd.js      ← dial subcommands (add/rm/move/rename/category/import …)
   system.js         ← clr, theme, banner, boot, uptime, whoami, settings …
-  fun.js            ← fortune, cal, ping, scan, matrix, countdown, maze …
+  fun.js            ← fortune, cal, ping, scan, matrix, hack, countdown, maze …
   data.js           ← export (JSON download) and import (JSON restore)
+  onboarding.js     ← tour, skip-tour first-run commands
+  profile.js        ← profile, achievements / ach, rank; exports notifyAchievement()
 
 tools/
   dial-migration.test.js       ← DialStore v1 migration round-trip tests
@@ -118,6 +123,13 @@ upward dependency; keep it narrow (only those two helpers).
 The `import` command calls `renderDials()` after restoring a backup.  Keep
 this the only place where a command module imports a UI widget directly.
 
+**(4) `commands/profile.js` → `core/render.js`**
+`notifyAchievement()` is the sole function exported by `commands/profile.js`
+that other command modules import.  It prints the achievement-unlocked toast
+using `core/render.js` after an `awardAchievement()` call returns
+`{ unlocked: true }`.  Keeping the notification here decouples the pure-data
+`core/progression.js` from DOM output.
+
 ---
 
 ## Storage schema  (`chrome.storage.sync`)
@@ -142,7 +154,15 @@ this the only place where a command module imports a UI widget directly.
     ]
   },
   "notes":  [ { "id": "…", "text": "…", "ts": 1700000000000 } ],
-  "prefs":  { /* see DEFAULT_PREFS in core/config.js */ }
+  "prefs":  { /* see DEFAULT_PREFS in core/config.js */ },
+  "profile": {
+    "handle":      "CipherBlade",           // auto-generated BBS handle
+    "xp":          175,                      // cumulative XP total
+    "achievedAt": {
+      "first_note":   1700000001000,          // epoch ms of each unlock
+      "theme_change": 1700000005000
+    }
+  }
 }
 ```
 
@@ -159,14 +179,77 @@ backup tooling but is not read once `dialStore` is present.
   "_phosphor": true,
   "_version": 1,
   "_exported": "2026-02-28T12:00:00.000Z",
-  "dials":  [ /* flat dials array (legacy format for portability) */ ],
-  "notes":  [ /* notes array */ ],
-  "prefs":  { /* prefs object */ }
+  "dials":   [ /* flat dials array (legacy format for portability) */ ],
+  "notes":   [ /* notes array */ ],
+  "prefs":   { /* prefs object */ },
+  "profile": { /* operator profile — handle, xp, achievedAt */ }
 }
 ```
 
 On import, `prefs` is merged with `DEFAULT_PREFS` so any new keys added since
-the backup was made are guaranteed to be present.
+the backup was made are guaranteed to be present.  `profile` is restored as-is
+(no merge — the backup value fully replaces the stored one).  Payloads
+generated before the `profile` key existed are fully forward-compatible:
+the import command silently skips restoration when `profile` is absent.
+
+---
+
+## Progression system
+
+### Overview
+
+The operator profile (`chrome.storage.sync` key `"profile"`) persists the
+BBS handle, cumulative XP, and timestamps of every earned achievement.  Rank
+and badge are derived at runtime from the XP total using `getRankForXp()` in
+`core/progression.js`.
+
+### Achievement IDs and hooks
+
+| Achievement id        | Label            | XP  | Hook location                          |
+|-----------------------|------------------|-----|----------------------------------------|
+| `first_note`          | First Contact    | +25 | `commands/notes.js` — first `n` save   |
+| `five_notes`          | Notetaker        | +40 | `commands/notes.js` — 5th+ `n` save   |
+| `first_dial`          | Speed Demon      | +25 | `commands/dials-cmd.js` — `dial add`  |
+| `theme_change`        | Colour Shift     | +15 | `commands/system.js` — `theme`        |
+| `countdown_complete`  | On Time          | +30 | `commands/fun.js` — `countdown` zero  |
+| `fortune_read`        | Fortune Cookie   | +10 | `commands/fun.js` — `fortune`         |
+| `matrix_run`          | In the Matrix    | +20 | `commands/fun.js` — `matrix`          |
+| `hack_complete`       | Access Granted   | +20 | `commands/fun.js` — `hack`            |
+| `maze_generated`      | No Way Out       | +10 | `commands/fun.js` — `maze`            |
+| `export_done`         | Backed Up        | +20 | `commands/data.js` — `export`         |
+| `ten_sessions`        | Regular          | +50 | `main.js` — init() session bump ≥ 10  |
+| `fifty_sessions`      | Veteran          | +100| `main.js` — init() session bump ≥ 50  |
+
+### Idempotency guarantee
+
+`awardAchievement(id)` checks `profile.achievedAt[id]` before every write.
+If the key already exists it returns `{ unlocked: false }` immediately without
+touching storage.  This means all hook call-sites are safe to call on every
+relevant action — duplicate awards are impossible.
+
+### Rank table
+
+| Rank       | Badge | Min XP |
+|------------|-------|--------|
+| RECRUIT    | ▪     | 0      |
+| OPERATOR   | ◆     | 50     |
+| SPECIALIST | ◈     | 150    |
+| TECHNICIAN | ◉     | 300    |
+| HACKER     | ✦     | 500    |
+| ELITE      | ⬡     | 800    |
+| GHOST      | ◎     | 1200   |
+| PHANTOM    | ⊕     | 2000   |
+| LEGEND     | ★     | 5000   |
+
+### Terminal commands
+
+| Command         | Description                                              |
+|-----------------|----------------------------------------------------------|
+| `profile`       | Full operator card: handle, rank, XP bar, summary        |
+| `whoami`        | User ID card (now includes rank + XP)                    |
+| `rank`          | Rank, XP progress bar, and full rank table               |
+| `achievements`  | All achievements with earned/pending status              |
+| `ach`           | Alias for `achievements`                                 |
 
 ---
 

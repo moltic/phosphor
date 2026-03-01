@@ -15,6 +15,9 @@ import { cmdHistory, sessionStart, setPendingConfirm } from '../core/state.js';
 import { formatTimestamp }                  from '../core/clock.js';
 import { applyPrefs, openSettingsPanel } from '../ui/settings.js';
 import { printFirstRunTutorial, pickTryHint } from './onboarding.js';
+import { loadProfile, getRankForXp,
+         awardAchievement }               from '../core/progression.js';
+import { notifyAchievement }              from './profile.js';
 
 // ── BBS handle generator ──────────────────────────────────────────────────────
 const _HANDLE_ADJ = [
@@ -136,6 +139,7 @@ export const systemCommands = {
       await savePrefs(prefs);
       await applyPrefs(prefs);
       printLine(`✓ Theme set to ${next.toUpperCase()}.`, 'line-ok');
+      notifyAchievement(await awardAchievement('theme_change'));
     },
   },
 
@@ -226,7 +230,7 @@ export const systemCommands = {
 
   // ── whoami ────────────────────────────────────────────────────────
   whoami: {
-    description: 'Show your BBS user info: handle, session number, and login time.',
+    description: 'Show your BBS user info: handle, rank, XP, session number, and login time.',
     usage: 'whoami',
     async run(_args) {
       const prefs = await loadPrefs();
@@ -237,6 +241,10 @@ export const systemCommands = {
       const handle  = prefs.handle;
       const session = String(prefs.sessionCount || 1).padStart(4, '0');
       const login   = formatTimestamp(sessionStart);
+
+      // Load rank / XP from the progression profile.
+      const profile = await loadProfile();
+      const rank    = getRankForXp(profile.xp);
 
       const INNER  = 54;
       const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
@@ -252,9 +260,11 @@ export const systemCommands = {
       printLine(top,   'line-sep');
       printLine('║  ░▒▓  USER IDENTIFICATION  ▓▒░' + ' '.repeat(INNER - 29) + '  ║', 'line-head');
       printLine(sep,   'line-sep');
-      printLine(row('HANDLE:', handle),         'line-head');
-      printLine(row('SESSION:', `#${session}`), 'line-out');
-      printLine(row('LOGIN:', login),           'line-out');
+      printLine(row('HANDLE:', handle),                        'line-head');
+      printLine(row('RANK:',   `${rank.rank}  ${rank.badge}`), 'line-head');
+      printLine(row('XP:',     `${profile.xp}`),               'line-ok');
+      printLine(row('SESSION:', `#${session}`),                 'line-out');
+      printLine(row('LOGIN:', login),                           'line-out');
       printLine(bottom, 'line-sep');
       printBlank();
 
