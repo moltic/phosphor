@@ -50,6 +50,18 @@ import { initLuaVM }                  from './core/lua-vm.js';
 async function init() {
   setSessionStart(Date.now());
 
+  const focusPrompt = () => {
+    inputEl.focus({ preventScroll: true });
+    const len = inputEl.value.length;
+    inputEl.setSelectionRange(len, len);
+  };
+
+  // Claim keyboard focus as early as possible so first keystrokes land in the
+  // prompt (not the browser omnibox) while startup output is still rendering.
+  requestAnimationFrame(focusPrompt);
+  setTimeout(focusPrompt, 0);
+  setTimeout(focusPrompt, 120);
+
   // Kick off the Lua VM in the background — it fetches and compiles the WASM
   // binary (~260 KB) so we start it early without blocking the rest of init.
   initLuaVM().catch(err => console.warn('[Phosphor] Lua VM init failed:', err));
@@ -124,7 +136,7 @@ async function init() {
     openCurrentTabDial(_pendingTabDial);
   }
 
-  inputEl.focus();
+  focusPrompt();
 }
 
 // ============================================================
