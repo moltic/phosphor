@@ -215,6 +215,11 @@ export const settingsPanelEl = (() => {
   const bootSoundSel        = makeSelect('s-bootsound',      [['always', 'ALWAYS'], ['daily', 'FIRST RUN DAILY']]);
   const reducedMotionSel   = makeSelect('s-reducedmotion', [['off', 'OFF'], ['on', 'ON']]);
   const autoSkinSel        = makeSelect('s-autoskin',      [['off', 'OFF'], ['on', 'ON']]);
+  const dialClickTargetSel = makeSelect('s-dialclicktarget', [
+    ['new-tab',    'NEW TAB'],
+    ['same-tab',   'SAME TAB'],
+    ['new-window', 'NEW WINDOW'],
+  ]);
 
   const actionsEl = document.createElement('div');
   actionsEl.className = 'settings-actions';
@@ -252,6 +257,7 @@ export const settingsPanelEl = (() => {
   inner.appendChild(makeRow('OPEN SOUND',        bootSoundSel));
   inner.appendChild(makeRow('REDUCE MOTION',    reducedMotionSel));
   inner.appendChild(makeRow('AUTO SKIN',        autoSkinSel));
+  inner.appendChild(makeRow('DIAL CLICK OPENS', dialClickTargetSel));
 
   // ── Contextual onboarding hint ────────────────────────────────────
   const hintEl = document.createElement('div');
@@ -276,6 +282,7 @@ export const settingsPanelEl = (() => {
   ];
   function _livePreview() {
     const previewPrefs = {
+      dialClickTarget:  dialClickTargetSel.value,
       theme:            themeSelect.value,
       terminalSize:     terminalSizeSelect.value,
       dialLayout:       dialLayoutSelect.value,
@@ -357,6 +364,7 @@ export async function openSettingsPanel() {
   document.getElementById('s-bootsound').value        = prefs.bootSoundMode  || 'always';
   document.getElementById('s-reducedmotion').value   = prefs.reducedMotion  === true  ? 'on'  : 'off';
   document.getElementById('s-autoskin').value        = prefs.autoSkin       === true  ? 'on'  : 'off';
+  document.getElementById('s-dialclicktarget').value = prefs.dialClickTarget || 'new-tab';
   settingsPanelEl.classList.add('visible');
   document.getElementById('s-theme').focus();
 }
@@ -388,6 +396,7 @@ export async function commitSettings() {
     bootSoundMode:    document.getElementById('s-bootsound').value,
     reducedMotion:    document.getElementById('s-reducedmotion').value === 'on',
     autoSkin:         document.getElementById('s-autoskin').value === 'on',
+    dialClickTarget:  document.getElementById('s-dialclicktarget').value,
   };
   await savePrefs(prefs);
   await applyPrefs(prefs);

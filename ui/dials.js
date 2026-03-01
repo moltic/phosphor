@@ -2,6 +2,7 @@
 // Speed-dial grid: rendering, DnD, context menu, edit dialog.
 
 import { CONFIG }                   from '../core/config.js';
+import { getCachedPrefs }           from './settings.js';
 import { loadDials, saveDials, loadDialStore, saveDialStore } from '../core/storage.js';
 import { printLine, inputEl }       from '../core/render.js';
 import { recordDialOpen }           from '../core/usage-stats.js';
@@ -20,6 +21,19 @@ import {
   openComposer,
   setComposerDeps,
 } from './dial-composer.js';
+
+// ── Dial navigation helper ───────────────────────────────────────────────────
+function _openDialUrl(url, alias) {
+  const target = getCachedPrefs()?.dialClickTarget || 'new-tab';
+  if (target === 'same-tab') {
+    location.href = url;
+  } else if (target === 'new-window') {
+    window.open(url, '_blank', 'noopener,noreferrer,width=1200,height=800');
+  } else {
+    // default: new-tab
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const dialGridEl    = document.getElementById('speed-dial');
@@ -717,7 +731,7 @@ export function bindDragEvents(el, dial, opts = {}) {
         const href = (el instanceof HTMLAnchorElement ? el.href : '') || dial.url;
         if (href) {
           recordDialOpen(dial.alias);
-          window.open(href, '_blank', 'noopener,noreferrer');
+          _openDialUrl(href, dial.alias);
         }
       }
     });
@@ -1128,7 +1142,7 @@ function _createTileEl(dial) {
       _clickTimer = null;
       if (dial.url) {
         recordDialOpen(dial.alias);
-        window.open(dial.url, '_blank', 'noopener,noreferrer');
+        _openDialUrl(dial.url, dial.alias);
       }
     }, 120);
   });

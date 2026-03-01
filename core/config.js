@@ -196,4 +196,6 @@ export const DEFAULT_PREFS = {
   reducedMotion:    false,
   /** Auto-choose a palette based on current season + time of day. */
   autoSkin:         false,
+  /** Where dial tile clicks open: 'new-tab' | 'same-tab' | 'new-window' */
+  dialClickTarget:  'new-tab',
 };
