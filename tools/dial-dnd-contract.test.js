@@ -26,12 +26,28 @@ assert(
   'Drag/drop should persist from a placeholder-aware commit helper',
 );
 assert(
+  /const _DRAG_REORDER_SELECTOR = '\.dial-tile, \.dial-divider, \.dial-group-header';/.test(dialsJs),
+  'Divider nodes should participate in the shared drag/reorder selector',
+);
+assert(
+  /!child\.classList\.contains\('dial-tile'\)\s*&&\s*!child\.classList\.contains\('dial-divider'\)/.test(dialsJs),
+  'Placeholder snapshots should preserve divider aliases alongside tiles',
+);
+assert(
   !/_getNewOrderFromPlaceholder/.test(dialsJs),
   'Legacy flat-array placeholder reorder helper should not remain in use',
 );
 assert(
   /if \(await _commitPlaceholderDrop\(fromAlias\)\)/.test(dialsJs),
   'Tile/body/grid drop handlers should all prefer the placeholder commit path',
+);
+assert(
+  /\.dial-section-body\.dial-section-body--has-divider/.test(styleCss),
+  'Auto layout should provide a divider-friendly section-body fallback',
+);
+assert(
+  /toggle-divider/.test(dialsJs),
+  'Divider context menu should expose an in-place row/column toggle',
 );
 
 console.log('dial-dnd-contract.test.js: OK');

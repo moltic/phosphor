@@ -273,6 +273,7 @@ function previewDropNearElement(toAlias, rect, clientX) {
 // empty slot; surrounding tiles animate to fill the gap via FLIP.
 
 let _dragPlaceholder = null;
+const _DRAG_REORDER_SELECTOR = '.dial-tile, .dial-divider, .dial-group-header';
 
 function _ensureDragPlaceholder(w, h) {
   if (!_dragPlaceholder) {
@@ -311,7 +312,7 @@ function _removeDragPlaceholder() {
 
 /** Cancel all in-progress FLIP transitions on tile/header nodes. */
 function _cancelAllFlips() {
-  dialGridEl.querySelectorAll('.dial-tile, .dial-group-header').forEach(t => {
+  dialGridEl.querySelectorAll(_DRAG_REORDER_SELECTOR).forEach(t => {
     if (t._flipCancel) { t._flipCancel(); delete t._flipCancel; }
   });
 }
@@ -343,7 +344,7 @@ function _movePlaceholderNear(overEl, before) {
   const bodies   = srcBody && srcBody !== targetBody ? [srcBody, targetBody] : [targetBody];
   const animated = [];
   for (const body of bodies) {
-    for (const tile of body.querySelectorAll('.dial-tile, .dial-group-header')) {
+    for (const tile of body.querySelectorAll(_DRAG_REORDER_SELECTOR)) {
       if (tile === src || tile === ph) continue;
       if (tile._flipCancel) { tile._flipCancel(); delete tile._flipCancel; }
       animated.push({ tile, first: tile.getBoundingClientRect() });
@@ -408,7 +409,10 @@ function _getSectionAliasPlanFromPlaceholder(fromAlias) {
         continue;
       }
 
-      if (!child.classList.contains('dial-tile')) continue;
+      if (
+        !child.classList.contains('dial-tile') &&
+        !child.classList.contains('dial-divider')
+      ) continue;
       const alias = child.dataset?.alias;
       if (alias && alias !== fromAlias) aliases.push(alias);
     }
@@ -467,7 +471,7 @@ async function _commitPlaceholderDrop(fromAlias) {
 }
 
 function previewDropAtEnd() {
-  const items = dialGridEl.querySelectorAll('.dial-tile, .dial-group-header');
+  const items = dialGridEl.querySelectorAll(_DRAG_REORDER_SELECTOR);
   const last  = items.length ? items[items.length - 1] : null;
   if (!last) return;
   const rect = last.getBoundingClientRect();
@@ -1223,7 +1227,7 @@ function _createSectionEl(cat) {
     bodyEl.classList.remove('is-drop-target');
     // Tile-level handlers use stopPropagation, so this fires only for
     // drops that land on the body itself (between tiles or on cleared space).
-    if (e.target.closest('.dial-tile, .dial-group-header')) return;
+    if (e.target.closest(_DRAG_REORDER_SELECTOR)) return;
     e.preventDefault();
     e.stopPropagation();
     hideDropIndicator();
@@ -1445,6 +1449,9 @@ function _createDividerEl(dial) {
   el.className = isCol ? 'dial-divider col-divider' : 'dial-divider row-divider';
   el.dataset.alias = dial.alias;
   el.draggable = true;
+  el.setAttribute('role', 'separator');
+  el.setAttribute('aria-orientation', isCol ? 'vertical' : 'horizontal');
+  el.setAttribute('aria-label', isCol ? 'Column divider' : 'Row divider');
   el.title = isCol
     ? 'Column Divider — drag to reorder, right-click to remove'
     : 'Row Divider — drag to reorder, right-click to remove';
@@ -1472,6 +1479,8 @@ function _patchDividerEl(el, dial) {
       ? 'Column Divider — drag to reorder, right-click to remove'
       : 'Row Divider — drag to reorder, right-click to remove';
   }
+  el.setAttribute('aria-orientation', isCol ? 'vertical' : 'horizontal');
+  el.setAttribute('aria-label', isCol ? 'Column divider' : 'Row divider');
   el._dialData = { ...dial };
 }
 
@@ -1503,6 +1512,10 @@ export async function renderDials() {
     sectionEl.classList.toggle('dial-section--empty', cat.items.length === 0);
 
     const bodyEl = sectionEl.querySelector('.dial-section-body');
+    bodyEl.classList.toggle(
+      'dial-section-body--has-divider',
+      cat.items.some(item => item.type === 'divider'),
+    );
 
     // ── Build / patch tile elements for this category's body ─────────────
     const desiredTileEls = cat.items.map(item => {
@@ -1594,11 +1607,11 @@ export async function renderDials() {
     dialGridEl.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      if (!e.target.closest('.dial-tile, .dial-group-header')) previewDropAtEnd();
+      if (!e.target.closest(_DRAG_REORDER_SELECTOR)) previewDropAtEnd();
     });
 
     dialGridEl.addEventListener('drop', async e => {
-      const tile = e.target.closest('.dial-tile, .dial-group-header');
+      const tile = e.target.closest(_DRAG_REORDER_SELECTOR);
       if (tile) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1713,6 +1726,15 @@ export const ctxMenuEl = (() => {
     showDialSideSheet(alias);
   });
 
+  const toggleDividerBtn = makeBtn('Switch to column divider', 'toggle-divider');
+  toggleDividerBtn.style.display = 'none';
+  toggleDividerBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const alias = menu.dataset.target;
+    hideDialCtxMenu();
+    await _toggleDividerVariant(alias);
+  });
+
   const removeBtn = makeBtn('Remove');
   removeBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1802,6 +1824,7 @@ export const ctxMenuEl = (() => {
 
   menu.appendChild(openTabBtn);
   menu.appendChild(editBtn);
+  menu.appendChild(toggleDividerBtn);
   menu.appendChild(moveToGroupItem);
   menu.appendChild(ungroupBtn);
   menu.appendChild(refreshWeatherBtn);
@@ -1815,11 +1838,21 @@ export function showDialCtxMenu(x, y, alias, isDivider = false, isWeather = fals
   const ctxEditBtn           = ctxMenuEl.querySelector('[data-action="edit"]');
   const ctxOpenTabBtn        = ctxMenuEl.querySelector('[data-action="open-tab"]');
   const ctxRefreshWeatherBtn = ctxMenuEl.querySelector('[data-action="refresh-weather"]');
+  const ctxToggleDividerBtn  = ctxMenuEl.querySelector('[data-action="toggle-divider"]');
   const ctxMoveToGroupItem   = ctxMenuEl.querySelector('[data-action="move-to-group"]');
   const ctxUngroupBtn        = ctxMenuEl.querySelector('[data-action="ungroup"]');
   if (ctxEditBtn)           ctxEditBtn.style.display           = isDivider ? 'none' : '';
   if (ctxOpenTabBtn)        ctxOpenTabBtn.style.display        = (isDivider || isGroupHeader) ? 'none' : '';
   if (ctxRefreshWeatherBtn) ctxRefreshWeatherBtn.style.display = isWeather ? '' : 'none';
+  if (ctxToggleDividerBtn) {
+    if (isDivider) {
+      const isCol = _dialNodeCache.get(alias)?._dialData?.col === true;
+      ctxToggleDividerBtn.textContent = isCol ? 'Switch to row divider' : 'Switch to column divider';
+      ctxToggleDividerBtn.style.display = '';
+    } else {
+      ctxToggleDividerBtn.style.display = 'none';
+    }
+  }
   if (ctxMoveToGroupItem)   _populateMoveToGroupSubmenu(alias, isDivider, isGroupHeader, ctxMoveToGroupItem);
   if (ctxUngroupBtn)        _updateUngroupBtn(alias, isDivider, isGroupHeader, ctxUngroupBtn);
   ctxMenuEl.style.left = `${x}px`;
@@ -2283,3 +2316,31 @@ initDialToolbar();
 
 // Inject renderDials into the composer so it can refresh the grid after saving.
 setComposerDeps({ renderDials });
+
+async function _toggleDividerVariant(alias) {
+  const store = await loadDialStore();
+  let nextIsCol = null;
+
+  const nextCategories = store.categories.map(cat => {
+    let changed = false;
+    const items = cat.items.map(item => {
+      if (item.alias !== alias || item.type !== 'divider') return item;
+      changed = true;
+      nextIsCol = item.col !== true;
+      const nextItem = { ...item };
+      if (nextIsCol) nextItem.col = true;
+      else delete nextItem.col;
+      return nextItem;
+    });
+    return changed ? { ...cat, items } : cat;
+  });
+
+  if (nextIsCol === null) return;
+
+  await saveDialStore({ ...store, categories: nextCategories });
+  await renderDials();
+  printLine(
+    `Divider switched to ${nextIsCol ? 'column' : 'row'} mode.`,
+    'line-ok',
+  );
+}

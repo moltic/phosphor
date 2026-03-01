@@ -1155,11 +1155,25 @@ html.dial-layout--auto .dial-section-body {
   grid-template-columns: repeat(auto-fill, minmax(var(--dial-tile-width), 1fr));
 }
 
+/* Dividers rely on literal row/column spacing, so auto-grid sections that
+   contain them fall back to wrapped tiles. */
+html.dial-layout--auto .dial-section-body.dial-section-body--has-divider {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+}
+
 html.dial-layout--auto .dial-tile,
 html.dial-layout--auto .dial-add-tile {
   flex: none;
   width: 100%;
   height: auto; /* aspect-ratio: 1/1 from base rule keeps tiles square */
+}
+
+html.dial-layout--auto .dial-section-body.dial-section-body--has-divider .dial-tile,
+html.dial-layout--auto .dial-section-body.dial-section-body--has-divider .dial-add-tile {
+  flex: 0 0 var(--dial-tile-width);
+  width: var(--dial-tile-width);
 }
 
 /* ── Comfortable: explicit square tiles, same as classic layout ── */
@@ -1452,10 +1466,15 @@ html.dial-layout--compact .dial-divider.row-divider {
   border-top: 1px dashed var(--fg-dim);
 }
 
+html.dial-layout--auto .dial-divider.row-divider {
+  grid-column: 1 / -1;
+}
+
 /* Column divider — narrow vertical bar, sits between tiles */
 .dial-divider.col-divider {
   width: 0.45em;
   align-self: stretch;
+  justify-self: center;
   border-left: 1px dashed var(--fg-dim);
 }
 
