@@ -26,6 +26,23 @@ export const navigationCommands = {
     },
   },
 
+  // ── gg — Google Gemini search ────────────────────────────────────
+  gg: {
+    description: 'Ask Google Gemini.  e.g. gg list books by stephen king in order of date written',
+    usage: 'gg [query ...]',
+    run(args) {
+      if (args.length === 0) {
+        printLine('Usage:   gg [query ...]', 'line-info');
+        printLine('Example: gg list books by stephen king in order of date written', 'line-info');
+        return;
+      }
+      const query = args.join(' ');
+      printLine(`Asking Gemini: "${query}"`, 'line-ok');
+      window.location.href =
+        `https://gemini.google.com/app?q=${encodeURIComponent(query)}`;
+    },
+  },
+
   // ── l — navigate (alias / domain / full URL) ─────────────────────
   l: {
     description: 'Open a speed-dial alias or any URL.  e.g. l gh',
