@@ -61,8 +61,27 @@ export async function printBootSequence() {
 
   const notes = await loadNotes();
   if (notes.length > 0) {
-    const plural = notes.length === 1 ? 'note' : 'notes';
-    printLine(`  ${notes.length} ${plural} stored.  Type  ls  to view.`, 'line-info');
+    const openTasks = notes.filter(n => n.pin && !n.done);
+    const dueToday  = openTasks.filter(n => {
+      if (!n.due) return false;
+      const today = new Date();
+      const pad   = v => String(v).padStart(2, '0');
+      const iso   = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      return n.due <= iso;
+    });
+
+    if (openTasks.length > 0) {
+      const taskWord = openTasks.length === 1 ? 'task' : 'tasks';
+      if (dueToday.length > 0) {
+        const dueWord = dueToday.length === 1 ? 'task' : 'tasks';
+        printLine(`  ${openTasks.length} open ${taskWord} — ${dueToday.length} due today.  Type  today  to view.`, 'line-err');
+      } else {
+        printLine(`  ${openTasks.length} open ${taskWord}.  Type  focus  to view.`, 'line-info');
+      }
+    } else {
+      const plural = notes.length === 1 ? 'note' : 'notes';
+      printLine(`  ${notes.length} ${plural} stored.  Type  ls  to view.`, 'line-info');
+    }
     printBlank();
   }
 

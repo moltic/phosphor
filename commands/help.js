@@ -55,7 +55,7 @@ export const helpCommands = {
       const CATEGORIES = [
         { label: 'GETTING STARTED', keys: ['tour', 'skip-tour'] },
         { label: 'NAVIGATION',  keys: ['g', 'l'] },
-        { label: 'NOTES',       keys: ['n', 'ls', 'nuke'] },
+        { label: 'NOTES & TASKS', keys: ['n', 'ls', 'today', 'focus', 'nuke'] },
         { label: 'SPEED DIAL',  keys: ['dial'] },
         { label: 'SYSTEM',      keys: ['clr', 'clear', 'history', 'theme', 'banner', 'settings', 'boot', 'motd', 'uptime', 'whoami', 'sysinfo', 'syncstatus', 'shutdown'] },
         { label: 'DATA',        keys: ['export', 'import'] },
