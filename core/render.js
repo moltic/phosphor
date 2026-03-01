@@ -47,7 +47,7 @@ export function advancePage() {
     if (outputEl.scrollHeight - startHeight >= outputEl.clientHeight) break;
   }
 
-  outputEl.scrollTop = outputEl.scrollHeight;
+  outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
 
   if (queue.length === 0) {
     // All pages revealed — exit pager mode.
@@ -72,7 +72,7 @@ function _cancelPager() {
   if (_hintDismissTimer) { clearTimeout(_hintDismissTimer); _hintDismissTimer = null; }
   scrollMoreEl.classList.remove('pager-mode', 'visible', 'fading');
   scrollMoreEl.textContent = '▼  MORE  ▼';
-  outputEl.scrollTop = outputEl.scrollHeight;
+  outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
 }
 
 // ============================================================
@@ -92,7 +92,7 @@ export function printLine(text, cls = 'line-out') {
     _batchEl.appendChild(span);
   } else {
     outputEl.appendChild(span);
-    outputEl.scrollTop = outputEl.scrollHeight;
+    outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
   }
 }
 
@@ -121,7 +121,7 @@ export function printBannerNodes(nodes) {
     _batchEl.appendChild(pre);
   } else {
     outputEl.appendChild(pre);
-    outputEl.scrollTop = outputEl.scrollHeight;
+    outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
   }
 }
 
@@ -167,7 +167,7 @@ export function endBatch() {
         return;
       }
 
-      outputEl.scrollTop = outputEl.scrollHeight;
+      outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
     }
     _batchEl = null;
   }
