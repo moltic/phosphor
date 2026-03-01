@@ -14,6 +14,8 @@ import {
 import { tickClock }            from '../core/clock.js';
 import { awardAchievement }     from '../core/progression.js';
 import { notifyAchievement }    from './profile.js';
+import { triggerMission }       from '../core/missions.js';
+import { notifyMission }        from './missions.js';
 
 // ── Fortune quotes ────────────────────────────────────────────────────────────
 const FORTUNES = [
@@ -98,6 +100,7 @@ export const funCommands = {
 
       // Achievement — fire-and-forget (idempotent after first run).
       awardAchievement('fortune_read').then(r => notifyAchievement(r));
+      triggerMission('run_fortune').then(r => notifyMission(r));
     },
   },
 
@@ -166,6 +169,7 @@ export const funCommands = {
         outputEl.scrollTop = outputEl.scrollHeight;
       }
       printBlank();
+      triggerMission('run_cal').then(r => notifyMission(r));
     },
   },
 
@@ -244,6 +248,7 @@ export const funCommands = {
         printLine('  ALL PORTS CLOSED — SECTOR SECURE.', 'line-ok');
         printRule('═');
         printBlank();
+        triggerMission('run_scan').then(r => notifyMission(r));
       }, t + 120);
     },
   },
@@ -274,6 +279,7 @@ export const funCommands = {
             outputEl.scrollTop = outputEl.scrollHeight;
             setTimeout(typeNext, CONFIG.TYPEWRITER_CHAR_MS);
           } else {
+            triggerMission('run_typewriter').then(r => notifyMission(r));
             resolve();
           }
         }
@@ -358,6 +364,7 @@ export const funCommands = {
       printLine('                ||----w |',    'line-out');
       printLine('                ||     ||',    'line-out');
       printBlank();
+      triggerMission('run_cowsay').then(r => notifyMission(r));
     },
   },
 
@@ -384,6 +391,7 @@ export const funCommands = {
         printLine(row, 'line-out');
       }
       printBlank();
+      triggerMission('run_noise').then(r => notifyMission(r));
     },
   },
 
@@ -471,6 +479,7 @@ export const funCommands = {
           printLine('MATRIX PROTOCOL TERMINATED.', 'line-ok');
           printBlank();
           awardAchievement('matrix_run').then(r => notifyAchievement(r));
+          triggerMission('run_matrix').then(r => notifyMission(r));
         }
       }, TICK_MS);
 
@@ -566,6 +575,7 @@ export const funCommands = {
             outputEl.appendChild(out);
             outputEl.scrollTop = outputEl.scrollHeight;
             awardAchievement('hack_complete').then(r => notifyAchievement(r));
+            triggerMission('run_hack').then(r => notifyMission(r));
             resolve();
             return;
           }
@@ -652,6 +662,7 @@ export const funCommands = {
           stopCountdown();
           printLine('⏱  COUNTDOWN REACHED ZERO!', 'line-err');
           awardAchievement('countdown_complete').then(r => notifyAchievement(r));
+          triggerMission('run_countdown').then(r => notifyMission(r));
           return;
         }
 
@@ -746,6 +757,7 @@ export const funCommands = {
 
       // Achievement — fire-and-forget (idempotent after first generation).
       awardAchievement('maze_generated').then(r => notifyAchievement(r));
+      triggerMission('run_maze').then(r => notifyMission(r));
     },
   },
 

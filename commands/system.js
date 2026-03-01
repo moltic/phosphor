@@ -18,6 +18,9 @@ import { printFirstRunTutorial, pickTryHint } from './onboarding.js';
 import { loadProfile, getRankForXp,
          awardAchievement }               from '../core/progression.js';
 import { notifyAchievement }              from './profile.js';
+import { getTodayMissions, getTodayBBSEvent,
+         triggerMission }                from '../core/missions.js';
+import { notifyMission }                  from './missions.js';
 
 // ── BBS handle generator ──────────────────────────────────────────────────────
 const _HANDLE_ADJ = [
@@ -62,6 +65,25 @@ export async function printBootSequence() {
     printLine(`  ${notes.length} ${plural} stored.  Type  ls  to view.`, 'line-info');
     printBlank();
   }
+
+  // ── Daily missions + BBS event ─────────────────────────────────
+  const missionState = await getTodayMissions();
+  const bbsEvent     = getTodayBBSEvent();
+  const mDone        = missionState.missions.filter(m => m.completed).length;
+  const mTotal       = missionState.missions.length;
+  printRule('─');
+  printLine(`  ▶ BBS EVENT: ${bbsEvent.label}`, 'line-head');
+  printLine(`  ${bbsEvent.desc}`, 'line-info');
+  if (mDone === mTotal) {
+    printLine('  ✦ All daily missions complete!  Come back tomorrow.', 'line-ok');
+  } else {
+    printLine(
+      `  MISSIONS: ${mDone} / ${mTotal} complete  —  type  missions  to view`,
+      'line-info',
+    );
+  }
+  printRule('─');
+  printBlank();
 
   // ── First-run tutorial ───────────────────────────────────────────
   // Show the page-1 tour on every boot until the user types skip-tour.
@@ -140,6 +162,7 @@ export const systemCommands = {
       await applyPrefs(prefs);
       printLine(`✓ Theme set to ${next.toUpperCase()}.`, 'line-ok');
       notifyAchievement(await awardAchievement('theme_change'));
+      notifyMission(await triggerMission('use_theme'));
     },
   },
 
@@ -156,6 +179,7 @@ export const systemCommands = {
       const text   = args.join(' ');
       const result = await renderBanner(text);
       printBannerHtml(result.value);
+      notifyMission(await triggerMission('run_banner'));
     },
   },
 

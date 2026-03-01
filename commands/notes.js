@@ -11,6 +11,8 @@ import { setPendingConfirm }                    from '../core/state.js';
 import { formatTimestamp }                      from '../core/clock.js';
 import { awardAchievement }                     from '../core/progression.js';
 import { notifyAchievement }                    from './profile.js';
+import { triggerMission }                       from '../core/missions.js';
+import { notifyMission }                        from './missions.js';
 
 export const notesCommands = {
 
@@ -120,6 +122,7 @@ export const notesCommands = {
       // Achievement hooks — idempotent, safe to call on every save.
       notifyAchievement(await awardAchievement('first_note'));
       if (notes.length >= 5) notifyAchievement(await awardAchievement('five_notes'));
+      notifyMission(await triggerMission('save_note'));
     },
   },
 

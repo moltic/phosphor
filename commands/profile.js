@@ -14,6 +14,8 @@ import {
   printLine, printBlank, printRule,
 } from '../core/render.js';
 import { formatTimestamp } from '../core/clock.js';
+import { triggerMission, getTodayMissions } from '../core/missions.js';
+import { notifyMission }   from './missions.js';
 
 // ── Achievement notification (shared by all command hooks) ────────────────────
 
@@ -84,6 +86,10 @@ export const profileCommands = {
       const total  = ACHIEVEMENTS.length;
       const { bar, pct, label: xpLabel } = _xpBar(p.xp);
 
+      // Load cosmetics earned through daily missions.
+      const mState    = await getTodayMissions();
+      const cosmetics = mState.earnedCosmetics;
+
       const INNER  = 54;
       const top    = '╔' + '═'.repeat(INNER + 2) + '╗';
       const bottom = '╚' + '═'.repeat(INNER + 2) + '╝';
@@ -110,10 +116,14 @@ export const profileCommands = {
       printLine(row('NEXT RANK:',    nextLabel),                         'line-info');
       printLine('║' + ' '.repeat(INNER + 2) + '║',                      'line-sep');
       printLine(row('ACHIEVEMENTS:', `${earned} / ${total} unlocked`),  'line-info');
+      if (cosmetics.length > 0) {
+        printLine(row('COSMETICS:',   cosmetics.join('  ')),              'line-info');
+      }
       printLine(bottom, 'line-sep');
       printBlank();
       printLine('  Type  achievements  to see the full list.', 'line-info');
       printBlank();
+      notifyMission(await triggerMission('view_profile'));
     },
   },
 

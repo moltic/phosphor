@@ -4,6 +4,8 @@
 import { ALIASES }           from '../core/config.js';
 import { loadDials }         from '../core/storage.js';
 import { printLine, printBlank } from '../core/render.js';
+import { triggerMission }    from '../core/missions.js';
+import { notifyMission }     from './missions.js';
 
 export const navigationCommands = {
 
@@ -59,6 +61,7 @@ export const navigationCommands = {
       const storedMatch = storedDials.find(d => d.alias.toLowerCase() === lower);
       if (storedMatch) {
         printLine(`Opening ${storedMatch.url}`, 'line-ok');
+        await triggerMission('launch_dial').then(r => notifyMission(r));
         window.location.href = storedMatch.url;
         return;
       }
@@ -66,6 +69,7 @@ export const navigationCommands = {
       // 2) Built-in alias
       if (Object.prototype.hasOwnProperty.call(ALIASES, lower)) {
         printLine(`Opening ${ALIASES[lower]}`, 'line-ok');
+        await triggerMission('launch_dial').then(r => notifyMission(r));
         window.location.href = ALIASES[lower];
         return;
       }
@@ -73,6 +77,7 @@ export const navigationCommands = {
       // 3) Already has a scheme
       if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(raw)) {
         printLine(`Opening ${raw}`, 'line-ok');
+        await triggerMission('launch_dial').then(r => notifyMission(r));
         window.location.href = raw;
         return;
       }
@@ -81,6 +86,7 @@ export const navigationCommands = {
       if (/^[^\s]+\.[^\s]+$/.test(raw)) {
         const url = `https://${raw}`;
         printLine(`Opening ${url}`, 'line-ok');
+        await triggerMission('launch_dial').then(r => notifyMission(r));
         window.location.href = url;
         return;
       }
