@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- ── lua-sandbox.html ────────────────────────────────────────────────────────
+  Chrome extension sandbox page.  Listed under "sandbox.pages" in manifest.json
+  so Chrome assigns it a relaxed CSP (includes 'unsafe-eval') that allows
+  WebAssembly compilation — the whole reason this iframe exists.
+
+  The page has a unique opaque origin and cannot use chrome.* APIs.  It
+  communicates with the extension's newtab page exclusively via postMessage.
+──────────────────────────────────────────────────────────────────────────── -->
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <!-- Wasmoon UMD bundle — populates globalThis.wasmoon synchronously. -->
+  <script src="vendor/wasmoon.js"></script>
+  <!-- Lua engine initialisation + message router. -->
+  <script src="lua-sandbox.js"></script>
+</head>
+<body></body>
+</html>

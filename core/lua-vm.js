@@ -1,93 +1,134 @@
 // ── core/lua-vm.js ────────────────────────────────────────────────────────────
-// Lua 5.4 sandbox via Wasmoon (WebAssembly).
+// Lua 5.4 sandbox via Wasmoon (WebAssembly), hosted in a sandboxed iframe.
 //
-// Wasmoon ships a UMD bundle that is loaded as a classic <script> in index.html,
-// which populates globalThis.wasmoon before any ES-module code runs.  This
-// module wraps that global, wires Lua's print() to the terminal, and exposes a
-// simple async API consumed by commands/lua.js.
+// Why an iframe?
+//   Chrome MV3 disallows 'unsafe-eval' in extension-page CSP, and while
+//   'wasm-unsafe-eval' is spec-valid it is silently ignored in practice.
+//   Pages listed under manifest.json "sandbox.pages" receive a relaxed CSP
+//   that permits WebAssembly — so we run the VM there and communicate via
+//   postMessage.
 //
-// Security notes (Manifest V3):
-//  • The manifest CSP must include 'wasm-unsafe-eval' in script-src so that
-//    WebAssembly.instantiate() is permitted inside an extension page.
-//  • Wasmoon's WASM sandbox has no access to the host file system or network.
-//  • We additionally nil-out os / io table references as belt-and-suspenders.
-//  • Runaway scripts are killed by a Promise.race() timeout (default 5 s).
+// Message protocol (parent → sandbox):
+//   { type: 'init', wasmUrl: string }        — boot the Lua engine
+//   { type: 'run',  id: number, code: string } — execute a Lua snippet
+//
+// Message protocol (sandbox → parent):
+//   { type: 'ready' }                         — engine initialised OK
+//   { type: 'init-error', message: string }   — engine failed to init
+//   { type: 'print', text: string }           — Lua print() output
+//   { type: 'done',  id: number }             — run completed OK
+//   { type: 'error', id: number, message: string } — run threw an error
 
 import { printLine } from './render.js';
 
-/** Resolved engine instance, or null before initLuaVM() completes. */
-let _engine = null;
+// ── State ─────────────────────────────────────────────────────────────────────
+let _iframe      = null;   // hidden sandbox iframe
+let _initPromise = null;   // cached init promise
+let _initResolve = null;   // pending resolve for the init promise
+let _initReject  = null;   // pending reject  for the init promise
 
-/** Cached init promise so repeated calls are safe (idempotent). */
-let _initPromise = null;
+const _pendingRuns = new Map(); // id → { resolve, reject }
+let   _nextId      = 0;
+
+// ── Global message router ─────────────────────────────────────────────────────
+// Single listener handles all messages from the sandbox so there are no
+// dangling listeners even after many runLua() calls.
+window.addEventListener('message', event => {
+  // Ignore anything that didn't come from our sandbox iframe.
+  if (!_iframe?.contentWindow || event.source !== _iframe.contentWindow) return;
+
+  const { type, text, id, message } = event.data ?? {};
+
+  switch (type) {
+    case 'print':
+      // Lua print() output — printLine is batch-aware so this lands in the
+      // correct cmd-output-block while the lua command is executing.
+      printLine(text ?? '');
+      break;
+
+    case 'ready':
+      _initResolve?.();
+      _initResolve = _initReject = null;
+      break;
+
+    case 'init-error':
+      _initPromise = null;   // allow retry on next initLuaVM() call
+      _initReject?.(new Error(message));
+      _initResolve = _initReject = null;
+      break;
+
+    case 'done': {
+      const run = _pendingRuns.get(id);
+      _pendingRuns.delete(id);
+      run?.resolve();
+      break;
+    }
+
+    case 'error': {
+      const run = _pendingRuns.get(id);
+      _pendingRuns.delete(id);
+      run?.reject(new Error(message));
+      break;
+    }
+  }
+});
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Bootstrap the Lua VM.  Safe to call multiple times — returns the same
- * promise on every call after the first.  Should be awaited during app init
- * so the VM is warm before the user types their first `lua` command.
+ * Create the sandbox iframe and initialise the Lua engine inside it.
+ * Idempotent — returns the same promise on every call after the first.
+ * On failure the promise is reset so the next call will retry.
  */
 export function initLuaVM() {
   if (_initPromise) return _initPromise;
 
-  _initPromise = (async () => {
-    const { LuaFactory } = globalThis.wasmoon ?? {};
-    if (!LuaFactory) throw new Error('wasmoon UMD bundle not loaded — check index.html');
+  _initPromise = new Promise((resolve, reject) => {
+    _initResolve = resolve;
+    _initReject  = reject;
 
-    // Tell Wasmoon where to fetch the WASM binary.  chrome.runtime.getURL()
-    // produces the extension-internal URL (chrome-extension://<id>/vendor/glue.wasm)
-    // which satisfies the 'self' fetch-src directive.
-    const wasmUrl = chrome.runtime.getURL('vendor/glue.wasm');
-    const factory  = new LuaFactory(wasmUrl);
-    _engine = await factory.createEngine();
+    // Create the hidden sandbox iframe.  Its src is the extension's
+    // lua-sandbox.html page, which Chrome loads with a relaxed CSP.
+    _iframe = document.createElement('iframe');
+    _iframe.src = chrome.runtime.getURL('lua-sandbox.html');
+    _iframe.style.cssText =
+      'display:none;position:absolute;width:0;height:0;border:0;';
 
-    // ── Bridge Lua's print() → terminal printLine ─────────────────────────
-    // Lua print() converts each arg with tostring() then joins with tabs.
-    // We mirror that behaviour: nil → "nil", numbers/booleans → String().
-    _engine.global.set('print', (...args) => {
-      printLine(args.map(a => (a == null ? 'nil' : String(a))).join('\t'));
-    });
+    // Once the iframe document (and vendor/wasmoon.js) has fully loaded,
+    // send the 'init' message with the WASM binary URL.
+    _iframe.addEventListener('load', () => {
+      _iframe.contentWindow.postMessage(
+        { type: 'init', wasmUrl: chrome.runtime.getURL('vendor/glue.wasm') },
+        '*',
+      );
+    }, { once: true });
 
-    // ── Strip dangerous stdlib tables (belt-and-suspenders) ───────────────
-    // Wasmoon's WASM environment already prevents real I/O, but nil-ing these
-    // makes it explicit and prevents any accidental stub leakage.
-    _engine.global.set('io', null);
-    _engine.global.set('os', null);
-  })().catch(err => {
-    // Reset so the next `lua` command can retry rather than returning a
-    // permanently-rejected promise with no user-visible error.
-    _initPromise = null;
-    _engine = null;
-    throw err;
+    document.body.appendChild(_iframe);
   });
 
   return _initPromise;
 }
 
-/** Returns true once the VM has finished initializing. */
-export function isLuaReady() {
-  return _engine !== null;
-}
-
 /**
  * Execute a Lua string in the sandbox.
- * Rejects if the VM is not yet ready, the code throws a Lua error,
- * or execution exceeds `timeoutMs` milliseconds.
+ * Rejects if the code throws a Lua error or exceeds timeoutMs.
  *
- * @param {string} code       - Lua source to execute
- * @param {number} timeoutMs  - Hard wall-clock limit (default 5 000 ms)
+ * @param {string} code
+ * @param {number} [timeoutMs=5000]
  */
 export async function runLua(code, timeoutMs = 5_000) {
-  if (!_engine) throw new Error('Lua VM not initialized — call initLuaVM() first');
+  const id = _nextId++;
 
-  return Promise.race([
-    _engine.doString(code),
-    new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`Lua execution timed out after ${timeoutMs} ms`)),
-        timeoutMs,
-      )
-    ),
-  ]);
+  return new Promise((resolve, reject) => {
+    _pendingRuns.set(id, { resolve, reject });
+
+    _iframe.contentWindow.postMessage({ type: 'run', id, code }, '*');
+
+    setTimeout(() => {
+      if (_pendingRuns.has(id)) {
+        _pendingRuns.delete(id);
+        reject(new Error(`Lua execution timed out after ${timeoutMs} ms`));
+      }
+    }, timeoutMs);
+  });
 }
