@@ -126,6 +126,93 @@ export const THEMES = {
   },
 };
 
+// ── Retro display modes ──────────────────────────────────────────────────────
+/**
+ * Each mode defines:
+ *   palette      – same CSS-variable keys as THEMES entries
+ *   fontStack    – CSS font-family string for the mode's character style
+ *   displayClass – class added to <body> so CSS can apply extra mode rules
+ *
+ * The synthetic 'classic' key is intentionally absent here; a displayMode
+ * value of 'classic' means "use the normal THEMES + prefs.theme pipeline".
+ */
+export const MODES = {
+  /** Commodore 64 — cobalt-blue screen, light-blue text. */
+  c64: {
+    palette: {
+      '--bg':          '#0000AA',
+      '--fg':          '#AAAAFF',
+      '--fg-dim':      '#5555FF',
+      '--fg-bright':   '#FFFFFF',
+      '--glow':        'rgba(170, 170, 255, 0.65)',
+      '--glow-soft':   'rgba(170, 170, 255, 0.25)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.08)',
+    },
+    fontStack:    '"Press Start 2P", "Courier New", Courier, monospace',
+    displayClass: 'mode-c64',
+  },
+
+  /** Apple II — classic monochrome green phosphor monitor. */
+  appleIIGreen: {
+    palette: {
+      '--bg':          '#0d1a0d',
+      '--fg':          '#33ff33',
+      '--fg-dim':      '#1a8c1a',
+      '--fg-bright':   '#99ff99',
+      '--glow':        'rgba(51, 255, 51, 0.58)',
+      '--glow-soft':   'rgba(51, 255, 51, 0.20)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.12)',
+    },
+    fontStack:    '"PR Number 3", "Courier New", Courier, monospace',
+    displayClass: 'mode-apple2-green',
+  },
+
+  /** Apple II Color — warm amber/orange composite-video look. */
+  appleIIColor: {
+    palette: {
+      '--bg':          '#1a0d00',
+      '--fg':          '#f0a060',
+      '--fg-dim':      '#a05c20',
+      '--fg-bright':   '#ffd090',
+      '--glow':        'rgba(240, 160, 96, 0.62)',
+      '--glow-soft':   'rgba(240, 160, 96, 0.24)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.10)',
+    },
+    fontStack:    '"PR Number 3", "Courier New", Courier, monospace',
+    displayClass: 'mode-apple2-color',
+  },
+
+  /** NES — navy-blue backdrop with crisp white text, game-menu aesthetic. */
+  nes: {
+    palette: {
+      '--bg':          '#000080',
+      '--fg':          '#FFFFFF',
+      '--fg-dim':      '#AAAAAA',
+      '--fg-bright':   '#FFD700',
+      '--glow':        'rgba(255, 255, 255, 0.40)',
+      '--glow-soft':   'rgba(255, 255, 255, 0.14)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.18)',
+    },
+    fontStack:    '"Press Start 2P", "Courier New", monospace',
+    displayClass: 'mode-nes',
+  },
+
+  /** Game Boy — four-shade pea-green LCD palette, darkest shade as bg. */
+  gameBoy: {
+    palette: {
+      '--bg':          '#0f380f',
+      '--fg':          '#9bbc0f',
+      '--fg-dim':      '#306230',
+      '--fg-bright':   '#e0f0a0',
+      '--glow':        'rgba(155, 188, 15, 0.55)',
+      '--glow-soft':   'rgba(155, 188, 15, 0.20)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.14)',
+    },
+    fontStack:    '"Press Start 2P", "Courier New", monospace',
+    displayClass: 'mode-gameboy',
+  },
+};
+
 // ── Seasonal / time-based auto-skin ─────────────────────────────────────────
 /**
  * Return the theme name that best fits the current season + time of day.
@@ -198,4 +285,6 @@ export const DEFAULT_PREFS = {
   autoSkin:         false,
   /** Where dial tile clicks open: 'new-tab' | 'same-tab' | 'new-window' */
   dialClickTarget:  'new-tab',
+  /** Retro display mode key from MODES, or 'classic' to use normal THEMES. */
+  displayMode:      'classic',
 };
