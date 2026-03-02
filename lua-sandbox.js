@@ -261,6 +261,19 @@ window.addEventListener('message', async event => {
     return;
   }
 
+  if (msg.type === 'kill') {
+    // Unblock any pending phos.read_key() so the coroutine resume chain
+    // can settle rather than hanging forever.
+    if (_pendingKeyResolve) {
+      const resolve = _pendingKeyResolve;
+      _pendingKeyResolve = null;
+      resolve('Escape');
+    }
+    _asyncKeyBuffer = '';
+    _pendingAsyncOps.clear();
+    return;
+  }
+
   if (msg.type === 'store-done') {
     const op = _pendingAsyncOps.get(msg.id);
     _pendingAsyncOps.delete(msg.id);

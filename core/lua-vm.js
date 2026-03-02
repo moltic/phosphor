@@ -32,6 +32,10 @@
 import { printLine, clearScreen, outputEl } from './render.js';
 import { setActiveGame, clearActiveGame }    from './state.js';
 
+// ── Virtual Monitor elements ──────────────────────────────────────────────────
+const modalEl   = document.getElementById('lua-modal');
+const luaOutput = document.getElementById('lua-output');
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let _iframe      = null;   // hidden sandbox iframe
 let _initPromise = null;   // cached init promise
@@ -148,30 +152,20 @@ window.addEventListener('message', event => {
     // ── Graphics bridge ───────────────────────────────────────────────────────
 
     case 'cls':
-      // Clear the terminal and discard the current game canvas so the next
-      // phos.draw() creates a fresh one at the bottom of the output.
-      clearScreen();
-      if (_gameCanvas) { _gameCanvas.remove(); _gameCanvas = null; }
+      // Clear the Virtual Monitor output panel.
+      luaOutput.innerHTML = '';
       break;
 
     case 'draw': {
-      // Lua runs without a batch, so we append _gameCanvas directly to
-      // outputEl — no beginBatch/endBatch is involved.  Creating the <pre>
-      // once and reusing it means each animation frame is a single
-      // textContent assignment with no extra DOM nodes.
+      // Ensure the Virtual Monitor is visible, then render the frame into it.
+      // We activate persistent key capture on the first draw so phos.get_key()
+      // works without blocking; the handler stays active until _cleanupGame().
       if (!_gameCanvas) {
-        _gameCanvas = document.createElement('pre');
-        _gameCanvas.className = 'banner-output';
-        _gameCanvas.style.cssText =
-          'margin:0.4em 0;line-height:1.35;font-size:inherit;white-space:pre;letter-spacing:0.55em';
-        outputEl.appendChild(_gameCanvas);
-        // Activate persistent key capture so phos.get_key() works without
-        // blocking.  Keys are forwarded to the sandbox as 'key-async'
-        // messages; the handler stays active until _cleanupGame() is called.
+        _gameCanvas = luaOutput;   // use the modal panel as the canvas target
+        modalEl.classList.remove('hidden');
         _installPersistentKeyCapture();
       }
-      _gameCanvas.innerHTML = _ansiToHtml(event.data.text);
-      outputEl.scrollTop = outputEl.scrollHeight;
+      luaOutput.innerText = event.data.text;
       break;
     }
 
@@ -265,6 +259,22 @@ export function initLuaVM() {
   });
 
   return _initPromise;
+}
+
+/**
+ * Immediately terminate any running Lua script.
+ * Rejects all pending runs, cleans up game state, and notifies the sandbox
+ * so any blocked phos.read_key() promise is resolved and the coroutine
+ * resume chain can settle cleanly.
+ * Safe to call when no script is running.
+ */
+export function killLua() {
+  _iframe?.contentWindow?.postMessage({ type: 'kill' }, '*');
+  for (const [id, { reject }] of _pendingRuns) {
+    _pendingRuns.delete(id);
+    reject(new Error('Lua execution killed by user'));
+  }
+  _cleanupGame();
 }
 
 /**

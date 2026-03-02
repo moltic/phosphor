@@ -41,7 +41,7 @@ import { printBootSequence }          from './commands/system.js';
 import { awardAchievement }           from './core/progression.js';
 import { notifyAchievement }          from './commands/profile.js';
 import { initLaunchPanel }            from './ui/launch-panel.js';
-import { initLuaVM }                  from './core/lua-vm.js';
+import { initLuaVM, killLua }          from './core/lua-vm.js';
 
 function focusPrompt() {
   inputEl.focus({ preventScroll: true });
@@ -343,6 +343,18 @@ inputEl.addEventListener('keydown', e => {
 
     default:
       break;
+  }
+});
+
+// ── Virtual Monitor — ESC power-down ────────────────────────────────────────
+const _luaModalEl = document.getElementById('lua-modal');
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !_luaModalEl.classList.contains('hidden')) {
+    e.preventDefault();
+    _luaModalEl.classList.add('hidden');
+    killLua();
+    printLine('LUA PROGRAM TERMINATED.', 'line-error');
+    return;
   }
 });
 

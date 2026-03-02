@@ -93,6 +93,16 @@
     <button class="dial-undo-toast-btn">[UNDO]</button>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!--  Virtual Monitor — CRT-style Lua output display    -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div id="lua-modal" class="hidden">
+    <div id="lua-crt-frame">
+      <div id="lua-output" class="vt323-neon"></div>
+      <div id="lua-controls">ESC TO QUIT</div>
+    </div>
+  </div>
+
   <!-- Wasmoon (Lua 5.4 in WebAssembly) runs inside lua-sandbox.html, a sandboxed
        extension page with a relaxed CSP that permits WebAssembly compilation.
        core/lua-vm.js creates the iframe and communicates with it via postMessage. -->
