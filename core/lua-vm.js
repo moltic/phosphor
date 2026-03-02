@@ -49,6 +49,13 @@ let   _nextId      = 0;
 let _gameCanvas = null;
 
 /**
+ * Set to true by killLua() and cleared by each new runLua() call.
+ * Guards the message router so stale draw/cls/key messages that arrive
+ * after a kill are silently dropped instead of re-opening the monitor.
+ */
+let _killed = false;
+
+/**
  * Convert a string containing ANSI SGR escape codes into safe HTML.
  * Supports foreground colours (30-37, 90-97) and reset (0).
  * All HTML-special characters are escaped before injection.
@@ -152,12 +159,14 @@ window.addEventListener('message', event => {
     // ── Graphics bridge ───────────────────────────────────────────────────────
 
     case 'cls':
+      if (_killed) break;
       // Clear the Virtual Monitor output panel — textContent is faster than
       // innerHTML = '' because it skips the HTML parser entirely.
       luaOutput.textContent = '';
       break;
 
     case 'draw': {
+      if (_killed) break;
       // Ensure the Virtual Monitor is visible, then render the frame into it.
       // We activate persistent key capture on the first draw so phos.get_key()
       // works without blocking; the handler stays active until _cleanupGame().
@@ -177,6 +186,7 @@ window.addEventListener('message', event => {
     // ── Input bridge ──────────────────────────────────────────────────────────
 
     case 'key-request':
+      if (_killed) break;
       // Activate the real-time key-capture hook for ONE keystroke, then
       // forward it to the sandbox.  After the one-shot fires we restore the
       // persistent capture so phos.get_key() keeps working.
@@ -274,6 +284,7 @@ export function initLuaVM() {
  * Safe to call when no script is running.
  */
 export function killLua() {
+  _killed = true;
   _iframe?.contentWindow?.postMessage({ type: 'kill' }, '*');
   for (const [id, { reject }] of _pendingRuns) {
     _pendingRuns.delete(id);
@@ -293,6 +304,7 @@ export function killLua() {
  *                                 that takes longer than expected.
  */
 export async function runLua(code, timeoutMs = 0) {
+  _killed = false;   // arm for new run
   const id = _nextId++;
 
   return new Promise((resolve, reject) => {

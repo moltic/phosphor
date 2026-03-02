@@ -16,6 +16,13 @@ let _pendingKeyResolve = null;
 /** Last key buffered by 'key-async' for phos.get_key() (non-blocking). */
 let _asyncKeyBuffer = '';
 
+/**
+ * Set true when the parent sends 'kill'.  Checked inside the _runCode
+ * resume loop so the coroutine throws and terminates rather than continuing
+ * to run after the monitor has been dismissed.
+ */
+let _killed = false;
+
 /** Map of id → { resolve, reject } for async storage operations. */
 const _pendingAsyncOps = new Map();
 let   _nextAsyncId     = 0;
@@ -181,6 +188,8 @@ async function _runCode(code) {
     let res = thread.resume(0);
 
     while (res.result === LuaReturn.Yield) {
+      // If the parent killed the run, abort immediately.
+      if (_killed) throw new Error('killed');
       let passback = 0;
 
       if (res.resultCount > 0) {
@@ -190,6 +199,8 @@ async function _runCode(code) {
         if (yieldedVal != null && typeof yieldedVal.then === 'function') {
           // Lua yielded a Promise — await it in JS.
           const resolved = await yieldedVal;
+          // Abort immediately if the run was killed while we were awaiting.
+          if (_killed) throw new Error('killed');
           // Pass the resolved value back to Lua (e.g. for phos.fetch / read_key).
           if (resolved != null) {
             thread.pushValue(resolved);
@@ -198,9 +209,11 @@ async function _runCode(code) {
         } else {
           // Non-Promise yield — just give the event loop a turn.
           await new Promise(r => setTimeout(r, 0));
+          if (_killed) throw new Error('killed');
         }
       } else {
         await new Promise(r => setTimeout(r, 0));
+        if (_killed) throw new Error('killed');
       }
 
       res = thread.resume(passback);
@@ -229,6 +242,7 @@ window.addEventListener('message', async event => {
   }
 
   if (msg.type === 'run') {
+    _killed = false;   // arm for new run
     const { id, code } = msg;
     if (!_engine) {
       parent.postMessage({ type: 'error', id, message: 'Lua engine not ready' }, '*');
@@ -262,6 +276,7 @@ window.addEventListener('message', async event => {
   }
 
   if (msg.type === 'kill') {
+    _killed = true;
     // Unblock any pending phos.read_key() so the coroutine resume chain
     // can settle rather than hanging forever.
     if (_pendingKeyResolve) {
