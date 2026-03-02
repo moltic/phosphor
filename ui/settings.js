@@ -188,6 +188,14 @@ export const settingsPanelEl = (() => {
     ['ice',     'ICE'],
     ['warm',    'WARM'],
   ]);
+  const displayModeSelect = makeSelect('s-displaymode', [
+    ['classic',      'CLASSIC'],
+    ['c64',          'C64'],
+    ['appleIIGreen', 'APPLE II (GREEN)'],
+    ['appleIIColor', 'APPLE II (COLOR)'],
+    ['nes',          'NES'],
+    ['gameBoy',      'GAME BOY'],
+  ]);
   const terminalSizeSelect = makeSelect('s-terminalsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
   ]);
@@ -256,6 +264,7 @@ export const settingsPanelEl = (() => {
 
   inner.appendChild(titleEl);
   inner.appendChild(makeRow('THEME',            themeSelect));
+  inner.appendChild(makeRow('DISPLAY MODE',     displayModeSelect));
   inner.appendChild(makeRow('TERMINAL SIZE',    terminalSizeSelect));
   inner.appendChild(makeRow('DIAL LAYOUT',      dialLayoutSelect));
   inner.appendChild(makeRow('DIAL SIZE',        dialSizeSelect));
@@ -293,7 +302,7 @@ export const settingsPanelEl = (() => {
 
   // ── Live preview: apply changes instantly as the user adjusts controls ────
   const livePreviewFields = [
-    themeSelect, terminalSizeSelect, dialLayoutSelect, dialSizeSelect,
+    themeSelect, displayModeSelect, terminalSizeSelect, dialLayoutSelect, dialSizeSelect,
     scanSelect, cursorSpeedSelect, greetingSelect,
     crtIntensitySel, reducedMotionSel, autoSkinSel,
   ];
@@ -301,6 +310,7 @@ export const settingsPanelEl = (() => {
     const previewPrefs = {
       dialClickTarget:  dialClickTargetSel.value,
       theme:            themeSelect.value,
+      displayMode:      displayModeSelect.value,
       terminalSize:     terminalSizeSelect.value,
       dialLayout:       dialLayoutSelect.value,
       dialSize:         dialSizeSelect.value,
@@ -364,6 +374,7 @@ export async function openSettingsPanel() {
   const prefs = await loadPrefs();
   _originalPrefs = { ...prefs };
   document.getElementById('s-theme').value         = prefs.theme || 'amber';
+  document.getElementById('s-displaymode').value    = prefs.displayMode   || 'classic';
   document.getElementById('s-terminalsize').value  = prefs.terminalSize || prefs.fontSize || 'medium';
   document.getElementById('s-diallayout').value    = prefs.dialLayout   || 'auto';
   document.getElementById('s-dialsize').value      = prefs.dialSize     || prefs.fontSize || 'medium';
@@ -396,6 +407,7 @@ export function closeSettingsPanel() {
 export async function commitSettings() {
   const prefs = {
     theme:            document.getElementById('s-theme').value,
+    displayMode:      document.getElementById('s-displaymode').value,
     terminalSize:     document.getElementById('s-terminalsize').value,
     dialLayout:       document.getElementById('s-diallayout').value,
     dialSize:         document.getElementById('s-dialsize').value,
