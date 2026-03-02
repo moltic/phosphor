@@ -3655,11 +3655,20 @@ html.mode--c64 {
   --grid-rows:  25;
 }
 
+/* Full-width terminal layout for all hardware emulation modes. */
+html.mode--c64 #terminal,
+html.mode--apple2 #terminal,
+html.mode--appleIIGreen #terminal,
+html.mode--appleIIColor #terminal,
+html.mode--nes #terminal,
+html.mode--gameBoy #terminal,
+html.mode--gameboy #terminal {
+  width:     100vw;
+  max-width: 100vw;
+  margin:    0;
+}
+
 html.mode--c64 #terminal {
-  /* Fill the viewport in C64 mode so the UI uses the full screen width. */
-  width:        100vw;
-  max-width:    100vw;
-  margin:       0;
   /* C64 bezel border */
   border:       10px solid var(--fg-dim);
   border-radius: 6px;
@@ -3721,13 +3730,6 @@ html.mode--appleIIGreen .line {
   text-shadow:
     -1px 0 0 rgba(255, 0, 255, 0.30),   /* magenta left bleed  */
      1px 0 0 rgba(0, 255, 255, 0.30);   /* cyan   right bleed  */
-}
-
-/* Fluid 40-column grid for Apple II — JS sets --font-size to fill vw.  */
-html.mode--appleIIGreen #terminal {
-  width:     calc(40ch + 3rem);
-  max-width: 100%;
-  margin:    0 auto;
 }
 
 /* ── Game Boy ───────────────────────────────────────────────
