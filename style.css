@@ -3670,6 +3670,31 @@ html.mode--c64 #terminal {
     0 0 0 5px var(--fg-dim);
 }
 
+/* C64 readability tweaks:
+   - keep pixel text crisp by reducing glow blur
+   - lighten overlay darkness to preserve contrast on deep-blue background */
+html.mode--c64 #ascii-art,
+html.mode--c64 .line,
+html.mode--c64 .line-cmd,
+html.mode--c64 .line-head,
+html.mode--c64 #input-row,
+html.mode--c64 .prompt-glyph {
+  text-shadow: none;
+}
+
+html.mode--c64 #scanlines {
+  opacity: 0.7;
+}
+
+html.mode--c64 #scanlines::after {
+  background: radial-gradient(
+    ellipse at center,
+    transparent            63%,
+    rgba(0, 0, 0, 0.12)   82%,
+    rgba(0, 0, 0, 0.26)   100%
+  );
+}
+
 /* ── Apple II ───────────────────────────────────────────────
    Crisp, slanted monospace reminiscent of the Apple II's
    character ROM output on a green-phosphor composite display.
