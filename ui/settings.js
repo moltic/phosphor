@@ -17,6 +17,52 @@ let _cachedPrefs = null;
 /** Return the currently cached preferences object. */
 export function getCachedPrefs() { return _cachedPrefs; }
 
+// ── Hardware-grid viewport scaling ───────────────────────────────────────────
+// C64 (40×25) and Apple II (40×24) use a fixed character-grid size in CSS.
+// This helper measures that natural size and computes a transform: scale()
+// factor so the grid always fills the viewport while keeping its aspect ratio.
+const _HW_GRID_MODES = new Set(['c64', 'appleIIGreen', 'appleIIColor']);
+let _hwScaleHandler = null;
+
+function _applyHardwareGridScale(displayMode) {
+  const root       = document.documentElement;
+  const terminalEl = document.getElementById('terminal');
+
+  // Remove any previous resize listener.
+  if (_hwScaleHandler) {
+    window.removeEventListener('resize', _hwScaleHandler);
+    _hwScaleHandler = null;
+  }
+
+  if (!_HW_GRID_MODES.has(displayMode) || !terminalEl) {
+    // Leaving a hardware-grid mode — clear the scale variable so the normal
+    // fluid layout is fully restored.
+    root.style.removeProperty('--hw-scale');
+    return;
+  }
+
+  function computeAndApplyScale() {
+    // Temporarily reset to scale 1 so getBoundingClientRect returns the
+    // natural (unscaled) character-grid dimensions.
+    root.style.setProperty('--hw-scale', '1');
+    // Defer one frame to let the browser apply the reset before measuring.
+    requestAnimationFrame(() => {
+      const rect = terminalEl.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const scaleX = window.innerWidth  / rect.width;
+      const scaleY = window.innerHeight / rect.height;
+      // Fit-to-viewport: use the smaller axis so neither dimension overflows.
+      const scale  = Math.min(scaleX, scaleY);
+      root.style.setProperty('--hw-scale', scale.toFixed(6));
+    });
+  }
+
+  computeAndApplyScale();
+  // Re-compute whenever the viewport is resized (e.g. DevTools, zoom change).
+  _hwScaleHandler = computeAndApplyScale;
+  window.addEventListener('resize', _hwScaleHandler);
+}
+
 // ── Hardware-profile keyboard click sounds ────────────────────────────────────
 // A single keydown listener is registered on the terminal input whenever
 // sounds are enabled.  The actual sample (click vs. thunk) is chosen inside
@@ -155,6 +201,11 @@ export async function applyPrefs(prefs) {
     chrome.storage.local.remove('cmdHistory');
     setCmdHistory([]);
   }
+
+  // ── Hardware-grid viewport scaling ───────────────────────────────────────
+  // Must run after the mode class and --font-size variable are committed so
+  // the CSS ch/lh units resolve to the correct hardware font dimensions.
+  _applyHardwareGridScale(displayMode);
 
   // ── Hardware-profile keyboard click sounds ────────────────────────────────
   // Re-bind on every prefs change so the enabled/disabled state and the
