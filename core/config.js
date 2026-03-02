@@ -141,12 +141,12 @@ export const MODES = {
   c64: {
     palette: {
       '--bg':          '#0000AA',
-      '--fg':          '#C8C8FF',
-      '--fg-dim':      '#A4A4FF',
+      '--fg':          '#AAAAFF',
+      '--fg-dim':      '#7C7CFF',
       '--fg-bright':   '#FFFFFF',
-      '--glow':        'rgba(200, 200, 255, 0.30)',
-      '--glow-soft':   'rgba(200, 200, 255, 0.10)',
-      '--scanline-bg': 'rgba(0, 0, 0, 0.03)',
+      '--glow':        'rgba(170, 170, 255, 0.42)',
+      '--glow-soft':   'rgba(170, 170, 255, 0.14)',
+      '--scanline-bg': 'rgba(0, 0, 0, 0.05)',
     },
     fontStack:    '"Press Start 2P", "Courier New", Courier, monospace',
     displayClass: 'mode-c64',
