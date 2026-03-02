@@ -64,7 +64,24 @@ export function dispatch(raw) {
   const trimmed = raw.trim();
   if (trimmed === '') return;
 
-  const [cmdName, ...args] = trimmed.split(/\s+/);
+  // Split only on the first whitespace character so that multiline Lua scripts
+  // (pasted via the paste interceptor) have their newlines preserved.
+  // All other commands still receive a normally whitespace-split args array.
+  const firstWsIdx = trimmed.search(/\s/);
+  let cmdName, args;
+  if (firstWsIdx === -1) {
+    cmdName = trimmed;
+    args = [];
+  } else {
+    cmdName = trimmed.slice(0, firstWsIdx);
+    const rest = trimmed.slice(firstWsIdx).trim();
+    if (cmdName.toLowerCase() === 'lua') {
+      // Preserve newlines so that Lua -- comments don't consume subsequent lines.
+      args = rest ? [rest] : [];
+    } else {
+      args = rest ? rest.split(/\s+/) : [];
+    }
+  }
   const key = cmdName.toLowerCase();
 
   // Skip batching for Lua to allow real-time animation.
