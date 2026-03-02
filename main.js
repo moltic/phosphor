@@ -177,24 +177,23 @@ inputEl.addEventListener('input', () => {
 
 // ── Terminal Paste Interceptor ──────────────────────────────────────────────
 inputEl.addEventListener('paste', (e) => {
-  e.preventDefault(); // Stop the browser from truncating the text
+  e.preventDefault(); // Stop the browser from truncating at the first newline
 
   // Get the full raw text from the clipboard
   const fullText = (e.clipboardData || window.clipboardData).getData('text');
 
   if (fullText.includes('\n')) {
-    // If it's multi-line, ensure it's treated as a single Lua command block
-    const command = fullText.trim().startsWith('lua') ? fullText : `lua ${fullText}`;
+    // If it's a multi-line script, ensure it starts with 'lua '
+    // so the dispatcher knows to send it to the VM.
+    const cleanText = fullText.trim();
+    const command = cleanText.startsWith('lua') ? cleanText : `lua ${cleanText}`;
 
-    // Clear the input and send the full block to your logic
-    inputEl.value = '';
+    // Clear the visual input and send the entire block to the dispatcher
+    setInput('');
     dispatch(command);
   } else {
-    // For single lines, just insert the text as normal
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-    selection.deleteFromDocument();
-    selection.getRangeAt(0).insertNode(document.createTextNode(fullText));
+    // For single-line pastes, just insert the text as normal at the caret
+    document.execCommand('insertText', false, fullText);
   }
 });
 
