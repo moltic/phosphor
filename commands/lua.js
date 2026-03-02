@@ -410,7 +410,7 @@ phos.cls()
 const INVADERS_SCRIPT = String.raw`
 local c      = phos.color
 local W, H   = 44, 20        -- inner play-field dimensions
-local TICK   = 80            -- ms per game frame
+local TICK   = 60            -- ms per game frame
 
 -- Alien type table  { color, frame-A, frame-B, points }
 local ALIEN = {
@@ -470,7 +470,7 @@ end
 
 -- Ticks between alien steps; shrinks as aliens die
 local function movspeed(alive, lvl)
-  return math.max(2, 20 - math.floor((NC * NR - alive) * 0.65) - (lvl - 1) * 3)
+  return math.max(2, 10 - math.floor((NC * NR - alive) * 0.4) - (lvl - 1) * 2)
 end
 
 -- ── Renderer ─────────────────────────────────────────────────────────────────
@@ -547,7 +547,9 @@ local function render(px, aliens, ax, ay, afr, bullet, bombs,
     out[#out + 1] = c.white .. '  A/D:MOVE   SPACE:FIRE   Q:QUIT' .. c.reset
   end
 
+  phos.cls()
   phos.draw(table.concat(out, '\n'))
+  phos.sleep(0)   -- yield once so the draw message is processed before polling
 end
 
 -- ── Title screen (blinking loop) ─────────────────────────────────────────────
@@ -616,9 +618,9 @@ local function play(hi)
       { x = 38, y = H - 3, hp = 6 },
     }
     ufo      = { x = 0, dir = 1, active = false, pts = 0,
-                 timer = math.random(200, 400) }
+                 timer = math.random(60, 120) }
     tick     = 0
-    movtimer = movspeed(NC * NR, lvl)
+    movtimer = 2   -- aliens move almost immediately on wave start
   end
 
   init_level()
@@ -647,7 +649,7 @@ local function play(hi)
        and bullet.x >= ufo.x and bullet.x <= ufo.x + 4 then
       score = score + ufo.pts
       if score > hi then hi = score end
-      ufo.active = false; ufo.timer = math.random(200, 400)
+      ufo.active = false; ufo.timer = math.random(60, 120)
       bullet = nil; return
     end
     -- vs shields
@@ -702,7 +704,7 @@ local function play(hi)
     bombs = nb
 
     -- random bomb drop (max 4 active; 1-in-28 chance each tick)
-    if math.random(28) == 1 and #bombs < 4 then
+    if math.random(15) == 1 and #bombs < 4 then
       local pool = {}
       for col = 1, NC do
         for r = NR, 1, -1 do
@@ -721,7 +723,7 @@ local function play(hi)
     if ufo.active then
       ufo.x = ufo.x + ufo.dir
       if ufo.x < -4 or ufo.x > W + 1 then
-        ufo.active = false; ufo.timer = math.random(200, 400)
+        ufo.active = false; ufo.timer = math.random(60, 120)
       end
     elseif ufo.timer <= 0 then
       local fl = math.random(2) == 1
@@ -729,7 +731,7 @@ local function play(hi)
               dir   = fl and  1 or -1,
               active= true,
               pts   = (math.random(4) + 1) * 50,
-              timer = math.random(200, 400) }
+              timer = math.random(60, 120) }
     end
 
     -- move alien grid
