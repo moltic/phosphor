@@ -30,6 +30,30 @@ export const CONFIG = {
 
   /** Delay between characters in the `typewriter` command (ms). */
   TYPEWRITER_CHAR_MS:  40,
+
+  /**
+   * Per-displayMode character delay (ms) used by the simulatedLatency typewriter
+   * effect in printLine.  Keyed by the MODES key (or 'classic' for normal mode).
+   * Lower = faster; 0 = instant.
+   *
+   * Reference baud rates for context:
+   *   Apple II (1977) via 300-baud serial ≈ 30 cps → ~33 ms/char
+   *   C64 screen editor at normal speed   ≈ 25–50 ms/char (mode-dependent)
+   *   NES software scrolling              ≈ 20–30 ms/char
+   *   VGA text-mode BIOS output           ≈ 1–5 ms/char (effectively instant)
+   */
+  TYPEWRITER_SPEEDS: {
+    /** Modern VGA-class terminal — effectively instant. */
+    classic:      10,
+    /** Apple II ~1977; slow 6502 COUT + phosphor persistence. */
+    appleIIGreen: 65,
+    /** Commodore 64 VIC-II text output via CHROUT. */
+    c64:          38,
+    /** NES PPU software text routines. */
+    nes:          22,
+    /** Game Boy serial bus / slow STN-LCD refresh. */
+    gameBoy:      30,
+  },
 };
 
 // ── Speed-dial alias map ─────────────────────────────────────────────────────
@@ -276,4 +300,10 @@ export const DEFAULT_PREFS = {
   dialClickTarget:  'new-tab',
   /** Retro display mode key from MODES, or 'classic' to use normal THEMES. */
   displayMode:      'classic',
+  /**
+   * Simulate period-accurate output latency with a typewriter character-by-character
+   * reveal.  Speed is derived from displayMode via CONFIG.TYPEWRITER_SPEEDS.
+   * Has no effect when reducedMotion is true.
+   */
+  simulatedLatency: false,
 };

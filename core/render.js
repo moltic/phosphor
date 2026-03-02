@@ -2,6 +2,7 @@
 // Render helpers (printLine / batch system) + banner rendering pipeline.
 
 import { CONFIG, DEFAULT_BANNER } from './config.js';
+import { loadPrefs } from './storage.js';
 
 // ── DOM refs (safe to grab at module parse time — <script type="module"> is deferred) ──
 export const outputEl     = document.getElementById('output');
@@ -13,6 +14,53 @@ export const cursorEl     = document.getElementById('cursor');
 // ── Active batch container ────────────────────────────────────────────────────
 /** printLine writes here while a command is running; flushed atomically. */
 let _batchEl = null;
+
+// ── Typewriter / simulatedLatency support ────────────────────────────────────
+/**
+ * Cached prefs snapshot.  Populated lazily on first printLine call and kept
+ * in sync by storage.js's onChanged listener so the delay reflects live changes.
+ */
+let _prefs = null;
+loadPrefs().then(p => { _prefs = p; });
+
+/**
+ * Promise chain used to serialise typewriter rendering so concurrent printLine
+ * calls outside a batch never interleave their character output.
+ */
+let _twChain = Promise.resolve();
+
+/**
+ * Return the per-character delay (ms) for the current prefs, or 0 for instant.
+ * Returns 0 when:
+ *   – simulatedLatency is off
+ *   – reducedMotion is on
+ *   – we are inside a batch (caller passes inBatch = true)
+ * @param {boolean} inBatch
+ * @returns {number}
+ */
+function _typewriterDelay(inBatch) {
+  if (inBatch) return 0;
+  if (!_prefs || !_prefs.simulatedLatency) return 0;
+  if (_prefs.reducedMotion) return 0;
+  const mode = _prefs.displayMode || 'classic';
+  return CONFIG.TYPEWRITER_SPEEDS[mode] ?? CONFIG.TYPEWRITER_SPEEDS.classic;
+}
+
+/**
+ * Reveal `text` character-by-character inside `span`, scrolling outputEl as we go.
+ * Resolves once the last character has been painted.
+ * @param {HTMLElement} span
+ * @param {string} text
+ * @param {number} charDelayMs
+ * @returns {Promise<void>}
+ */
+async function _typewriterRender(span, text, charDelayMs) {
+  for (const ch of text) {
+    span.textContent += ch;
+    outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
+    await new Promise(r => setTimeout(r, charDelayMs));
+  }
+}
 
 /** Timer handle for the auto-dismiss of the ▼ MORE ▼ hint. */
 let _hintDismissTimer = null;
@@ -82,21 +130,51 @@ function _cancelPager() {
 /**
  * Append one line of text to the output area.
  * Safe to call with or without an active batch:
- *   • Inside a batch  → appended to the off-DOM _batchEl container.
- *   • Outside a batch → appended directly to outputEl and scrolled into view.
+ *   • Inside a batch  → appended to the off-DOM _batchEl container instantly.
+ *   • Outside a batch → appended to outputEl directly.  When simulatedLatency
+ *     is enabled the text is revealed character-by-character (typewriter style)
+ *     at a speed determined by the current displayMode pref, and the returned
+ *     Promise resolves only when the last character has been painted.  Calls
+ *     are serialised via an internal chain so rapid fire-and-forget invocations
+ *     never interleave their output.
+ *
  * @param {string} text
  * @param {string} [cls='line-out']
+ * @returns {Promise<void>} Resolves immediately for batch/instant output,
+ *                          or after the typewriter animation completes.
  */
 export function printLine(text, cls = 'line-out') {
   const span = document.createElement('span');
   span.className = `line ${cls}`;
-  span.textContent = text;
+
   if (_batchEl) {
+    // Batch mode: fill instantly and return a resolved promise.
+    span.textContent = text;
     _batchEl.appendChild(span);
-  } else {
+    return Promise.resolve();
+  }
+
+  const charDelay = _typewriterDelay(false);
+
+  if (charDelay <= 0) {
+    // Instant mode (no latency simulation).
+    span.textContent = text;
     outputEl.appendChild(span);
     outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
+    return Promise.resolve();
   }
+
+  // Typewriter mode: append the empty span now so layout is reserved, then
+  // reveal characters one-by-one via the serialised _twChain.
+  span.textContent = '';
+  outputEl.appendChild(span);
+  outputEl.scrollTo({ top: outputEl.scrollHeight, behavior: 'instant' });
+
+  const p = _twChain.then(() => _typewriterRender(span, text, charDelay));
+  // Swallow errors on the shared chain so one rejection doesn't block all
+  // subsequent output.
+  _twChain = p.catch(() => {});
+  return p;
 }
 
 /** Append multiple lines with the same CSS class. */
