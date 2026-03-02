@@ -175,17 +175,26 @@ inputEl.addEventListener('input', () => {
   syncDisplay();
 });
 
+// ── Terminal Paste Interceptor ──────────────────────────────────────────────
 inputEl.addEventListener('paste', (e) => {
-  e.preventDefault();
-  const text = e.clipboardData.getData('text');
+  e.preventDefault(); // Stop the browser from truncating the text
 
-  // If it's a multi-line block, prefix with 'lua ' automatically if missing, then dispatch.
-  if (text.includes('\n')) {
-    const command = text.trim().startsWith('lua') ? text : `lua ${text}`;
+  // Get the full raw text from the clipboard
+  const fullText = (e.clipboardData || window.clipboardData).getData('text');
+
+  if (fullText.includes('\n')) {
+    // If it's multi-line, ensure it's treated as a single Lua command block
+    const command = fullText.trim().startsWith('lua') ? fullText : `lua ${fullText}`;
+
+    // Clear the input and send the full block to your logic
+    inputEl.value = '';
     dispatch(command);
   } else {
-    // Standard single-line paste
-    document.execCommand('insertText', false, text);
+    // For single lines, just insert the text as normal
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    selection.deleteFromDocument();
+    selection.getRangeAt(0).insertNode(document.createTextNode(fullText));
   }
 });
 
