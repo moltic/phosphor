@@ -47,9 +47,10 @@ function generateBBSHandle() {
   return `${adj}${noun}`;
 }
 
-// ── Shared boot-sequence printer (also used by the `boot` command) ────────────
-export async function printBootSequence() {
-  const prefs = await loadPrefs();
+// ── Boot-header variants ──────────────────────────────────────────────────────
+
+/** Classic boot header used by every display mode except C64 and NES. */
+function _bootHeaderClassic(prefs) {
   printRule('═');
   printLine('  SYSTEM READY.', 'line-head');
   printLine('  Type  help  for a list of commands.', 'line-info');
@@ -59,6 +60,72 @@ export async function printBootSequence() {
   }
   printRule('═');
   printBlank();
+}
+
+/**
+ * Commodore 64 BASIC V2 splash screen.
+ * Mirrors the classic cold-boot text of the real machine.
+ */
+function _bootHeaderC64(prefs) {
+  printBlank();
+  printLine('    **** COMMODORE 64 BASIC V2 ****', 'line-head');
+  printBlank();
+  printLine(' 64K RAM SYSTEM  38911 BASIC BYTES FREE', 'line-out');
+  printBlank();
+  if (prefs.motd) {
+    printLine(`  ${prefs.motd}`, 'line-info');
+    printBlank();
+  }
+  printLine('READY.', 'line-ok');
+  printBlank();
+}
+
+/**
+ * NES-style boot header: a full-width colour-flash block followed by a
+ * simple block-character logo, echoing the solid-colour screen that early
+ * NES cartridges displayed on power-on.
+ */
+function _bootHeaderNES(prefs) {
+  // Simulate the momentary solid-colour flash NES cartridges produce on boot.
+  const FLASH = '█'.repeat(56);
+  printLine(`  ${FLASH}`, 'line-head');
+  printLine(`  ${FLASH}`, 'line-head');
+  printLine(`  ${FLASH}`, 'line-head');
+  printBlank();
+  // Block-character NES logo.
+  printLine('  ███╗   ██╗███████╗███████╗', 'line-head');
+  printLine('  ████╗  ██║██╔════╝██╔════╝', 'line-head');
+  printLine('  ██╔██╗ ██║█████╗  ███████╗', 'line-head');
+  printLine('  ██║╚██╗██║██╔══╝  ╚════██║', 'line-head');
+  printLine('  ██║ ╚████║███████╗███████║', 'line-head');
+  printLine('  ╚═╝  ╚═══╝╚══════╝╚══════╝', 'line-head');
+  printBlank();
+  if (prefs.motd) {
+    printLine(`  ${prefs.motd}`, 'line-info');
+    printBlank();
+  }
+  printLine('  POWER ON.  SELECT YOUR ADVENTURE.', 'line-ok');
+  printLine('  Type  help  for a list of commands.', 'line-info');
+  printRule('─');
+  printBlank();
+}
+
+// ── Shared boot-sequence printer (also used by the `boot` command) ────────────
+export async function printBootSequence() {
+  const prefs = await loadPrefs();
+  const displayMode = prefs.displayMode || 'classic';
+
+  // Open a batch so the entire boot sequence is flushed to #output atomically,
+  // triggering aria-live exactly once and avoiding any incremental flash.
+  beginBatch();
+
+  if (displayMode === 'c64') {
+    _bootHeaderC64(prefs);
+  } else if (displayMode === 'nes') {
+    _bootHeaderNES(prefs);
+  } else {
+    _bootHeaderClassic(prefs);
+  }
 
   const notes = await loadNotes();
   if (notes.length > 0) {
@@ -116,6 +183,9 @@ export async function printBootSequence() {
     printLine(`  TRY  ─  ${hint}`, 'line-info');
     printBlank();
   }
+
+  // Flush the entire boot sequence to #output in one atomic DOM insertion.
+  endBatch();
 
   // ── Boot chime (opt-in, Web Audio, fire-and-forget) ─────────────
   playSoundIfEnabled('boot');
