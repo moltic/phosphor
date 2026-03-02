@@ -403,6 +403,442 @@ end
 phos.cls()
 `;
 
+// ── Space Invaders script ──────────────────────────────────────────────────
+// NES-style arcade shooter using the full phos API.
+// Controls: A/D or Arrow keys to move   SPACE to fire   Q = quit
+// Hi-score: persisted via phos.store / phos.fetch.
+const INVADERS_SCRIPT = String.raw`
+local c      = phos.color
+local W, H   = 44, 20        -- inner play-field dimensions
+local TICK   = 80            -- ms per game frame
+
+-- Alien type table  { color, frame-A, frame-B, points }
+local ALIEN = {
+  { c.bcyan,   '/^\\', '\\^/', 30 },   -- row 1  (top)
+  { c.bgreen,  '(o)',  '[o]', 20 },    -- row 2  (mid)
+  { c.byellow, 'v^v',  'V^V', 10 },   -- row 3  (bottom)
+}
+
+local NC, NR = 8, 3   -- alien columns / rows
+local SP     = 5      -- horizontal cells per alien slot  (3 sprite + 2 gap)
+
+-- ── Helpers ──────────────────────────────────────────────────────────────────
+local function new_grid()
+  local g = {}
+  for y = 1, H do
+    g[y] = {}
+    for x = 1, W do g[y][x] = { ' ', '' } end
+  end
+  return g
+end
+
+local function gput(g, x, y, ch, co)
+  if x >= 1 and x <= W and y >= 1 and y <= H then g[y][x] = { ch, co } end
+end
+
+local function gputs(g, x, y, s, co)
+  for i = 1, #s do gput(g, x + i - 1, y, s:sub(i, i), co) end
+end
+
+local function nalive(aliens)
+  local n = 0
+  for r = 1, NR do for col = 1, NC do if aliens[r][col] then n = n + 1 end end end
+  return n
+end
+
+-- Leftmost and rightmost alive alien columns
+local function hbounds(aliens)
+  local l, r = NC + 1, 0
+  for col = 1, NC do
+    for row = 1, NR do
+      if aliens[row][col] then
+        if col < l then l = col end
+        if col > r then r = col end
+      end
+    end
+  end
+  return l, r
+end
+
+-- Row index of deepest alive alien (or 0)
+local function deepest(aliens)
+  for row = NR, 1, -1 do
+    for col = 1, NC do if aliens[row][col] then return row end end
+  end
+  return 0
+end
+
+-- Ticks between alien steps; shrinks as aliens die
+local function movspeed(alive, lvl)
+  return math.max(2, 20 - math.floor((NC * NR - alive) * 0.65) - (lvl - 1) * 3)
+end
+
+-- ── Renderer ─────────────────────────────────────────────────────────────────
+local function render(px, aliens, ax, ay, afr, bullet, bombs,
+                      shields, ufo, score, hi, lives, lvl, tick, state, msg)
+  local g = new_grid()
+
+  -- aliens
+  for row = 1, NR do
+    local al = ALIEN[row]
+    local sp = (afr == 1) and al[2] or al[3]
+    local gy = ay + (row - 1) * 2
+    for col = 1, NC do
+      if aliens[row][col] then
+        gputs(g, ax + (col - 1) * SP, gy, sp, al[1])
+      end
+    end
+  end
+
+  -- UFO
+  if ufo.active then gputs(g, ufo.x, 1, '<===>', c.bmagenta) end
+
+  -- shields  (top row = ###  bottom row = # #, degrade to #.# / gaps)
+  for _, sh in ipairs(shields) do
+    if sh.hp > 0 then
+      local co = (sh.hp >= 5) and c.bgreen or (sh.hp >= 3) and c.byellow or c.bred
+      gputs(g, sh.x, sh.y,     sh.hp >= 4 and '###' or '#.#', co)
+      gputs(g, sh.x, sh.y + 1, sh.hp >= 2 and '# #' or '   ', co)
+    end
+  end
+
+  -- player bullet
+  if bullet then gput(g, bullet.x, bullet.y, '|', c.bwhite) end
+
+  -- enemy bombs
+  for _, b in ipairs(bombs) do gput(g, b.x, b.y, '*', c.bred) end
+
+  -- player ship (blinks during hit-flash)
+  if state ~= 'dead' or (tick % 6 < 3) then
+    gputs(g, px, H, '/|\\', c.bwhite)
+  end
+
+  -- assemble output
+  local out = {}
+
+  -- HUD line (lives as ship icons)
+  local lv_str = ''
+  for i = 1, lives do lv_str = lv_str .. c.bwhite .. '/|\\ ' end
+  out[#out + 1] = ' ' .. c.byellow .. 'SCORE ' .. c.bwhite .. string.format('%05d', score)
+               .. c.byellow .. '  HI ' .. c.bwhite .. string.format('%05d', hi)
+               .. c.byellow .. '  LV'  .. c.bwhite .. lvl
+               .. '  ' .. c.byellow .. 'LIVES ' .. lv_str .. c.reset
+
+  -- top border
+  out[#out + 1] = c.cyan .. '+' .. string.rep('-', W) .. '+' .. c.reset
+
+  -- grid rows
+  for y = 1, H do
+    local ln  = c.cyan .. '|'
+    local lco = ''
+    for x = 1, W do
+      local cell = g[y][x]
+      if cell[2] ~= lco then ln = ln .. cell[2]; lco = cell[2] end
+      ln = ln .. cell[1]
+    end
+    out[#out + 1] = ln .. c.reset .. c.cyan .. '|' .. c.reset
+  end
+
+  -- bottom border + hint
+  out[#out + 1] = c.cyan .. '+' .. string.rep('-', W) .. '+' .. c.reset
+  if msg then
+    out[#out + 1] = '  ' .. msg .. c.reset
+  else
+    out[#out + 1] = c.white .. '  A/D:MOVE   SPACE:FIRE   Q:QUIT' .. c.reset
+  end
+
+  phos.draw(table.concat(out, '\n'))
+end
+
+-- ── Title screen (blinking loop) ─────────────────────────────────────────────
+local function title(hi)
+  local blink = 0
+  while true do
+    blink = blink + 1
+    local flash = (blink % 8 < 4) and c.byellow or c.bwhite
+    local out   = {}
+    out[#out + 1] = ''
+    out[#out + 1] = c.bcyan  .. '  +------------------------------------------+' .. c.reset
+    out[#out + 1] = c.bcyan  .. '  |                                          |' .. c.reset
+    out[#out + 1] = c.bwhite .. '  |    ####  ####   ##    ####  ####         |' .. c.reset
+    out[#out + 1] = c.bwhite .. '  |   ##    ##  ## ####  ##    ##            |' .. c.reset
+    out[#out + 1] = c.bwhite .. '  |    ###  ####  ##  ## ##    ####          |' .. c.reset
+    out[#out + 1] = c.bwhite .. '  |      ## ##    ###### ##    ##            |' .. c.reset
+    out[#out + 1] = c.bwhite .. '  |   ####  ##    ##  ##  ####  ####         |' .. c.reset
+    out[#out + 1] = c.bcyan  .. '  |                                          |' .. c.reset
+    out[#out + 1] = c.bgreen .. '  |   INVADERS   NES-STYLE ARCADE SHOOTER    |' .. c.reset
+    out[#out + 1] = c.bcyan  .. '  +------------------------------------------+' .. c.reset
+    out[#out + 1] = ''
+    out[#out + 1] = flash    .. '       >>>  PRESS SPACE TO START  <<<        ' .. c.reset
+    out[#out + 1] = ''
+    out[#out + 1] = c.bcyan  .. '   /^\\  ' .. c.bwhite .. '30 pts    '
+                 .. c.bgreen  .. '(o)  '     .. c.bwhite .. '20 pts    '
+                 .. c.byellow .. 'v^v  '     .. c.bwhite .. '10 pts    '
+                 .. c.bmagenta.. '<===>  '   .. c.bwhite .. '?? pts' .. c.reset
+    out[#out + 1] = ''
+    out[#out + 1] = c.white  .. '   HI-SCORE: '
+                 .. c.bwhite .. string.format('%05d', hi) .. c.reset
+    out[#out + 1] = ''
+    out[#out + 1] = c.white  .. '   A/D:MOVE   SPACE:FIRE   Q:QUIT' .. c.reset
+    phos.draw(table.concat(out, '\n'))
+    phos.sleep(150)
+    local k = phos.get_key()
+    if k == 'q' or k == 'Q' then return false end
+    if k == ' ' or k == 'Space' or k == 'Enter' then return true end
+  end
+end
+
+-- ── One full game  (returns when lives run out or player quits) ──────────────
+local function play(hi)
+  local score = 0
+  local lives = 3
+  local lvl   = 1
+  local quit  = false
+
+  -- level-scoped state
+  local aliens, ax, ay, adx, afr
+  local bullet, bombs, shields, ufo
+  local tick, movtimer
+
+  local function init_level()
+    aliens = {}
+    for r = 1, NR do
+      aliens[r] = {}
+      for col = 1, NC do aliens[r][col] = true end
+    end
+    ax = 3; ay = 2; adx = 1; afr = 1
+    bullet   = nil
+    bombs    = {}
+    shields  = {
+      { x =  5, y = H - 3, hp = 6 },
+      { x = 16, y = H - 3, hp = 6 },
+      { x = 27, y = H - 3, hp = 6 },
+      { x = 38, y = H - 3, hp = 6 },
+    }
+    ufo      = { x = 0, dir = 1, active = false, pts = 0,
+                 timer = math.random(200, 400) }
+    tick     = 0
+    movtimer = movspeed(NC * NR, lvl)
+  end
+
+  init_level()
+  local px = math.floor(W / 2) - 1
+
+  -- resolves bullet collisions, mutates state in place
+  local function check_bullet()
+    if not bullet then return end
+    -- vs aliens
+    for r = 1, NR do
+      for col = 1, NC do
+        if aliens[r][col] then
+          local gx = ax + (col - 1) * SP
+          local gy = ay + (r   - 1) * 2
+          if bullet.y == gy and bullet.x >= gx and bullet.x <= gx + 2 then
+            aliens[r][col] = false
+            score = score + ALIEN[r][4]
+            if score > hi then hi = score end
+            bullet = nil; return
+          end
+        end
+      end
+    end
+    -- vs UFO
+    if ufo.active and bullet.y == 1
+       and bullet.x >= ufo.x and bullet.x <= ufo.x + 4 then
+      score = score + ufo.pts
+      if score > hi then hi = score end
+      ufo.active = false; ufo.timer = math.random(200, 400)
+      bullet = nil; return
+    end
+    -- vs shields
+    for _, sh in ipairs(shields) do
+      if sh.hp > 0 and (bullet.y == sh.y or bullet.y == sh.y + 1)
+         and bullet.x >= sh.x and bullet.x <= sh.x + 2 then
+        sh.hp = sh.hp - 1; bullet = nil; return
+      end
+    end
+  end
+
+  -- ── main loop ──────────────────────────────────────────────────────────────
+  while lives > 0 and not quit do
+    tick = tick + 1
+
+    -- render current state first, then poll for input during the tick window
+    render(px, aliens, ax, ay, afr, bullet, bombs, shields, ufo,
+           score, hi, lives, lvl, tick, 'play', nil)
+
+    local key    = ''
+    local waited = 0
+    while waited < TICK do
+      phos.sleep(16)
+      waited = waited + 16
+      local k = phos.get_key()
+      if k ~= '' then key = k; break end
+    end
+
+    if key == 'q' or key == 'Q' then quit = true; break end
+
+    -- player movement
+    if (key == 'a' or key == 'ArrowLeft')  and px > 1     then px = px - 1 end
+    if (key == 'd' or key == 'ArrowRight') and px < W - 2 then px = px + 1 end
+
+    -- fire
+    if (key == ' ' or key == 'Space') and not bullet then
+      bullet = { x = px + 1, y = H - 1 }
+    end
+
+    -- advance bullet
+    if bullet then
+      bullet.y = bullet.y - 1
+      if bullet.y < 1 then bullet = nil end
+    end
+
+    -- advance bombs
+    local nb = {}
+    for _, b in ipairs(bombs) do
+      b.y = b.y + 1
+      if b.y <= H then nb[#nb + 1] = b end
+    end
+    bombs = nb
+
+    -- random bomb drop (max 4 active; 1-in-28 chance each tick)
+    if math.random(28) == 1 and #bombs < 4 then
+      local pool = {}
+      for col = 1, NC do
+        for r = NR, 1, -1 do
+          if aliens[r][col] then pool[#pool + 1] = { r, col }; break end
+        end
+      end
+      if #pool > 0 then
+        local s = pool[math.random(#pool)]
+        bombs[#bombs + 1] = { x = ax + (s[2] - 1) * SP + 1,
+                               y = ay + (s[1] - 1) * 2  + 1 }
+      end
+    end
+
+    -- UFO logic
+    ufo.timer = ufo.timer - 1
+    if ufo.active then
+      ufo.x = ufo.x + ufo.dir
+      if ufo.x < -4 or ufo.x > W + 1 then
+        ufo.active = false; ufo.timer = math.random(200, 400)
+      end
+    elseif ufo.timer <= 0 then
+      local fl = math.random(2) == 1
+      ufo = { x     = fl and -4 or W + 1,
+              dir   = fl and  1 or -1,
+              active= true,
+              pts   = (math.random(4) + 1) * 50,
+              timer = math.random(200, 400) }
+    end
+
+    -- move alien grid
+    movtimer = movtimer - 1
+    if movtimer <= 0 then
+      movtimer = movspeed(nalive(aliens), lvl)
+      afr = (afr == 1) and 2 or 1            -- toggle animation frame
+      local lc, rc = hbounds(aliens)
+      local left   = ax + (lc - 1) * SP
+      local right  = ax + (rc - 1) * SP + 2
+      if adx == 1 and right >= W then
+        adx = -1; ay = ay + 1
+      elseif adx == -1 and left <= 1 then
+        adx = 1; ay = ay + 1
+      else
+        ax = ax + adx
+      end
+    end
+
+    -- collisions
+    check_bullet()
+
+    for _, b in ipairs(bombs) do        -- bombs erode shields
+      for _, sh in ipairs(shields) do
+        if sh.hp > 0 and (b.y == sh.y or b.y == sh.y + 1)
+           and b.x >= sh.x and b.x <= sh.x + 2 then
+          sh.hp = sh.hp - 1; b.y = H + 1
+        end
+      end
+    end
+
+    -- check if player was hit by a bomb
+    local player_hit = false
+    for _, b in ipairs(bombs) do
+      if b.y >= H and b.x >= px and b.x <= px + 2 then
+        player_hit = true; break
+      end
+    end
+
+    -- check if aliens reached the bottom
+    local dr = deepest(aliens)
+    if dr > 0 and ay + (dr - 1) * 2 >= H - 1 then player_hit = true end
+
+    if player_hit then
+      lives = lives - 1
+      bullet = nil; bombs = {}
+      -- flash the death frame
+      for i = 1, 24 do
+        tick = tick + 1
+        render(px, aliens, ax, ay, afr, nil, {}, shields, ufo,
+               score, hi, lives, lvl, tick, 'dead',
+               c.bred .. '  *** YOU WERE HIT ***   LIVES: ' .. lives .. '  ' .. c.reset)
+        phos.sleep(80)
+      end
+      if lives > 0 then px = math.floor(W / 2) - 1 end
+
+    elseif nalive(aliens) == 0 then
+      -- wave cleared — brief celebration then next level
+      for i = 1, 30 do
+        tick = tick + 1
+        render(px, aliens, ax, ay, afr, nil, {}, shields, ufo,
+               score, hi, lives, lvl, tick, 'win',
+               c.bgreen .. '  *** WAVE ' .. lvl .. ' CLEARED! ***  ' .. c.reset)
+        phos.sleep(80)
+      end
+      lvl   = lvl + 1
+      init_level()
+      px = math.floor(W / 2) - 1
+    end
+  end
+
+  phos.store('inv_hi', tostring(hi))
+
+  -- game-over flash
+  for i = 1, 40 do
+    tick = tick + 1
+    render(px, aliens, ax, ay, afr, nil, {}, shields, ufo,
+           score, hi, 0, lvl, tick, 'gameover',
+           c.bred .. '  *** GAME  OVER ***   SCORE: '
+           .. string.format('%05d', score) .. '   ' .. c.reset)
+    phos.sleep(80)
+  end
+
+  return score, hi
+end
+
+-- ── Entry point ───────────────────────────────────────────────────────────────
+local hi = tonumber(phos.fetch('inv_hi') or '0') or 0
+
+while true do
+  if not title(hi) then break end          -- title screen; Q exits
+
+  local _, new_hi = play(hi)
+  hi = new_hi
+
+  -- replay prompt
+  phos.draw(c.bwhite .. '  PRESS SPACE TO PLAY AGAIN   Q TO QUIT  ' .. c.reset)
+  local again = false
+  while true do
+    local k = phos.read_key()
+    if k == 'q' or k == 'Q' then break end
+    if k == ' ' or k == 'Space' or k == 'Enter' then again = true; break end
+  end
+  if not again then break end
+end
+
+phos.cls()
+`;
+
 export const luaCommands = {
   lua: {
     description: 'Execute a Lua 5.4 snippet in the sandboxed WebAssembly VM',
@@ -465,6 +901,25 @@ export const luaCommands = {
       }
       try {
         await runLua(SNAKE_SCRIPT);
+      } catch (err) {
+        const msg = String(err.message).replace(LUA_PREFIX_RE, '');
+        printLine(`Lua error: ${msg}`, 'line-err');
+      }
+    },
+  },
+
+  'lua-invaders': {
+    description: 'Play Space Invaders — NES-style shooter.  Defend Earth, earn points, survive waves.  Hi-score saved between sessions.',
+    usage: 'lua-invaders',
+    run: async () => {
+      try {
+        await initLuaVM();
+      } catch (err) {
+        printLine(`Lua VM failed to initialize: ${err.message}`, 'line-err');
+        return;
+      }
+      try {
+        await runLua(INVADERS_SCRIPT);
       } catch (err) {
         const msg = String(err.message).replace(LUA_PREFIX_RE, '');
         printLine(`Lua error: ${msg}`, 'line-err');
