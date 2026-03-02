@@ -171,23 +171,6 @@ export const MODES = {
     fontSize:     '18px',
   },
 
-  /** Apple II Color — warm amber/orange composite-video look. */
-  appleIIColor: {
-    palette: {
-      '--bg':          '#1a0d00',
-      '--fg':          '#f0a060',
-      '--fg-dim':      '#a05c20',
-      '--fg-bright':   '#ffd090',
-      '--glow':        'rgba(240, 160, 96, 0.62)',
-      '--glow-soft':   'rgba(240, 160, 96, 0.24)',
-      '--scanline-bg': 'rgba(0, 0, 0, 0.10)',
-    },
-    fontStack:    '"PR Number 3", "Courier New", Courier, monospace',
-    displayClass: 'mode-apple2-color',
-    /** Fixed hardware font-size; overrides the user's terminalSize pref. */
-    fontSize:     '18px',
-  },
-
   /** NES — navy-blue backdrop with crisp white text, game-menu aesthetic. */
   nes: {
     palette: {

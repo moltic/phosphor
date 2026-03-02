@@ -2802,8 +2802,7 @@ html.crt--high #scanlines::after {
 }
 
 html.crt--high.mode--c64 #terminal,
-html.crt--high.mode--appleIIGreen #terminal,
-html.crt--high.mode--appleIIColor #terminal {
+html.crt--high.mode--appleIIGreen #terminal {
   /* Layer jitter on top of the high-intensity flicker animation */
   animation:
     crt-flicker-high 5s    linear   infinite,
@@ -3704,10 +3703,8 @@ html.mode--apple2 {
   --font-size:  18px;
 }
 
-/* Font + hardware-accurate character grid for both Apple II colour modes.     */
-/* The Apple II text screen is a strict 40 columns × 24 rows.                  */
-html.mode--appleIIGreen,
-html.mode--appleIIColor {
+/* Font + hardware-accurate character grid — Apple II text screen: 40 cols × 24 rows. */
+html.mode--appleIIGreen {
   --font-stack: "Print Char 21", "Apple2", "PR Number 3",
                 "VT323", "Courier New", Courier, monospace;
   --font-size:  18px;
@@ -3720,16 +3717,14 @@ html.mode--appleIIColor {
    NTSC signal; pixels on adjacent columns bleed chrominance into
    one another, producing a 1-px magenta shadow on the left edge
    and a 1-px cyan shadow on the right edge of each character.   */
-html.mode--appleIIGreen .line,
-html.mode--appleIIColor .line {
+html.mode--appleIIGreen .line {
   text-shadow:
     -1px 0 0 rgba(255, 0, 255, 0.30),   /* magenta left bleed  */
      1px 0 0 rgba(0, 255, 255, 0.30);   /* cyan   right bleed  */
 }
 
-/* Fluid 40-column grid for Apple II modes — JS sets --font-size to fill vw.  */
-html.mode--appleIIGreen #terminal,
-html.mode--appleIIColor #terminal {
+/* Fluid 40-column grid for Apple II — JS sets --font-size to fill vw.  */
+html.mode--appleIIGreen #terminal {
   width:     calc(40ch + 3rem);
   max-width: 100%;
   margin:    0 auto;

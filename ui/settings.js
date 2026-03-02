@@ -221,8 +221,7 @@ export const settingsPanelEl = (() => {
   const displayModeSelect = makeSelect('s-displaymode', [
     ['classic',      'CLASSIC'],
     ['c64',          'C64'],
-    ['appleIIGreen', 'APPLE II (GREEN)'],
-    ['appleIIColor', 'APPLE II (COLOR)'],
+    ['appleIIGreen', 'APPLE II'],
     ['nes',          'NES'],
     ['gameBoy',      'GAME BOY'],
   ]);

@@ -251,7 +251,7 @@ export async function playSoundIfEnabled(name) {
     if (ctx.state === 'suspended') await ctx.resume();
 
     // ── Apple II: disk drive whir on boot / clearScreen ────────────────────
-    const isAppleII = (displayMode === 'appleIIGreen' || displayMode === 'appleIIColor');
+    const isAppleII = (displayMode === 'appleIIGreen');
     if ((name === 'boot' || name === 'clearScreen') && isAppleII) {
       _soundDiskWhir(ctx);
       if (name === 'clearScreen') return;  // disk whir is the sole sound for clr/clear
