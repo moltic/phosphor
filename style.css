@@ -3545,6 +3545,7 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 /* The screen surface */
 #lua-output {
   width: fit-content;
+  min-width: 58ch;   /* never narrower than the 52-char frame + indent */
   max-width: 88vw;
   height: 80vh;
   background: var(--bg);
