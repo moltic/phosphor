@@ -127,14 +127,14 @@ export const systemCommands = {
   clr: {
     description: 'Clear the terminal output (notes in storage are kept).',
     usage: 'clr',
-    run(_args) { clearScreen(); },
+    run(_args) { clearScreen(); playSoundIfEnabled('clearScreen'); },
   },
 
   // ── clear ─────────────────────────────────────────────────────────
   clear: {
     description: 'Clear the terminal output (alias for clr).',
     usage: 'clear',
-    run(_args) { clearScreen(); },
+    run(_args) { clearScreen(); playSoundIfEnabled('clearScreen'); },
   },
 
   // ── history ───────────────────────────────────────────────────────

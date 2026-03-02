@@ -126,6 +126,79 @@ function _soundFail(ctx) {
                release: 0.22 });
 }
 
+/**
+ * Keyboard click — default light tick played on each keystroke.
+ * Very short and quiet; just enough tactile feedback without intruding.
+ */
+function _soundKeyClick(ctx) {
+  _blip(ctx, {
+    freq:    1380,
+    at:      ctx.currentTime,
+    dur:     0.012,
+    vol:     0.035,
+    wave:    'square',
+    attack:  0.001,
+    release: 0.008,
+  });
+}
+
+/**
+ * Keyboard thunk — heavier mechanical key press for C64 mode.
+ * Two layers: a low resonant body + a sharp top-end transient.
+ */
+function _soundKeyThunk(ctx) {
+  const t = ctx.currentTime;
+  // Low resonant body — the physical "thunk" weight
+  _blip(ctx, { freq: 110, at: t, dur: 0.048, vol: 0.10, wave: 'square',
+               attack: 0.002, release: 0.035 });
+  // Sharp transient — mechanical click of keycap
+  _blip(ctx, { freq: 820, at: t, dur: 0.011, vol: 0.07, wave: 'square',
+               attack: 0.001, release: 0.007 });
+}
+
+/**
+ * Disk drive whir — Apple II Disk II simulation.
+ * A sawtooth motor hum with LFO tremolo (platter flutter) plus evenly-spaced
+ * stepper-motor clicks (head seek pattern).  Total duration ≈ 0.85 s.
+ */
+function _soundDiskWhir(ctx) {
+  const t   = ctx.currentTime;
+  const dur = 0.85;
+
+  // ── Motor hum ────────────────────────────────────────────────────────────
+  const motorOsc  = ctx.createOscillator();
+  const motorGain = ctx.createGain();
+  motorOsc.type = 'sawtooth';
+  motorOsc.frequency.setValueAtTime(158, t);
+  motorOsc.frequency.linearRampToValueAtTime(172, t + 0.25);
+  motorOsc.frequency.linearRampToValueAtTime(168, t + dur);
+  motorGain.gain.setValueAtTime(0.0001, t);
+  motorGain.gain.linearRampToValueAtTime(0.045, t + 0.10);
+  motorGain.gain.setValueAtTime(0.045, t + dur - 0.18);
+  motorGain.gain.linearRampToValueAtTime(0.0001, t + dur);
+  motorOsc.connect(motorGain);
+  motorGain.connect(ctx.destination);
+  motorOsc.start(t);
+  motorOsc.stop(t + dur + 0.01);
+
+  // ── Tremolo LFO (platter flutter ~12 Hz) ─────────────────────────────────
+  const lfo     = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  lfo.type            = 'sine';
+  lfo.frequency.value = 12;
+  lfoGain.gain.value  = 0.022;   // depth — stays well above zero
+  lfo.connect(lfoGain);
+  lfoGain.connect(motorGain.gain);
+  lfo.start(t);
+  lfo.stop(t + dur + 0.01);
+
+  // ── Stepper-motor clicks (head seek) ─────────────────────────────────────
+  [0.05, 0.14, 0.23, 0.32, 0.41, 0.50, 0.59, 0.68, 0.76].forEach(offset => {
+    _blip(ctx, { freq: 240, at: t + offset, dur: 0.018, vol: 0.028,
+                 wave: 'square', attack: 0.001, release: 0.010 });
+  });
+}
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 const _SOUNDS = {
   boot:           _soundBoot,
@@ -133,6 +206,9 @@ const _SOUNDS = {
   countdownEnd:   _soundCountdownEnd,
   reward:         _soundReward,
   fail:           _soundFail,
+  keyClick:       _soundKeyClick,
+  keyThunk:       _soundKeyThunk,
+  diskWhir:       _soundDiskWhir,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -140,12 +216,20 @@ const _SOUNDS = {
  * Play a named sound if sounds are enabled in prefs.
  * Fire-and-forget — safe to call without await; never throws to the caller.
  *
- * @param {'boot'|'countdownTick'|'countdownEnd'|'reward'|'fail'} name
+ * Hardware-profile routing:
+ *   • 'keyClick' on C64 displayMode  → plays the heavier 'keyThunk' sample.
+ *   • 'boot' / 'clearScreen' on an Apple II displayMode → plays 'diskWhir'.
+ *     For 'boot' the standard boot chime also follows unless gated by daily mode.
+ *     For 'clearScreen' the disk whir is the only sound (no chime).
+ *
+ * @param {'boot'|'clearScreen'|'countdownTick'|'countdownEnd'|'reward'|'fail'|'keyClick'} name
  */
 export async function playSoundIfEnabled(name) {
   try {
     const prefs = await loadPrefs();
     if (!prefs.sounds) return;
+
+    const displayMode = prefs.displayMode || 'classic';
 
     // Boot chime daily-gate: when mode is 'daily' only play once per calendar day.
     if (name === 'boot' && prefs.bootSoundMode === 'daily') {
@@ -155,14 +239,27 @@ export async function playSoundIfEnabled(name) {
       await chrome.storage.local.set({ lastBootSoundDate: today });
     }
 
-    const fn = _SOUNDS[name];
-    if (!fn) return;
+    // ── C64: keyboard clicks → heavy mechanical thunk ──────────────────────
+    if (name === 'keyClick' && displayMode === 'c64') {
+      name = 'keyThunk';
+    }
 
     const ctx = _getCtx();
     if (!ctx) return;
 
     // Chrome suspends AudioContext until a user gesture; resume if needed.
     if (ctx.state === 'suspended') await ctx.resume();
+
+    // ── Apple II: disk drive whir on boot / clearScreen ────────────────────
+    const isAppleII = (displayMode === 'appleIIGreen' || displayMode === 'appleIIColor');
+    if ((name === 'boot' || name === 'clearScreen') && isAppleII) {
+      _soundDiskWhir(ctx);
+      if (name === 'clearScreen') return;  // disk whir is the sole sound for clr/clear
+      // 'boot' falls through to also play the standard chime after the whir.
+    }
+
+    const fn = _SOUNDS[name];
+    if (!fn) return;
 
     fn(ctx);
   } catch {

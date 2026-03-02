@@ -3,6 +3,7 @@
 
 import { APP_TITLE, THEMES, MODES, FONT_SIZES, DEFAULT_PREFS, getAutoSkin } from '../core/config.js';
 import { loadPrefs, savePrefs }                          from '../core/storage.js';
+import { playSoundIfEnabled }                            from '../core/sounds.js';
 import { cmdHistory, setCmdHistory }                     from '../core/state.js';
 import {
   fitBanner, updateBannerMetrics, renderHeaderBanner,
@@ -15,6 +16,27 @@ let _cachedPrefs = null;
 
 /** Return the currently cached preferences object. */
 export function getCachedPrefs() { return _cachedPrefs; }
+
+// ── Hardware-profile keyboard click sounds ────────────────────────────────────
+// A single keydown listener is registered on the terminal input whenever
+// sounds are enabled.  The actual sample (click vs. thunk) is chosen inside
+// playSoundIfEnabled based on the active displayMode.
+let _keyClickHandler = null;
+
+function _rebindKeyClickSound(prefs) {
+  if (_keyClickHandler) {
+    inputEl.removeEventListener('keydown', _keyClickHandler);
+    _keyClickHandler = null;
+  }
+  if (!prefs.sounds) return;
+  _keyClickHandler = (e) => {
+    // Fire on visible characters, Backspace, and Enter; skip modifier-only keys.
+    if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+      playSoundIfEnabled('keyClick');
+    }
+  };
+  inputEl.addEventListener('keydown', _keyClickHandler);
+}
 
 // ── Greeting helpers ──────────────────────────────────────────────────────────
 
@@ -133,6 +155,11 @@ export async function applyPrefs(prefs) {
     chrome.storage.local.remove('cmdHistory');
     setCmdHistory([]);
   }
+
+  // ── Hardware-profile keyboard click sounds ────────────────────────────────
+  // Re-bind on every prefs change so the enabled/disabled state and the
+  // active display-mode profile are always in sync.
+  _rebindKeyClickSound(prefs);
 }
 
 // ── Settings panel ────────────────────────────────────────────────────────────
