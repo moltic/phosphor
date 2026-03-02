@@ -3657,22 +3657,14 @@ html.mode--c64 {
 }
 
 html.mode--c64 #terminal {
-  /* Fixed character-grid dimensions — 40ch wide, 25 line-heights tall          */
-  /* plus the terminal's own padding (1.5rem H × each side, 1rem+0.75rem V).   */
-  width:            calc(40ch + 3rem);
-  height:           calc(25lh + 1.75rem);
-  max-width:        none;
-  overflow:         hidden;
-  /* Centre in the viewport; JS sets --hw-scale so the grid fills the screen   */
-  position:         fixed;
-  top:              50%;
-  left:             50%;
-  transform:        translate(-50%, -50%) scale(var(--hw-scale, 1));
-  transform-origin: center center;
-  margin:           0;
+  /* Fluid 40-column grid: JS sets --font-size so 40ch fills ~92 vw.            */
+  /* The terminal keeps its normal height:100vh flow; content scrolls as usual.*/
+  width:        calc(40ch + 3rem);
+  max-width:    100%;
+  margin:       0 auto;
   /* C64 bezel border */
-  border:           10px solid var(--fg-dim);
-  border-radius:    6px;
+  border:       10px solid var(--fg-dim);
+  border-radius: 6px;
   box-shadow:
     0 0 0 3px var(--bg),
     0 0 0 5px var(--fg-dim);
@@ -3711,22 +3703,12 @@ html.mode--appleIIColor .line {
      1px 0 0 rgba(0, 255, 255, 0.30);   /* cyan   right bleed  */
 }
 
-/* Fixed character-grid #terminal layout for Apple II modes.                   */
+/* Fluid 40-column grid for Apple II modes — JS sets --font-size to fill vw.  */
 html.mode--appleIIGreen #terminal,
 html.mode--appleIIColor #terminal {
-  /* Fixed character-grid dimensions — 40ch wide, 24 line-heights tall          */
-  /* plus the terminal's own padding (1.5rem H × each side, 1rem+0.75rem V).   */
-  width:            calc(40ch + 3rem);
-  height:           calc(24lh + 1.75rem);
-  max-width:        none;
-  overflow:         hidden;
-  /* Centre in the viewport; JS sets --hw-scale so the grid fills the screen   */
-  position:         fixed;
-  top:              50%;
-  left:             50%;
-  transform:        translate(-50%, -50%) scale(var(--hw-scale, 1));
-  transform-origin: center center;
-  margin:           0;
+  width:     calc(40ch + 3rem);
+  max-width: 100%;
+  margin:    0 auto;
 }
 
 /* ── Game Boy ───────────────────────────────────────────────

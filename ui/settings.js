@@ -18,48 +18,70 @@ let _cachedPrefs = null;
 export function getCachedPrefs() { return _cachedPrefs; }
 
 // ── Hardware-grid viewport scaling ───────────────────────────────────────────
-// C64 (40×25) and Apple II (40×24) use a fixed character-grid size in CSS.
-// This helper measures that natural size and computes a transform: scale()
-// factor so the grid always fills the viewport while keeping its aspect ratio.
+// C64 (40×25) and Apple II (40×24) use a 40-column CSS width.
+// Rather than a transform: scale() (which fights normal flow and produces a
+// tiny terminal on wide viewports), we measure how wide one character is at
+// the current font, then compute the font-size that makes 40 columns fill
+// ~92 % of the viewport width.  The terminal stays in normal flow (height:
+// 100vh, overflow scroll) so it is always fully usable.
 const _HW_GRID_MODES = new Set(['c64', 'appleIIGreen', 'appleIIColor']);
 let _hwScaleHandler = null;
 
-function _applyHardwareGridScale(displayMode) {
-  const root       = document.documentElement;
-  const terminalEl = document.getElementById('terminal');
+// Caps to avoid unreasonably tiny or huge type.
+const _HW_FONT_MIN_PX = 14;
+const _HW_FONT_MAX_PX = 48;
 
-  // Remove any previous resize listener.
+function _applyHardwareGridScale(displayMode) {
+  const root = document.documentElement;
+
+  // Tear down any previous resize listener.
   if (_hwScaleHandler) {
     window.removeEventListener('resize', _hwScaleHandler);
     _hwScaleHandler = null;
   }
 
-  if (!_HW_GRID_MODES.has(displayMode) || !terminalEl) {
-    // Leaving a hardware-grid mode — clear the scale variable so the normal
-    // fluid layout is fully restored.
-    root.style.removeProperty('--hw-scale');
+  if (!_HW_GRID_MODES.has(displayMode)) {
+    // Leaving a hardware-grid mode — restore the user's chosen font size.
+    root.style.removeProperty('--font-size');
     return;
   }
 
-  function computeAndApplyScale() {
-    // Temporarily reset to scale 1 so getBoundingClientRect returns the
-    // natural (unscaled) character-grid dimensions.
-    root.style.setProperty('--hw-scale', '1');
-    // Defer one frame to let the browser apply the reset before measuring.
-    requestAnimationFrame(() => {
-      const rect = terminalEl.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const scaleX = window.innerWidth  / rect.width;
-      const scaleY = window.innerHeight / rect.height;
-      // Fit-to-viewport: use the smaller axis so neither dimension overflows.
-      const scale  = Math.min(scaleX, scaleY);
-      root.style.setProperty('--hw-scale', scale.toFixed(6));
-    });
+  function computeAndApplyFontSize() {
+    // Measure the width of one character ('0') at the current --font-size
+    // using a hidden off-screen span so we get the real glyph metrics.
+    const probe = document.createElement('span');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = [
+      'position:fixed', 'top:-9999px', 'left:-9999px',
+      'visibility:hidden', 'white-space:pre',
+      `font-family:${getComputedStyle(root).getPropertyValue('--font-stack') || 'monospace'}`,
+      `font-size:${getComputedStyle(root).getPropertyValue('--font-size') || '20px'}`,
+    ].join(';');
+    probe.textContent = '0'.repeat(40);
+    document.body.appendChild(probe);
+    const naturalWidth = probe.getBoundingClientRect().width;
+    document.body.removeChild(probe);
+
+    if (naturalWidth === 0) return;               // font not yet loaded
+
+    // Padding on #terminal is ~3rem (1.5rem × 2 sides); subtract that from
+    // the target fill width so 40ch sits inside the padding, not outside it.
+    const rootFontPx  = parseFloat(getComputedStyle(root).fontSize) || 20;
+    const padPx       = 3 * rootFontPx;           // 3rem ≈ 3 × base font-size
+    const targetPx    = window.innerWidth * 0.92 - padPx;
+    const ratio        = targetPx / naturalWidth;
+    const currentPx   = parseFloat(getComputedStyle(root).getPropertyValue('--font-size')) || 20;
+    const newPx       = Math.min(_HW_FONT_MAX_PX,
+                          Math.max(_HW_FONT_MIN_PX, currentPx * ratio));
+    root.style.setProperty('--font-size', `${newPx.toFixed(2)}px`);
   }
 
-  computeAndApplyScale();
-  // Re-compute whenever the viewport is resized (e.g. DevTools, zoom change).
-  _hwScaleHandler = computeAndApplyScale;
+  // Defer one frame so the mode class and palette variables are committed
+  // before we read computed styles.
+  requestAnimationFrame(computeAndApplyFontSize);
+
+  // Re-compute on viewport resize (DevTools open, browser zoom, etc.).
+  _hwScaleHandler = () => requestAnimationFrame(computeAndApplyFontSize);
   window.addEventListener('resize', _hwScaleHandler);
 }
 
