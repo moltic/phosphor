@@ -163,7 +163,7 @@ window.addEventListener('message', event => {
         _gameCanvas = document.createElement('pre');
         _gameCanvas.className = 'banner-output';
         _gameCanvas.style.cssText =
-          'margin:0.4em 0;line-height:1.35;font-size:inherit;white-space:pre';
+          'margin:0.4em 0;line-height:1.35;font-size:inherit;white-space:pre;letter-spacing:0.55em';
         outputEl.appendChild(_gameCanvas);
         // Activate persistent key capture so phos.get_key() works without
         // blocking.  Keys are forwarded to the sandbox as 'key-async'
