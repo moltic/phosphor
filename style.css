@@ -3546,13 +3546,13 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 #lua-output {
   width: 80vw;
   height: 80vh;
-  background: #000d00;
+  background: var(--bg);
   border: 20px solid #222; /* CRT bezel */
   border-radius: 50px;
   padding: 20px;
-  box-shadow: inset 0 0 50px #00ff00;
+  box-shadow: inset 0 0 50px var(--glow);
   overflow: hidden;
-  color: #00ff41;
+  color: var(--fg);
   /* Strict 1:1 character-cell ratio */
   font-family: 'VT323', monospace;
   font-size: 1.5rem;
@@ -3564,7 +3564,7 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 
 /* "ESC TO QUIT" hint beneath the monitor */
 #lua-controls {
-  color: #446644;
+  color: var(--fg-dim);
   font-family: var(--font-mono, monospace);
   font-size: 0.75rem;
   letter-spacing: 0.2em;
