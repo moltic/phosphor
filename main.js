@@ -175,25 +175,27 @@ inputEl.addEventListener('input', () => {
   syncDisplay();
 });
 
-// ── Terminal Paste Interceptor ──────────────────────────────────────────────
+// ── [main.js] Paste Interceptor ──────────────────────────────────────────────
 inputEl.addEventListener('paste', (e) => {
-  e.preventDefault(); // Stop the browser from truncating at the first newline
+  // 1. Prevent the browser's default single-line paste
+  e.preventDefault();
 
-  // Get the full raw text from the clipboard
+  // 2. Extract the full multiline text from the clipboard
   const fullText = (e.clipboardData || window.clipboardData).getData('text');
 
-  if (fullText.includes('\n')) {
-    // If it's a multi-line script, ensure it starts with 'lua '
-    // so the dispatcher knows to send it to the VM.
-    const cleanText = fullText.trim();
-    const command = cleanText.startsWith('lua') ? cleanText : `lua ${cleanText}`;
+  if (fullText) {
+    // 3. Normalize the command: Ensure it starts with 'lua ' if it's a block
+    const isLuaBlock = fullText.includes('\n');
+    const command = (isLuaBlock && !fullText.trim().startsWith('lua'))
+                    ? `lua ${fullText}`
+                    : fullText;
 
-    // Clear the visual input and send the entire block to the dispatcher
+    // 4. Force clear the input and trigger the command
     setInput('');
     dispatch(command);
-  } else {
-    // For single-line pastes, just insert the text as normal at the caret
-    document.execCommand('insertText', false, fullText);
+
+    // 5. Visual confirmation for the user
+    console.log('[Phosphor] Multiline block intercepted and dispatched.');
   }
 });
 
