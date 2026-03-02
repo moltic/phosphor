@@ -152,8 +152,9 @@ window.addEventListener('message', event => {
     // ── Graphics bridge ───────────────────────────────────────────────────────
 
     case 'cls':
-      // Clear the Virtual Monitor output panel.
-      luaOutput.innerHTML = '';
+      // Clear the Virtual Monitor output panel — textContent is faster than
+      // innerHTML = '' because it skips the HTML parser entirely.
+      luaOutput.textContent = '';
       break;
 
     case 'draw': {
@@ -165,7 +166,11 @@ window.addEventListener('message', event => {
         modalEl.classList.remove('hidden');
         _installPersistentKeyCapture();
       }
-      luaOutput.innerText = event.data.text;
+      // Convert ANSI SGR codes → <span> colour tags before touching the DOM.
+      // Using innerHTML = (not +=) means each frame is a full replacement —
+      // no stacking, no residual escape characters leaking into the text flow
+      // and breaking character-cell grid alignment.
+      luaOutput.innerHTML = _ansiToHtml(event.data.text);
       break;
     }
 
