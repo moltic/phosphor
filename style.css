@@ -3602,3 +3602,56 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 #lua-modal.hidden {
   display: none;
 }
+
+/* ============================================================
+   Hardware Emulation Classes
+   Apply to the <html> element to cascade into all nested
+   terminal components.
+
+   Usage:
+     document.documentElement.classList.add('mode--c64');
+
+   Each mode overrides --font-stack and --font-size on :root
+   via a higher-specificity html selector.  Additional
+   hardware-specific structural rules follow each variable
+   block.
+   ============================================================ */
+
+/* ── Commodore 64 ───────────────────────────────────────────
+   Chunky uppercase PETSCII-style rendering.  The thick bezel
+   border on #terminal mimics the C64's iconic brown-plastic
+   monitor surround.
+   ─────────────────────────────────────────────────────────── */
+html.mode--c64 {
+  --font-stack: "C64 Pro Mono", "C64 Pro", "PetMe64", "VT323",
+                "Courier New", Courier, monospace;
+  --font-size:  22px;
+}
+
+html.mode--c64 #terminal {
+  border: 10px solid var(--fg-dim);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--fg-dim);
+}
+
+/* ── Apple II ───────────────────────────────────────────────
+   Crisp, slanted monospace reminiscent of the Apple II's
+   character ROM output on a green-phosphor composite display.
+   ─────────────────────────────────────────────────────────── */
+html.mode--apple2 {
+  --font-stack: "Print Char 21", "Apple2", "PR Number 3",
+                "VT323", "Courier New", Courier, monospace;
+  --font-size:  18px;
+}
+
+/* ── Game Boy ───────────────────────────────────────────────
+   Small, dense pixel font scaled to fit the Game Boy's
+   limited 160 × 144 LCD resolution aesthetic.
+   ─────────────────────────────────────────────────────────── */
+html.mode--gameboy {
+  --font-stack: "Early GameBoy", "Pixel GameBoy", "VT323",
+                "Courier New", Courier, monospace;
+  --font-size:  14px;
+}
