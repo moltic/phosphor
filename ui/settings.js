@@ -1,7 +1,7 @@
 // ── ui/settings.js ───────────────────────────────────────────────────────────
 // applyPrefs, settings panel UI, greeting helpers.
 
-import { APP_TITLE, THEMES, FONT_SIZES, DEFAULT_PREFS, getAutoSkin } from '../core/config.js';
+import { APP_TITLE, THEMES, MODES, FONT_SIZES, DEFAULT_PREFS, getAutoSkin } from '../core/config.js';
 import { loadPrefs, savePrefs }                          from '../core/storage.js';
 import { cmdHistory, setCmdHistory }                     from '../core/state.js';
 import {
@@ -50,6 +50,23 @@ export async function applyPrefs(prefs) {
   const effectiveTheme = (prefs.autoSkin) ? getAutoSkin() : (prefs.theme || 'amber');
   const palette = THEMES[effectiveTheme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
+
+  // ── Display mode (hardware retro presets) ─────────────────────────────────
+  // Strip all existing mode-- classes, then apply the selected one so the
+  // cascade is clean regardless of the previous state.
+  const displayMode = prefs.displayMode || 'classic';
+  [...root.classList]
+    .filter(c => c.startsWith('mode--'))
+    .forEach(c => root.classList.remove(c));
+  root.classList.add(`mode--${displayMode}`);
+  // When a hardware mode is active its palette variables must win over the
+  // standard theme palette applied above.
+  if (displayMode !== 'classic') {
+    const mode = MODES[displayMode];
+    if (mode) {
+      Object.entries(mode.palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
+    }
+  }
 
   // ── CRT intensity ─────────────────────────────────────────────────────────
   // Classes on <html> drive the CSS in style.css.
