@@ -204,6 +204,8 @@ inputEl.addEventListener('keydown', e => {
   // real-time game (e.g. Chase Maze) is running.  Prevents default so
   // arrow keys don't scroll and typed chars don't enter the input field.
   if (_activeGame) {
+    // Let the capture-phase ESC handler close the monitor first.
+    if (e.key === 'Escape' && !_luaModalEl.classList.contains('hidden')) return;
     e.preventDefault();
     _activeGame.onKey(e);
     return;
@@ -346,17 +348,28 @@ inputEl.addEventListener('keydown', e => {
   }
 });
 
-// ── Virtual Monitor — ESC power-down ────────────────────────────────────────
-const _luaModalEl = document.getElementById('lua-modal');
+// ── Virtual Monitor — power-down (ESC key + QUIT button) ───────────────────
+const _luaModalEl  = document.getElementById('lua-modal');
+const _luaQuitBtn  = document.getElementById('lua-quit-btn');
+
+function _quitLuaMonitor() {
+  if (_luaModalEl.classList.contains('hidden')) return;
+  _luaModalEl.classList.add('hidden');
+  killLua();
+  printLine('LUA PROGRAM TERMINATED.', 'line-error');
+}
+
+// Use capture phase so this fires before any bubbling handler that might
+// call e.stopPropagation() (e.g. the dial context-menu Escape handler).
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !_luaModalEl.classList.contains('hidden')) {
     e.preventDefault();
-    _luaModalEl.classList.add('hidden');
-    killLua();
-    printLine('LUA PROGRAM TERMINATED.', 'line-error');
-    return;
+    e.stopPropagation();
+    _quitLuaMonitor();
   }
-});
+}, { capture: true });
+
+_luaQuitBtn.addEventListener('click', () => _quitLuaMonitor());
 
 // ── Global keyboard shortcuts (settings toggle, dial overlay, etc.) ──────────
 document.addEventListener('keydown', e => {

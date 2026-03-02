@@ -3562,14 +3562,38 @@ html.reduced-motion--on .dial-composer           { animation: none; }
   display: inline-block;   /* Helps center the grid */
 }
 
-/* "ESC TO QUIT" hint beneath the monitor */
+/* "ESC TO QUIT" hint + QUIT button beneath the monitor */
 #lua-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.4em;
   color: var(--fg-dim);
   font-family: var(--font-mono, monospace);
   font-size: 0.75rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   user-select: none;
+}
+
+#lua-quit-btn {
+  background: transparent;
+  border: 1px solid var(--fg-dim);
+  border-radius: 4px;
+  color: var(--fg-dim);
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0.15em 0.7em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+#lua-quit-btn:hover,
+#lua-quit-btn:focus-visible {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  outline: none;
 }
 
 /* Hide utility — toggled by JS */
