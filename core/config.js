@@ -124,6 +124,20 @@ export const THEMES = {
     '--glow-soft':   'rgba(255, 200, 64, 0.26)',
     '--scanline-bg': 'rgba(0, 0, 0, 0.09)',
   },
+  /**
+   * NES — 2A03 PPU-authentic palette; dark navy canvas, crisp white text,
+   * coin-yellow highlights.  Pairs with html.nes--on (set by applyPrefs)
+   * which adds pixel rendering, heavy TV scanlines and kills CRT blur/glow.
+   */
+  nes: {
+    '--bg':          '#1a1a2e',          /* dark blue-black like many NES backgrounds  */
+    '--fg':          '#fcfcfc',          /* NES pure white (palette entry 0x30)        */
+    '--fg-dim':      '#bcbcbc',          /* NES light grey                             */
+    '--fg-bright':   '#f8d800',          /* NES coin-yellow                            */
+    '--glow':        'rgba(0, 0, 0, 0)', /* no phosphor glow — hard pixel edges        */
+    '--glow-soft':   'rgba(0, 0, 0, 0)', /* no soft glow                               */
+    '--scanline-bg': 'rgba(0, 0, 0, 0.55)', /* heavy TV scanlines — overridden to 2px */
+  },
 };
 
 // ── Seasonal / time-based auto-skin ─────────────────────────────────────────

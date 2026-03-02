@@ -2799,6 +2799,65 @@ html.reduced-motion--on .crt-wipe                { animation-duration: 0.01s; }
 html.reduced-motion--on #speed-dial-wrap.visible { animation: none; }
 html.reduced-motion--on .dial-composer           { animation: none; }
 
+/* ── NES Mode ────────────────────────────────────────────────
+   Applied by applyPrefs() as html.nes--on when the 'nes' theme
+   is active.  Replaces the phosphor-CRT aesthetic with the look
+   of a consumer TV running an NES:
+     • Hard pixel edges  (image-rendering: pixelated)
+     • Prominent 2-px scanlines (every other row dark, ~55 %)
+     • No CRT flicker / no vignette / no phosphor text glow
+   The colour palette itself is set via CSS custom properties in
+   THEMES.nes (core/config.js) so --glow / --glow-soft are both
+   transparent, which silences almost all text-shadow rules.
+─────────────────────────────────────────────────────────────── */
+
+/* Pixel-perfect rendering throughout */
+html.nes--on,
+html.nes--on * {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;  /* Firefox fallback */
+}
+
+/* No CRT flicker — NES had no electron-beam flicker */
+html.nes--on #terminal {
+  animation: none;
+}
+
+/* Prominent NES-TV scanlines — 2 px period, every other row is dark */
+html.nes--on #scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent          0px,
+    transparent          2px,
+    rgba(0, 0, 0, 0.55)  2px,
+    rgba(0, 0, 0, 0.55)  4px
+  );
+}
+
+/* No CRT vignette — NES output filled the screen edge-to-edge */
+html.nes--on #scanlines::after {
+  background: none;
+}
+
+/* Kill residual hardcoded text-shadows
+   (--glow / --glow-soft are transparent, but line-err / warn / ok
+    use fixed rgba colours, so we silence them explicitly). */
+html.nes--on .line-err  { text-shadow: none; }
+html.nes--on .line-warn { text-shadow: none; }
+html.nes--on .line-ok   { text-shadow: none; }
+html.nes--on #status-time.countdown-active { text-shadow: none; }
+
+/* No curved bezel on the lua virtual monitor */
+html.nes--on #lua-crt-frame {
+  border-radius: 0;
+}
+html.nes--on #lua-output {
+  border: 6px solid #7c7cfc;   /* NES-palette light blue */
+  border-radius: 0;
+  box-shadow: none;
+  box-shadow: inset 0 0 0 var(--glow); /* cancel glow, keep the property */
+}
+
 /* ── Countdown timer in status line ────────────────────────── */
 /* Applied to #status-time while a countdown is active */
 #status-time.countdown-active {

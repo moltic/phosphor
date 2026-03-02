@@ -51,6 +51,9 @@ export async function applyPrefs(prefs) {
   const palette = THEMES[effectiveTheme] || THEMES.amber;
   Object.entries(palette).forEach(([prop, val]) => root.style.setProperty(prop, val));
 
+  // ── NES mode — pixel rendering + heavy scanlines + no glow ───────────────
+  root.classList.toggle('nes--on', effectiveTheme === 'nes');
+
   // ── CRT intensity ─────────────────────────────────────────────────────────
   // Classes on <html> drive the CSS in style.css.
   const intensity = prefs.crtIntensity || 'medium';
@@ -170,6 +173,7 @@ export const settingsPanelEl = (() => {
     ['matrix',  'MATRIX'],
     ['ice',     'ICE'],
     ['warm',    'WARM'],
+    ['nes',     'NES'],
   ]);
   const terminalSizeSelect = makeSelect('s-terminalsize', [
     ['small', 'SMALL'], ['medium', 'MEDIUM'], ['large', 'LARGE'],
@@ -265,7 +269,7 @@ export const settingsPanelEl = (() => {
   hintEl.setAttribute('aria-label', 'Terminal shortcut hints');
   hintEl.innerHTML = [
     '<span class="settings-onboarding-hint__label">TERMINAL SHORTCUTS</span>',
-    '<span>theme [name]  ─  change theme  (amber green blue white crimson matrix ice warm)</span>',
+    '<span>theme [name]  ─  change theme  (amber green blue white crimson matrix ice warm nes)</span>',
     '<span>Ctrl+,  /  ⌘,  ─  open or close this panel from anywhere</span>',
     '<span>tour  ─  replay the getting-started guide any time</span>',
     '<span>AUTO SKIN on  ─  palette auto-selects by season &amp; time of day</span>',
