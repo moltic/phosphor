@@ -3544,7 +3544,8 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 
 /* The screen surface */
 #lua-output {
-  width: 80vw;
+  width: fit-content;
+  max-width: 88vw;
   height: 80vh;
   background: var(--bg);
   border: 20px solid #222; /* CRT bezel */

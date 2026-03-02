@@ -17,9 +17,13 @@ local W  = 52   -- frame width (characters)
 
 -- ── helpers ──────────────────────────────────────────────────────────────────
 local function rule(ch)  return string.rep(ch or '-', W) end
+-- Measure visible length, ignoring ANSI SGR escape sequences.
+local function ansi_len(s)
+  return #(s:gsub('\27%[[%d;]*m', ''))
+end
 local function centre(s, w)
   w = w or W
-  local pad = math.max(0, w - #s)
+  local pad = math.max(0, w - ansi_len(s))
   return string.rep(' ', math.floor(pad/2)) .. s .. string.rep(' ', math.ceil(pad/2))
 end
 local function hdr(title)
@@ -28,14 +32,15 @@ end
 
 -- ── 1. colour palette ────────────────────────────────────────────────────────
 local function palette_screen()
-  local names = {
-    'black','red','green','yellow','blue','magenta','cyan','white',
-  }
-  local bright = { 'bblack','bred','bgreen','byellow','bblue','bmagenta','bcyan','bwhite' }
-  -- bblack isn't defined, substitute reset for spacing
+  -- each swatch: 12 visible chars; 4 per row → 2 + 4×12 = 50 ≤ W=52
   local function swatch(name)
     local col = c[name] or c.reset
-    return col .. string.format(' %-9s', name) .. c.reset
+    return col .. string.format('%-12s', name) .. c.reset
+  end
+  local function swatch_row(names)
+    local row = '  '
+    for _, n in ipairs(names) do row = row .. swatch(n) end
+    return row
   end
 
   local lines  = {}
@@ -44,17 +49,13 @@ local function palette_screen()
   lines[#lines+1] = centre('[ 1/4 ]  COLOUR PALETTE')
   lines[#lines+1] = rule()
   lines[#lines+1] = ''
-  lines[#lines+1] = '  NORMAL :'
-  local row = '  '
-  for _, n in ipairs(names) do row = row .. swatch(n) end
-  lines[#lines+1] = row
+  lines[#lines+1] = centre('NORMAL')
+  lines[#lines+1] = swatch_row({'black','red','green','yellow'})
+  lines[#lines+1] = swatch_row({'blue','magenta','cyan','white'})
   lines[#lines+1] = ''
-  lines[#lines+1] = '  BRIGHT :'
-  row = '  '
-  for _, n in ipairs({'bred','bgreen','byellow','bblue','bmagenta','bcyan','bwhite'}) do
-    row = row .. swatch(n)
-  end
-  lines[#lines+1] = row
+  lines[#lines+1] = centre('BRIGHT')
+  lines[#lines+1] = swatch_row({'bred','bgreen','byellow','bblue'})
+  lines[#lines+1] = swatch_row({'bmagenta','bcyan','bwhite'})
   lines[#lines+1] = ''
   lines[#lines+1] = rule()
   lines[#lines+1] = centre('(press any key)')
