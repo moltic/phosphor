@@ -175,6 +175,20 @@ inputEl.addEventListener('input', () => {
   syncDisplay();
 });
 
+inputEl.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text');
+
+  // If it's a multi-line block, prefix with 'lua ' automatically if missing, then dispatch.
+  if (text.includes('\n')) {
+    const command = text.trim().startsWith('lua') ? text : `lua ${text}`;
+    dispatch(command);
+  } else {
+    // Standard single-line paste
+    document.execCommand('insertText', false, text);
+  }
+});
+
 inputEl.addEventListener('keydown', e => {
   // Active game intercept: route ALL keys to the game handler while a
   // real-time game (e.g. Chase Maze) is running.  Prevents default so
