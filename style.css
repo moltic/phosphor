@@ -3683,16 +3683,26 @@ html.mode--c64 .prompt-glyph {
 }
 
 html.mode--c64 #scanlines {
-  opacity: 0.7;
+  opacity: 0.4;
 }
 
 html.mode--c64 #scanlines::after {
   background: radial-gradient(
     ellipse at center,
-    transparent            63%,
-    rgba(0, 0, 0, 0.12)   82%,
-    rgba(0, 0, 0, 0.26)   100%
+    transparent            72%,
+    rgba(0, 0, 0, 0.08)   88%,
+    rgba(0, 0, 0, 0.16)   100%
   );
+}
+
+html.mode--c64 .line-info,
+html.mode--c64 .line-sep,
+html.mode--c64 #scroll-more,
+html.mode--c64 .cal-output .cal-days,
+html.mode--c64 .settings-onboarding-hint__label,
+html.mode--c64 .settings-onboarding-hint span:not(.settings-onboarding-hint__label) {
+  color: var(--fg);
+  opacity: 0.95;
 }
 
 /* ── Apple II ───────────────────────────────────────────────
