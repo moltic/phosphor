@@ -45,6 +45,20 @@ let   _nextId      = 0;
 let _gameCanvas = null;
 
 /**
+ * Install (or re-install) a persistent _activeGame handler that forwards
+ * every keypress to the sandbox as a 'key-async' message for phos.get_key().
+ * The handler does NOT clear itself — it stays active until _cleanupGame()
+ * calls clearActiveGame().
+ */
+function _installPersistentKeyCapture() {
+  setActiveGame({
+    onKey(e) {
+      _iframe?.contentWindow?.postMessage({ type: 'key-async', key: e.key }, '*');
+    },
+  });
+}
+
+/**
  * Called when a Lua script finishes (done or error).
  * Clears any lingering _activeGame so the terminal is never locked,
  * and releases the canvas reference (the DOM node stays as static output).
@@ -118,6 +132,10 @@ window.addEventListener('message', event => {
         _gameCanvas.style.cssText =
           'margin:0.4em 0;line-height:1.35;font-size:inherit;white-space:pre';
         outputEl.appendChild(_gameCanvas);
+        // Activate persistent key capture so phos.get_key() works without
+        // blocking.  Keys are forwarded to the sandbox as 'key-async'
+        // messages; the handler stays active until _cleanupGame() is called.
+        _installPersistentKeyCapture();
       }
       _gameCanvas.textContent = event.data.text ?? '';
       outputEl.scrollTop = outputEl.scrollHeight;
@@ -128,11 +146,14 @@ window.addEventListener('message', event => {
 
     case 'key-request':
       // Activate the real-time key-capture hook for ONE keystroke, then
-      // forward it to the sandbox and immediately release the hook.
+      // forward it to the sandbox.  After the one-shot fires we restore the
+      // persistent capture so phos.get_key() keeps working.
       setActiveGame({
         onKey(e) {
-          clearActiveGame();
           _iframe.contentWindow.postMessage({ type: 'key', key: e.key }, '*');
+          // Restore persistent capture (no-op if game has already ended).
+          if (_gameCanvas) _installPersistentKeyCapture();
+          else clearActiveGame();
         },
       });
       break;

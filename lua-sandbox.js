@@ -13,6 +13,9 @@ let _engine = null;
 /** Resolve function waiting for the next 'key' message (phos.read_key). */
 let _pendingKeyResolve = null;
 
+/** Last key buffered by 'key-async' for phos.get_key() (non-blocking). */
+let _asyncKeyBuffer = '';
+
 /** Map of id → { resolve, reject } for async storage operations. */
 const _pendingAsyncOps = new Map();
 let   _nextAsyncId     = 0;
@@ -101,6 +104,18 @@ async function _boot(wasmUrl) {
      * @returns {Promise<void>}
      */
     sleep: async (ms) => new Promise(resolve => setTimeout(resolve, Number(ms) || 0)),
+
+    /**
+     * Non-blocking key poll.  Returns the last key pressed since the
+     * previous get_key() call, or an empty string if no key is buffered.
+     * Unlike read_key(), this never yields/blocks.
+     * @returns {string}
+     */
+    get_key: () => {
+      const key = _asyncKeyBuffer;
+      _asyncKeyBuffer = '';
+      return key;
+    },
   });
 
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
@@ -126,6 +141,7 @@ async function _boot(wasmUrl) {
       store    = function(k, v)  coroutine.yield(_p.store(k, v))        end,
       fetch    = function(k)     return coroutine.yield(_p.fetch(k))    end,
       read_key = function()      return coroutine.yield(_p.read_key())  end,
+      get_key  = function()      return _p.get_key()                    end,
     }
   `);
 
@@ -220,6 +236,12 @@ window.addEventListener('message', async event => {
       _pendingKeyResolve = null;
       resolve(msg.key ?? '');
     }
+    return;
+  }
+
+  if (msg.type === 'key-async') {
+    // Non-blocking key buffer for phos.get_key().
+    _asyncKeyBuffer = msg.key ?? '';
     return;
   }
 
