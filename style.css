@@ -3552,11 +3552,14 @@ html.reduced-motion--on .dial-composer           { animation: none; }
   padding: 20px;
   box-shadow: inset 0 0 50px #00ff00;
   overflow: hidden;
-  white-space: pre;
-  font-family: var(--font-mono, monospace);
   color: #00ff41;
-  font-size: clamp(0.7rem, 1.2vw, 1rem);
-  line-height: 1.4;
+  /* Strict 1:1 character-cell ratio */
+  font-family: 'VT323', monospace;
+  font-size: 1.5rem;
+  line-height: 1.0;        /* Essential for map alignment */
+  letter-spacing: 0.1ch;
+  white-space: pre;        /* Keeps newlines intact */
+  display: inline-block;   /* Helps center the grid */
 }
 
 /* "ESC TO QUIT" hint beneath the monitor */
