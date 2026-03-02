@@ -150,6 +150,8 @@ export const MODES = {
     },
     fontStack:    '"Press Start 2P", "Courier New", Courier, monospace',
     displayClass: 'mode-c64',
+    /** Fixed hardware font-size; overrides the user's terminalSize pref. */
+    fontSize:     '22px',
   },
 
   /** Apple II — classic monochrome green phosphor monitor. */
@@ -165,6 +167,8 @@ export const MODES = {
     },
     fontStack:    '"PR Number 3", "Courier New", Courier, monospace',
     displayClass: 'mode-apple2-green',
+    /** Fixed hardware font-size; overrides the user's terminalSize pref. */
+    fontSize:     '18px',
   },
 
   /** Apple II Color — warm amber/orange composite-video look. */
@@ -180,6 +184,8 @@ export const MODES = {
     },
     fontStack:    '"PR Number 3", "Courier New", Courier, monospace',
     displayClass: 'mode-apple2-color',
+    /** Fixed hardware font-size; overrides the user's terminalSize pref. */
+    fontSize:     '18px',
   },
 
   /** NES — navy-blue backdrop with crisp white text, game-menu aesthetic. */

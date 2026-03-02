@@ -17,74 +17,6 @@ let _cachedPrefs = null;
 /** Return the currently cached preferences object. */
 export function getCachedPrefs() { return _cachedPrefs; }
 
-// ── Hardware-grid viewport scaling ───────────────────────────────────────────
-// C64 (40×25) and Apple II (40×24) use a 40-column CSS width.
-// Rather than a transform: scale() (which fights normal flow and produces a
-// tiny terminal on wide viewports), we measure how wide one character is at
-// the current font, then compute the font-size that makes 40 columns fill
-// ~92 % of the viewport width.  The terminal stays in normal flow (height:
-// 100vh, overflow scroll) so it is always fully usable.
-const _HW_GRID_MODES = new Set(['c64', 'appleIIGreen', 'appleIIColor']);
-let _hwScaleHandler = null;
-
-// Caps to avoid unreasonably tiny or huge type.
-const _HW_FONT_MIN_PX = 14;
-const _HW_FONT_MAX_PX = 48;
-
-function _applyHardwareGridScale(displayMode) {
-  const root = document.documentElement;
-
-  // Tear down any previous resize listener.
-  if (_hwScaleHandler) {
-    window.removeEventListener('resize', _hwScaleHandler);
-    _hwScaleHandler = null;
-  }
-
-  if (!_HW_GRID_MODES.has(displayMode)) {
-    // Leaving a hardware-grid mode — restore the user's chosen font size.
-    root.style.removeProperty('--font-size');
-    return;
-  }
-
-  function computeAndApplyFontSize() {
-    // Measure the width of one character ('0') at the current --font-size
-    // using a hidden off-screen span so we get the real glyph metrics.
-    const probe = document.createElement('span');
-    probe.setAttribute('aria-hidden', 'true');
-    probe.style.cssText = [
-      'position:fixed', 'top:-9999px', 'left:-9999px',
-      'visibility:hidden', 'white-space:pre',
-      `font-family:${getComputedStyle(root).getPropertyValue('--font-stack') || 'monospace'}`,
-      `font-size:${getComputedStyle(root).getPropertyValue('--font-size') || '20px'}`,
-    ].join(';');
-    probe.textContent = '0'.repeat(40);
-    document.body.appendChild(probe);
-    const naturalWidth = probe.getBoundingClientRect().width;
-    document.body.removeChild(probe);
-
-    if (naturalWidth === 0) return;               // font not yet loaded
-
-    // Padding on #terminal is ~3rem (1.5rem × 2 sides); subtract that from
-    // the target fill width so 40ch sits inside the padding, not outside it.
-    const rootFontPx  = parseFloat(getComputedStyle(root).fontSize) || 20;
-    const padPx       = 3 * rootFontPx;           // 3rem ≈ 3 × base font-size
-    const targetPx    = window.innerWidth * 0.92 - padPx;
-    const ratio        = targetPx / naturalWidth;
-    const currentPx   = parseFloat(getComputedStyle(root).getPropertyValue('--font-size')) || 20;
-    const newPx       = Math.min(_HW_FONT_MAX_PX,
-                          Math.max(_HW_FONT_MIN_PX, currentPx * ratio));
-    root.style.setProperty('--font-size', `${newPx.toFixed(2)}px`);
-  }
-
-  // Defer one frame so the mode class and palette variables are committed
-  // before we read computed styles.
-  requestAnimationFrame(computeAndApplyFontSize);
-
-  // Re-compute on viewport resize (DevTools open, browser zoom, etc.).
-  _hwScaleHandler = () => requestAnimationFrame(computeAndApplyFontSize);
-  window.addEventListener('resize', _hwScaleHandler);
-}
-
 // ── Hardware-profile keyboard click sounds ────────────────────────────────────
 // A single keydown listener is registered on the terminal input whenever
 // sounds are enabled.  The actual sample (click vs. thunk) is chosen inside
@@ -174,7 +106,10 @@ export async function applyPrefs(prefs) {
 
   const terminalSize = prefs.terminalSize || prefs.fontSize || DEFAULT_PREFS.terminalSize;
   const dialSize     = prefs.dialSize     || prefs.fontSize || DEFAULT_PREFS.dialSize;
-  root.style.setProperty('--font-size',      FONT_SIZES[terminalSize] || FONT_SIZES.medium);
+  // Hardware modes define a fixed font-size that must not be overridden by the
+  // user's terminalSize preference (that preference is for the classic layout).
+  const hwMode = displayMode !== 'classic' ? MODES[displayMode] : null;
+  root.style.setProperty('--font-size', hwMode?.fontSize ?? (FONT_SIZES[terminalSize] || FONT_SIZES.medium));
   root.style.setProperty('--dial-font-size', FONT_SIZES[dialSize]     || FONT_SIZES.medium);
 
   const _dialTileWidths = { small: '3.2em', medium: '4.8em', large: '6.2em' };
@@ -223,11 +158,6 @@ export async function applyPrefs(prefs) {
     chrome.storage.local.remove('cmdHistory');
     setCmdHistory([]);
   }
-
-  // ── Hardware-grid viewport scaling ───────────────────────────────────────
-  // Must run after the mode class and --font-size variable are committed so
-  // the CSS ch/lh units resolve to the correct hardware font dimensions.
-  _applyHardwareGridScale(displayMode);
 
   // ── Hardware-profile keyboard click sounds ────────────────────────────────
   // Re-bind on every prefs change so the enabled/disabled state and the
