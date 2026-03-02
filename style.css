@@ -2809,6 +2809,48 @@ html.crt--high.mode--appleIIGreen #terminal {
     crt-jitter       0.25s steps(1) infinite;
 }
 
+/* ── Phosphor Persistence ──────────────────────────────────────
+   Simulates the luminance decay of long-persistence phosphor
+   coatings (P3 amber, P1 green) found in vintage terminals and
+   oscilloscopes.  Characters appear to leave a brief glowing
+   afterimage as the excited phosphor slowly de-energises.
+
+   Activated by applyPrefs() as html.phosphor-persistence--on
+   when crtIntensity = High AND the active theme is Amber or
+   Green — the two phosphor types that historically exhibited
+   the most visible persistence.
+
+   Implementation note:
+     • transition: color 0.2s ease-out — any programmatic colour
+       change fades out rather than cutting hard, echoing the
+       gradual luminance decay of the real coating.
+     • The layered text-shadow builds three zones:
+         – tight core  (2 px)  : the bright active phosphor dot
+         – mid bloom   (10 px) : spread of the excited region
+         – wide halo   (22/45 px): the slowly decaying afterglow
+   All values reference the active palette vars so the effect
+   adapts correctly to both Amber and Green.
+─────────────────────────────────────────────────────────────── */
+
+.phosphor-persistence {
+  transition: color 0.2s ease-out;
+  text-shadow:
+    0 0  2px var(--fg),
+    0 0 10px var(--glow),
+    0 0 22px var(--glow-soft),
+    0 0 45px var(--glow-soft);
+}
+
+html.phosphor-persistence--on #output,
+html.phosphor-persistence--on #input-line {
+  transition: color 0.2s ease-out;
+  text-shadow:
+    0 0  2px var(--fg),
+    0 0 10px var(--glow),
+    0 0 22px var(--glow-soft),
+    0 0 45px var(--glow-soft);
+}
+
 /* ── User-controlled reduced-motion (manual preference override) ─
    Applied by applyPrefs() as html.reduced-motion--on when
    prefs.reducedMotion === true.  Provides explicit user control

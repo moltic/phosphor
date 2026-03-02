@@ -101,6 +101,18 @@ export async function applyPrefs(prefs) {
   // the cascade is unambiguous (medium needs no overrides, so it's a no-op
   // in CSS, but the class is set for consistency / JS introspection).
 
+  // ── Phosphor persistence ──────────────────────────────────────────────────
+  // Long-persistence phosphor coatings (P3 amber, P1 green) left a visible
+  // afterimage as excited phosphor molecules slowly returned to ground state.
+  // Enable the CSS ghosting effect only when both conditions hold:
+  //   1. CRT intensity is set to High (strongest visual fidelity mode).
+  //   2. The active theme is Amber or Green — the two phosphor families that
+  //      historically exhibited the most pronounced persistence.
+  const _phosphorThemes = new Set(['amber', 'green']);
+  const persistenceActive =
+    intensity === 'high' && _phosphorThemes.has(effectiveTheme);
+  root.classList.toggle('phosphor-persistence--on', persistenceActive);
+
   // ── Reduced-motion (user preference, independent of OS setting) ──────────
   root.classList.toggle('reduced-motion--on', prefs.reducedMotion === true);
 
