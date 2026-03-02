@@ -45,6 +45,39 @@ let   _nextId      = 0;
 let _gameCanvas = null;
 
 /**
+ * Convert a string containing ANSI SGR escape codes into safe HTML.
+ * Supports foreground colours (30-37, 90-97) and reset (0).
+ * All HTML-special characters are escaped before injection.
+ */
+function _ansiToHtml(raw) {
+  let s = (raw ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const FG = {
+    '30':'#1a1a1a', '31':'#ff4444', '32':'#44ee88', '33':'#ffd050',
+    '34':'#4499ff', '35':'#ff44ff', '36':'#44ffee', '37':'#e8e8e8',
+    '90':'#666666', '91':'#ff6e6e', '92':'#66ffaa', '93':'#ffee66',
+    '94':'#66aaff', '95':'#ff66ff', '96':'#66ffee', '97':'#ffffff',
+  };
+
+  let open = 0;   // count of open <span> tags
+  s = s.replace(/\x1b\[([0-9;]*)m/g, (_m, codes) => {
+    let out = '';
+    for (let i = 0; i < open; i++) out += '</span>';
+    open = 0;
+    for (const code of codes.split(';')) {
+      if (FG[code]) { out += `<span style="color:${FG[code]}">`;  open++; }
+      else if (code === '1') { out += '<span style="filter:brightness(1.5)">'; open++; }
+    }
+    return out;
+  });
+  for (let i = 0; i < open; i++) s += '</span>';
+  return s;
+}
+
+/**
  * Install (or re-install) a persistent _activeGame handler that forwards
  * every keypress to the sandbox as a 'key-async' message for phos.get_key().
  * The handler does NOT clear itself — it stays active until _cleanupGame()
@@ -137,7 +170,7 @@ window.addEventListener('message', event => {
         // messages; the handler stays active until _cleanupGame() is called.
         _installPersistentKeyCapture();
       }
-      _gameCanvas.textContent = event.data.text ?? '';
+      _gameCanvas.innerHTML = _ansiToHtml(event.data.text);
       outputEl.scrollTop = outputEl.scrollHeight;
       break;
     }

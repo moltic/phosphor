@@ -116,6 +116,21 @@ async function _boot(wasmUrl) {
       _asyncKeyBuffer = '';
       return key;
     },
+
+    /**
+     * ANSI SGR colour constants for use with phos.draw().
+     * e.g.  phos.color.red .. "#" .. phos.color.reset
+     */
+    color: {
+      reset:   '\x1b[0m',
+      black:   '\x1b[30m', red:     '\x1b[31m', green:   '\x1b[32m',
+      yellow:  '\x1b[33m', blue:    '\x1b[34m', magenta: '\x1b[35m',
+      cyan:    '\x1b[36m', white:   '\x1b[37m',
+      // bright variants
+      bred:    '\x1b[91m', bgreen:  '\x1b[92m', byellow: '\x1b[93m',
+      bblue:   '\x1b[94m', bmagenta:'\x1b[95m', bcyan:   '\x1b[96m',
+      bwhite:  '\x1b[97m',
+    },
   });
 
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
@@ -142,6 +157,7 @@ async function _boot(wasmUrl) {
       fetch    = function(k)     return coroutine.yield(_p.fetch(k))    end,
       read_key = function()      return coroutine.yield(_p.read_key())  end,
       get_key  = function()      return _p.get_key()                    end,
+      color    = _p.color,
     }
   `);
 
