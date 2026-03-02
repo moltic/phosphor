@@ -313,7 +313,7 @@ end
 --  MAIN
 -- ═══════════════════════════════════════════════════════════════════════════
 
-local hi = tonumber(phos.fetch('snake_hi')) or 0
+local hi = tonumber(phos.fetch('snake_hi') or '0') or 0
 
 -- Title screen
 phos.cls()
