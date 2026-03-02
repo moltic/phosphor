@@ -60,6 +60,8 @@ export const helpCommands = {
         { label: 'SYSTEM',      keys: ['clr', 'clear', 'history', 'theme', 'banner', 'settings', 'boot', 'motd', 'uptime', 'whoami', 'sysinfo', 'syncstatus', 'shutdown'] },
         { label: 'DATA',        keys: ['export', 'import'] },
         { label: 'FUN',         keys: ['fortune', 'cal', 'ping', 'scan', 'typewriter', 'beep', 'cow', 'noise', 'matrix', 'hack', 'countdown', 'maze'] },
+        { label: 'GAMES',       keys: ['games', 'hangman', 'bullscows', 'chasemaze', 'lua-snake'] },
+        { label: 'LUA',         keys: ['lua', 'lua-demo', 'lua-snake'] },
         { label: 'HELP',        keys: ['help', 'keys'] },
       ];
 
