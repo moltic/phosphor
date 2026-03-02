@@ -106,22 +106,27 @@ async function _boot(wasmUrl) {
   // Nil-out dangerous stdlib tables (belt-and-suspenders).
   await _engine.doString('io = nil; os = nil');
 
-  // Wasmoon returns JS Promises as userdata.  :await() would need to call
-  // lua_yieldk from within a JS callback, which cannot unwind through the
-  // WASM→JS stack boundary.  Instead each wrapper uses coroutine.yield(),
-  // which is a pure-WASM Lua builtin that yields cleanly.  The custom JS
-  // runner below (see _runCode) detects the yielded Promise, awaits it in
-  // JS, and passes the resolved value back via lua_resume — so phos.fetch
-  // and phos.read_key can return values to Lua as well.
+  // Replace the JS-proxy 'phos' userdata with a plain Lua table whose
+  // methods are native Lua closures.  This is critical: if we leave phos as
+  // a JS proxy, reading phos.sleep back via __index wraps the stored Lua
+  // closure in a JS function that uses lua_pcallk with no continuation,
+  // which blocks coroutine.yield ("attempt to yield across a C-call
+  // boundary").  With a real Lua table there is no C wrapper in the call
+  // chain, so coroutine.yield works correctly from the user's script.
+  //
+  // _p is the original JS proxy; calling _p.sleep / _p.fetch etc. through
+  // functionWrapper is fine because those JS functions return Promises
+  // synchronously — the C wrapper returns before coroutine.yield is called.
   await _engine.doString(`
-    local _raw_sleep    = phos.sleep
-    local _raw_store    = phos.store
-    local _raw_fetch    = phos.fetch
-    local _raw_read_key = phos.read_key
-    phos.sleep    = function(ms)   coroutine.yield(_raw_sleep(ms))          end
-    phos.store    = function(k, v) coroutine.yield(_raw_store(k, v))        end
-    phos.fetch    = function(k)    return coroutine.yield(_raw_fetch(k))    end
-    phos.read_key = function()     return coroutine.yield(_raw_read_key())  end
+    local _p = phos
+    phos = {
+      cls      = function()      _p.cls()                               end,
+      draw     = function(t)     _p.draw(t)                             end,
+      sleep    = function(ms)    coroutine.yield(_p.sleep(ms))          end,
+      store    = function(k, v)  coroutine.yield(_p.store(k, v))        end,
+      fetch    = function(k)     return coroutine.yield(_p.fetch(k))    end,
+      read_key = function()      return coroutine.yield(_p.read_key())  end,
+    }
   `);
 
   parent.postMessage({ type: 'ready' }, '*');
