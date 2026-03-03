@@ -322,15 +322,7 @@ async function _runSet(set, dials) {
     if (!ok) return;
   }
 
-  const { opened, skipped } = openLaunchSetUrls(set.aliases, dials);
-
-  if (opened.length && skipped.length) {
-    // Brief toast-like notice via console (doesn't disrupt the overlay UX)
-    console.info(
-      `[Phosphor] Launched "${set.name}": ${opened.length} tab(s) opened.` +
-      ` ${skipped.length} skipped (unknown): ${skipped.join(', ')}`,
-    );
-  }
+  openLaunchSetUrls(set.aliases, dials);
 
   // Record usage for each alias opened
   for (const alias of opened) {

@@ -339,14 +339,6 @@ export async function migrateDialsToV1() {
     const store = flatArrayToDialStore(legacyDials);
     await chrome.storage.sync.set({ dialStore: store });
 
-    const totalItems = store.categories.reduce((n, c) => n + c.items.length, 0);
-    const divCount = legacyDials.filter(d => d.type === 'divider').length;
-    console.info(
-      `[Phosphor] dials → dialStore v1:`,
-      `${store.categories.length} categor${store.categories.length === 1 ? 'y' : 'ies'},`,
-      `${totalItems} item${totalItems === 1 ? '' : 's'}`,
-      divCount ? `(${divCount} divider${divCount === 1 ? '' : 's'} preserved)` : '',
-    );
   }
 
   await chrome.storage.local.set({ _dialsMigratedV1: true });
@@ -405,7 +397,6 @@ export async function migrateLocalToSync() {
     if (Object.keys(local.prefs).length > 0) toSync.prefs = local.prefs;
     if (Object.keys(toSync).length > 0) {
       await chrome.storage.sync.set(toSync);
-      console.info('[Phosphor] Migrated local storage → sync:', Object.keys(toSync));
     }
   }
 

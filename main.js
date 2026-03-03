@@ -194,8 +194,6 @@ inputEl.addEventListener('paste', (e) => {
     setInput('');
     dispatch(command);
 
-    // 5. Visual confirmation for the user
-    console.log('[Phosphor] Multiline block intercepted and dispatched.');
   }
 });
 
@@ -473,10 +471,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
     const newPrefs = { ...DEFAULT_PREFS, ...(changes.prefs.newValue || {}) };
     applyPrefs(newPrefs);
   }
-  // Debug: log sync arrivals to the console so you can confirm cross-device push/pull.
-  console.info('[Phosphor] sync update received — keys:', keys,
-    keys.map(k => ({ key: k, old: changes[k].oldValue, new: changes[k].newValue }))
-  );
 });
 
 // ============================================================
