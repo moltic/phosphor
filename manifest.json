@@ -7,9 +7,9 @@
     "newtab": "index.html"
   },
   "icons": {
-    "16": "phos.png",
-    "48": "phos.png",
-    "128": "phos.png"
+    "16": "phos16.png",
+    "48": "phos48.png",
+    "128": "phos128.png"
   },
   "permissions": [
     "storage",
