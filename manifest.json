@@ -3,6 +3,7 @@
   "name": "Phosphor — CRT Terminal New Tab",
   "version": "1.0.0",
   "description": "A retro phosphor terminal interface for your New Tab page.",
+  "author": "Moltic",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
