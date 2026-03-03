@@ -467,11 +467,16 @@ window.addEventListener('pageshow', scheduleStartupFocusRetries);
 // ── Sync change listener ──────────────────────────────────────────────────────
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
+  const keys = Object.keys(changes);
   if (changes.dialStore || changes.dials) renderDials();
   if (changes.prefs) {
     const newPrefs = { ...DEFAULT_PREFS, ...(changes.prefs.newValue || {}) };
     applyPrefs(newPrefs);
   }
+  // Debug: log sync arrivals to the console so you can confirm cross-device push/pull.
+  console.info('[Phosphor] sync update received — keys:', keys,
+    keys.map(k => ({ key: k, old: changes[k].oldValue, new: changes[k].newValue }))
+  );
 });
 
 // ============================================================
