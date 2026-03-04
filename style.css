@@ -3670,6 +3670,77 @@ html.reduced-motion--on .dial-composer           { animation: none; }
 }
 
 /* ============================================================
+   C64 Emulator Overlay
+   Mirrors the structure of #lua-modal / #lua-crt-frame.
+   The <iframe> is injected dynamically into #c64-crt-frame.
+   ============================================================ */
+#c64-modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* CRT outer chassis — bezel + deep-green glow */
+#c64-crt-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Dynamically-injected <iframe> fills the frame container */
+#c64-crt-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* "ESC TO QUIT" hint + QUIT button beneath the monitor */
+#c64-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.4em;
+  color: var(--fg-dim);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+#c64-quit-btn {
+  background: transparent;
+  border: 1px solid var(--fg-dim);
+  border-radius: 4px;
+  color: var(--fg-dim);
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  padding: 0.15em 0.7em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+#c64-quit-btn:hover,
+#c64-quit-btn:focus-visible {
+  color: var(--fg-bright);
+  border-color: var(--fg-bright);
+  outline: none;
+}
+
+/* Hide utility — toggled by JS */
+#c64-modal.hidden {
+  display: none;
+}
+
+/* ============================================================
    Hardware Emulation Classes
    Apply to the <html> element to cascade into all nested
    terminal components.

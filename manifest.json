@@ -36,11 +36,15 @@
     "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; object-src 'self';"
   },
   "sandbox": {
-    "pages": ["lua-sandbox.html"]
+    "pages": ["lua-sandbox.html", "c64-sandbox.html"]
   },
   "web_accessible_resources": [
     {
       "resources": ["vendor/glue.wasm", "vendor/wasmoon.js"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["vendor/x64sc.js", "vendor/x64sc.wasm", "c64-sandbox.html", "vendor/c64-roms/*"],
       "matches": ["<all_urls>"]
     }
   ]

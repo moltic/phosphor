@@ -106,6 +106,19 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!--  Virtual Monitor — CRT-style C64 emulator overlay  -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div id="c64-modal" class="hidden">
+    <div id="c64-crt-frame">
+      <!-- iframe injected here dynamically by JS -->
+      <div id="c64-controls">
+        <span>ESC TO QUIT</span>
+        <button id="c64-quit-btn" type="button">&#x2715; QUIT</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Wasmoon (Lua 5.4 in WebAssembly) runs inside lua-sandbox.html, a sandboxed
        extension page with a relaxed CSP that permits WebAssembly compilation.
        core/lua-vm.js creates the iframe and communicates with it via postMessage. -->
