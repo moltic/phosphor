@@ -42,6 +42,7 @@ import { awardAchievement }           from './core/progression.js';
 import { notifyAchievement }          from './commands/profile.js';
 import { initLaunchPanel }            from './ui/launch-panel.js';
 import { initLuaVM, killLua }          from './core/lua-vm.js';
+import { initC64VM, killC64 }          from './core/c64-vm.js';
 
 function focusPrompt() {
   inputEl.focus({ preventScroll: true });
@@ -80,6 +81,7 @@ async function init() {
   // Kick off the Lua VM in the background — it fetches and compiles the WASM
   // binary (~260 KB) so we start it early without blocking the rest of init.
   initLuaVM().catch(err => console.warn('[Phosphor] Lua VM init failed:', err));
+  initC64VM().catch(() => {}); // warm up sandbox in background; errors are non-fatal
 
   // Migrate flat dials → versioned dialStore (no-op after first run)
   await migrateDialsToV1();
@@ -203,7 +205,7 @@ inputEl.addEventListener('keydown', e => {
   // arrow keys don't scroll and typed chars don't enter the input field.
   if (_activeGame) {
     // Let the capture-phase ESC handler close the monitor first.
-    if (e.key === 'Escape' && !_luaModalEl.classList.contains('hidden')) return;
+    if (e.key === 'Escape' && (!_luaModalEl.classList.contains('hidden') || !_c64ModalEl.classList.contains('hidden'))) return;
     e.preventDefault();
     _activeGame.onKey(e);
     return;
@@ -349,12 +351,18 @@ inputEl.addEventListener('keydown', e => {
 // ── Virtual Monitor — power-down (ESC key + QUIT button) ───────────────────
 const _luaModalEl  = document.getElementById('lua-modal');
 const _luaQuitBtn  = document.getElementById('lua-quit-btn');
+const _c64ModalEl  = document.getElementById('c64-modal');
+const _c64QuitBtn  = document.getElementById('c64-quit-btn');
 
 function _quitLuaMonitor() {
   if (_luaModalEl.classList.contains('hidden')) return;
   _luaModalEl.classList.add('hidden');
   killLua();
   printLine('LUA PROGRAM TERMINATED.', 'line-error');
+}
+
+function _quitC64Monitor() {
+  killC64();
 }
 
 // Use capture phase so this fires before any bubbling handler that might
@@ -365,9 +373,15 @@ document.addEventListener('keydown', e => {
     e.stopPropagation();
     _quitLuaMonitor();
   }
+  if (e.key === 'Escape' && !_c64ModalEl.classList.contains('hidden')) {
+    e.preventDefault();
+    e.stopPropagation();
+    _quitC64Monitor();
+  }
 }, { capture: true });
 
 _luaQuitBtn.addEventListener('click', () => _quitLuaMonitor());
+_c64QuitBtn.addEventListener('click', () => _quitC64Monitor());
 
 // ── Global keyboard shortcuts (settings toggle, dial overlay, etc.) ──────────
 document.addEventListener('keydown', e => {
