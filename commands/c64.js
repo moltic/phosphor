@@ -8,7 +8,8 @@ import { initC64VM, bootC64, killC64, loadPrg } from '../core/c64-vm.js';
 // ── Command registry ──────────────────────────────────────────────────────────
 export const c64Commands = {
   'c64': {
-    help: 'launch the C64 virtual machine  |  c64 load <url>',
+    description: 'Launch the Commodore 64 virtual machine.  c64 load <url> fetches and autoruns a .prg.',
+    usage: 'c64 [load <url>]',
     run: async function(args) {
       const sub = args[0]?.toLowerCase();
 

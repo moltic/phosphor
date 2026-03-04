@@ -97,7 +97,16 @@ export function dispatch(raw) {
   printLine(`> ${trimmed}`, 'line-cmd');
 
   if (Object.prototype.hasOwnProperty.call(commands, key)) {
-    Promise.resolve(commands[key].run(args))
+    let result;
+    try {
+      result = commands[key].run(args);
+    } catch (err) {
+      printLine(`Error: ${err.message}`, 'line-err');
+      console.error('[Phosphor]', err);
+      if (!isLua) endBatch();
+      return;
+    }
+    Promise.resolve(result)
       .catch(err => {
         printLine(`Error: ${err.message}`, 'line-err');
         console.error('[Phosphor]', err);
