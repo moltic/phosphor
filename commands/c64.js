@@ -15,8 +15,13 @@ export const c64Commands = {
 
       if (!sub || sub === 'boot') {
         printLine('BOOTING COMMODORE 64...', 'line-info');
+        try {
+          await initC64VM();
+        } catch (e) {
+          printLine(`C64 unavailable: ${e.message}`, 'line-err');
+          return;
+        }
         printLine('Type ESC or press QUIT to return to terminal.', 'line-dim');
-        await initC64VM();
         await bootC64();
         return;
       }

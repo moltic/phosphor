@@ -36,11 +36,23 @@ let _keyUpListener = null;
  * @returns {Promise<{ kernal: Uint8Array, basic: Uint8Array, chargen: Uint8Array }>}
  */
 async function _loadRoms() {
-  const [kernal, basic, chargen] = await Promise.all([
-    fetch(chrome.runtime.getURL('vendor/c64-roms/kernal')).then(r => r.arrayBuffer()),
-    fetch(chrome.runtime.getURL('vendor/c64-roms/basic')).then(r => r.arrayBuffer()),
-    fetch(chrome.runtime.getURL('vendor/c64-roms/chargen')).then(r => r.arrayBuffer()),
-  ]);
+  const names = ['kernal', 'basic', 'chargen'];
+  const results = await Promise.all(
+    names.map(n =>
+      fetch(chrome.runtime.getURL(`vendor/c64-roms/${n}`))
+        .then(r => {
+          if (!r.ok) throw new Error(`ROM not found: ${n} (HTTP ${r.status})`);
+          return r.arrayBuffer();
+        })
+        .catch(() => {
+          throw new Error(
+            `C64 ROM files are missing.  The vendor/c64-roms/ directory (kernal, basic, chargen) ` +
+            `and vendor/x64sc.js / x64sc.wasm are required but not included in this build.`
+          );
+        })
+    )
+  );
+  const [kernal, basic, chargen] = results;
   return {
     kernal:  new Uint8Array(kernal),
     basic:   new Uint8Array(basic),
