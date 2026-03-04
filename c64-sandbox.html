@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- ── c64-sandbox.html ───────────────────────────────────────────────────────
+  Chrome extension sandbox page.  Listed under "sandbox.pages" in manifest.json
+  so Chrome assigns it a relaxed CSP (includes 'unsafe-eval' / 'wasm-unsafe-eval')
+  that allows WebAssembly compilation — the whole reason this iframe exists.
+
+  The page has a unique opaque origin and cannot use chrome.* APIs.  It
+  communicates with the extension's newtab page exclusively via postMessage.
+
+  vendor/x64sc.js is the Emscripten VICE glue and must be loaded before
+  c64-sandbox.js so that the Module pre-configuration is in place when the
+  glue script runs.
+──────────────────────────────────────────────────────────────────────────── -->
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html, body { margin: 0; padding: 0; background: #000; width: 100%; height: 100%; }
+    #c64-screen { display: block; width: 100%; height: 100%; }
+  </style>
+  <!-- VICE Emscripten glue — must come first so Module pre-config is ready. -->
+  <script src="vendor/x64sc.js"></script>
+  <!-- C64 sandbox message router. -->
+  <script src="c64-sandbox.js"></script>
+</head>
+<body>
+  <canvas id="c64-screen"></canvas>
+</body>
+</html>
