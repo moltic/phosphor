@@ -44,7 +44,7 @@
       "matches": ["<all_urls>"]
     },
     {
-      "resources": ["vendor/x64sc.js", "vendor/x64sc.wasm", "c64-sandbox.html", "vendor/c64-roms/*"],
+      "resources": ["vendor/vice_x64sc_libretro.js", "vendor/vice_x64sc_libretro.wasm", "c64-sandbox.html"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -1,42 +1,41 @@
 // ── c64-sandbox.js ────────────────────────────────────────────────────────────
 // Runs inside c64-sandbox.html (the extension's sandboxed page).
-// Receives messages from the extension via postMessage and drives the
-// Emscripten-compiled VICE x64sc emulator.
+// Drives the vice_x64sc_libretro Emscripten module (RetroArch platform).
 //
 // Message types accepted  (parent → sandbox):
-//   'init'     — { roms: { kernal, basic, chargen } }  boot the emulator
+//   'boot'     — { roms?: { kernal, basic, chargen } }  write ROMs + callMain
 //   'keydown'  — { key, code }                          inject a key-press
 //   'keyup'    — { key, code }                          inject a key-release
-//   'loadPrg'  — { bytes: Uint8Array }                  autostart a .prg file
-//   'kill'     — reset the machine and post 'stopped'
+//   'loadPrg'  — { bytes: ArrayBuffer }                 autostart a .prg file
+//   'kill'     — shut down the emulator
 //
 // Message types posted    (sandbox → parent):
-//   'ready'    — emulator runtime is initialised and waiting for 'init'
+//   'ready'    — WASM runtime is initialised (onRuntimeInitialized fired)
 //   'stopped'  — emitted after 'kill' is processed
 //
-// This file deliberately has no ES-module syntax: it is a plain script loaded
-// from c64-sandbox.html, a sandboxed extension page — no bundler involved.
-'use strict';
+// This file is loaded as <script type="module"> from c64-sandbox.html.
+
+import libretro_vice_x64sc from './vendor/vice_x64sc_libretro.js';
 
 let _module = null;
 let _ready  = false;
 
-// ── Emscripten Module pre-configuration ──────────────────────────────────────
-// Must be assigned to window.Module before vendor/x64sc.js executes (the glue
-// script merges its own defaults with whatever properties are already present).
-window.Module = {
-  canvas: document.getElementById('c64-screen'),
+const _canvas = document.getElementById('c64-screen');
 
-  // Prevent VICE from calling main() on its own; we fire it via callMain()
-  // once the ROMs have been written to the virtual FS.
-  noInitialRun: true,
-
-  onRuntimeInitialized: function () {
-    _module = window.Module;
+// ── Initialise libretro module ────────────────────────────────────────────────
+// noInitialRun: we call callMain() ourselves after ROMs are in the virtual FS.
+libretro_vice_x64sc({
+  canvas:        _canvas,
+  noInitialRun:  true,
+  onRuntimeInitialized() {
+    _module = this;
     _ready  = true;
     parent.postMessage({ type: 'ready' }, '*');
   },
-};
+}).catch(err => {
+  console.error('[C64 sandbox] Module init failed:', err);
+  parent.postMessage({ type: 'error', message: err.message }, '*');
+});
 
 // ── Message router ────────────────────────────────────────────────────────────
 window.addEventListener('message', ({ data }) => {
@@ -44,29 +43,41 @@ window.addEventListener('message', ({ data }) => {
 
   switch (data.type) {
 
-    // ── init ─────────────────────────────────────────────────────────────────
-    // Receive ROM blobs from the parent, write them into the Emscripten
-    // virtual filesystem, then boot the emulator via callMain().
-    case 'init': {
-      if (!_ready) return; // guard: runtime must be initialised first
+    // ── boot ─────────────────────────────────────────────────────────────────
+    // Optionally write VICE ROMs into the virtual FS, then start RetroArch.
+    // VICE libretro looks for system ROMs at {system_dir}/vice_x64sc/.
+    // RetroArch's emscripten system_dir defaults to /home/web_user/.
+    case 'boot': {
+      if (!_ready) return;
 
       const { kernal, basic, chargen } = data.roms ?? {};
 
-      try {
-        _module.FS.mkdir('/c64roms');
-      } catch (_) {
-        // Directory may already exist if init is called more than once.
+      if (kernal && basic && chargen) {
+        // Write ROMs for VICE libretro. Try both the RetroArch system_dir
+        // path (/home/web_user/vice_x64sc/) and a fallback /system/ path.
+        for (const base of ['/home/web_user', '/system']) {
+          try { _module.FS.mkdir(base); } catch (_) {}
+          try { _module.FS.mkdir(`${base}/vice_x64sc`); } catch (_) {}
+          try {
+            // VICE libretro expects uppercase filenames on some builds, lowercase on others.
+            _module.FS.writeFile(`${base}/vice_x64sc/KERNAL`,  new Uint8Array(kernal.buffer ?? kernal));
+            _module.FS.writeFile(`${base}/vice_x64sc/BASIC`,   new Uint8Array(basic.buffer  ?? basic));
+            _module.FS.writeFile(`${base}/vice_x64sc/CHARGEN`, new Uint8Array(chargen.buffer ?? chargen));
+            _module.FS.writeFile(`${base}/vice_x64sc/kernal`,  new Uint8Array(kernal.buffer ?? kernal));
+            _module.FS.writeFile(`${base}/vice_x64sc/basic`,   new Uint8Array(basic.buffer  ?? basic));
+            _module.FS.writeFile(`${base}/vice_x64sc/chargen`, new Uint8Array(chargen.buffer ?? chargen));
+          } catch (e) {
+            console.warn('[C64 sandbox] ROM write to', base, 'failed:', e.message);
+          }
+        }
       }
 
-      if (kernal)  _module.FS.writeFile('/c64roms/kernal',  kernal);
-      if (basic)   _module.FS.writeFile('/c64roms/basic',   basic);
-      if (chargen) _module.FS.writeFile('/c64roms/chargen', chargen);
-
-      _module.callMain([
-        '-kernal',  '/c64roms/kernal',
-        '-basic',   '/c64roms/basic',
-        '-chargen', '/c64roms/chargen',
-      ]);
+      // Start RetroArch (entry point calls main() with argv[0] = thisProgram).
+      try {
+        _module.callMain([]);
+      } catch (e) {
+        console.error('[C64 sandbox] callMain failed:', e);
+      }
       break;
     }
 
@@ -74,11 +85,9 @@ window.addEventListener('message', ({ data }) => {
     case 'keydown': {
       if (!_ready) return;
       const ev = new KeyboardEvent('keydown', {
-        key:     data.key,
-        code:    data.code,
-        bubbles: true,
+        key: data.key, code: data.code, bubbles: true, cancelable: true,
       });
-      document.getElementById('c64-screen').dispatchEvent(ev);
+      (_canvas.ownerDocument || document).dispatchEvent(ev);
       break;
     }
 
@@ -86,39 +95,30 @@ window.addEventListener('message', ({ data }) => {
     case 'keyup': {
       if (!_ready) return;
       const ev = new KeyboardEvent('keyup', {
-        key:     data.key,
-        code:    data.code,
-        bubbles: true,
+        key: data.key, code: data.code, bubbles: true, cancelable: true,
       });
-      document.getElementById('c64-screen').dispatchEvent(ev);
+      (_canvas.ownerDocument || document).dispatchEvent(ev);
       break;
     }
 
     // ── loadPrg ──────────────────────────────────────────────────────────────
-    // Write a .prg file to the virtual FS and autostart it.
+    // Write a .prg into the virtual FS and ask RetroArch to load it.
     case 'loadPrg': {
       if (!_ready) return;
-
-      _module.FS.writeFile('/tmp/autostart.prg', data.bytes);
-      _module.ccall(
-        'autostart_prg',
-        null,
-        ['string', 'number'],
-        ['/tmp/autostart.prg', 0],
-      );
+      try {
+        _module.FS.mkdir('/home/web_user/content');
+      } catch (_) {}
+      const PRG_PATH = '/home/web_user/content/autostart.prg';
+      _module.FS.writeFile(PRG_PATH, new Uint8Array(data.bytes));
+      // EmscriptenSendCommand feeds the RetroArch platform command queue.
+      _module.EmscriptenSendCommand(JSON.stringify({ load_content: PRG_PATH }));
       break;
     }
 
     // ── kill ─────────────────────────────────────────────────────────────────
-    // Trigger a hard reset.  Errors are silenced so a partially-initialised
-    // module (or a VICE build that lacks the symbol) won't crash the sandbox.
     case 'kill': {
-      if (_ready) {
-        try {
-          _module.ccall('machine_trigger_reset', null, ['number'], [0]);
-        } catch (_) {
-          // Silently ignore — VICE may not expose this symbol in all builds.
-        }
+      if (_ready && _module) {
+        try { _module._cmd_pause?.(); } catch (_) {}
       }
       parent.postMessage({ type: 'stopped' }, '*');
       break;
@@ -128,3 +128,4 @@ window.addEventListener('message', ({ data }) => {
       break;
   }
 });
+

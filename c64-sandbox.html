@@ -7,9 +7,8 @@
   The page has a unique opaque origin and cannot use chrome.* APIs.  It
   communicates with the extension's newtab page exclusively via postMessage.
 
-  vendor/x64sc.js is the Emscripten VICE glue and must be loaded before
-  c64-sandbox.js so that the Module pre-configuration is in place when the
-  glue script runs.
+  c64-sandbox.js is a type="module" script that imports vendor/vice_x64sc_libretro.js
+  (the RetroArch/VICE libretro Emscripten build) and drives it via the libretro API.
 ──────────────────────────────────────────────────────────────────────────── -->
 <html>
 <head>
@@ -18,10 +17,8 @@
     html, body { margin: 0; padding: 0; background: #000; width: 100%; height: 100%; }
     #c64-screen { display: block; width: 100%; height: 100%; }
   </style>
-  <!-- VICE Emscripten glue — must come first so Module pre-config is ready. -->
-  <script src="vendor/x64sc.js"></script>
-  <!-- C64 sandbox message router. -->
-  <script src="c64-sandbox.js"></script>
+  <!-- C64 sandbox: imports the libretro VICE module and wires postMessage. -->
+  <script type="module" src="c64-sandbox.js"></script>
 </head>
 <body>
   <canvas id="c64-screen"></canvas>

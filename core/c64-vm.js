@@ -41,14 +41,8 @@ async function _loadRoms() {
     names.map(n =>
       fetch(chrome.runtime.getURL(`vendor/c64-roms/${n}`))
         .then(r => {
-          if (!r.ok) throw new Error(`ROM not found: ${n} (HTTP ${r.status})`);
+          if (!r.ok) throw new Error(`ROM not found: ${n}`);
           return r.arrayBuffer();
-        })
-        .catch(() => {
-          throw new Error(
-            `C64 ROM files are missing.  The vendor/c64-roms/ directory (kernal, basic, chargen) ` +
-            `and vendor/x64sc.js / x64sc.wasm are required but not included in this build.`
-          );
         })
     )
   );
@@ -75,8 +69,24 @@ window.addEventListener('message', event => {
 
   switch (type) {
     case 'ready':
-      _initResolve?.();
-      _initResolve = _initReject = null;
+      // WASM runtime is up — fetch ROMs (optional) then tell sandbox to boot.
+      _loadRoms()
+        .then(roms => {
+          _iframe.contentWindow.postMessage(
+            { type: 'boot', roms },
+            '*',
+            [roms.kernal.buffer, roms.basic.buffer, roms.chargen.buffer],
+          );
+        })
+        .catch(() => {
+          // Boot without ROMs — VICE will show a missing-ROM error in its UI
+          // but the RetroArch shell will still appear.
+          _iframe.contentWindow.postMessage({ type: 'boot', roms: null }, '*');
+        })
+        .finally(() => {
+          _initResolve?.();
+          _initResolve = _initReject = null;
+        });
       break;
 
     case 'stopped':
@@ -108,21 +118,6 @@ export function initC64VM() {
   iframe.src   = chrome.runtime.getURL('c64-sandbox.html');
   iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
   iframe.setAttribute('sandbox', 'allow-scripts');
-
-  iframe.addEventListener('load', async () => {
-    try {
-      const roms = await _loadRoms();
-      iframe.contentWindow.postMessage(
-        { type: 'init', roms },
-        '*',
-        [roms.kernal.buffer, roms.basic.buffer, roms.chargen.buffer],
-      );
-    } catch (err) {
-      _initPromise = null;
-      _initReject?.(err);
-      _initResolve = _initReject = null;
-    }
-  });
 
   _frameEl.appendChild(iframe);
   _iframe = iframe;
