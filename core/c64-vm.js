@@ -2,8 +2,10 @@
 // C64 emulator sandbox hosted in a sandboxed iframe.
 //
 // The emulator runs inside c64-sandbox.html, a sandboxed extension page with a
-// relaxed CSP.  This module creates the iframe, loads the FreeCBM ROM blobs,
-// and communicates with the sandbox via postMessage.
+// relaxed CSP.  This module creates the iframe, loads user-supplied ROM blobs
+// from IndexedDB, and communicates with the sandbox via postMessage.
+//
+// ROMs are not bundled. Users supply them via `c64 rom <base-url>`.
 //
 // Message protocol (parent → sandbox):
 //   { type: 'init',    roms: { kernal, basic, chargen } } — boot emulator (ArrayBuffers transferred)
@@ -17,6 +19,7 @@
 //   { type: 'stopped' } — emulator halted (user quit from inside the VM)
 
 import { setActiveGame, clearActiveGame } from './state.js';
+import { loadAllRoms } from './c64-roms.js';
 
 // ── Module-level state ────────────────────────────────────────────────────────
 let _iframe      = null;   // sandboxed iframe element (null until initC64VM called)
@@ -29,30 +32,6 @@ let _frameEl     = null;   // #c64-crt-frame
 
 /** Stored so bootC64 and killC64 share the same listener reference. */
 let _keyUpListener = null;
-
-// ── ROM loader ────────────────────────────────────────────────────────────────
-/**
- * Fetch the three FreeCBM ROMs from the extension's vendor directory.
- * @returns {Promise<{ kernal: Uint8Array, basic: Uint8Array, chargen: Uint8Array }>}
- */
-async function _loadRoms() {
-  const names = ['kernal', 'basic', 'chargen'];
-  const results = await Promise.all(
-    names.map(n =>
-      fetch(chrome.runtime.getURL(`vendor/c64-roms/${n}`))
-        .then(r => {
-          if (!r.ok) throw new Error(`ROM not found: ${n}`);
-          return r.arrayBuffer();
-        })
-    )
-  );
-  const [kernal, basic, chargen] = results;
-  return {
-    kernal:  new Uint8Array(kernal),
-    basic:   new Uint8Array(basic),
-    chargen: new Uint8Array(chargen),
-  };
-}
 
 // ── Internal cleanup ──────────────────────────────────────────────────────────
 function _cleanupC64() {
@@ -69,8 +48,8 @@ window.addEventListener('message', event => {
 
   switch (type) {
     case 'ready':
-      // WASM runtime is up — fetch ROMs (optional) then tell sandbox to boot.
-      _loadRoms()
+      // WASM runtime is up — load ROMs from IndexedDB then tell sandbox to boot.
+      loadAllRoms()
         .then(roms => {
           _iframe.contentWindow.postMessage(
             { type: 'boot', roms },
@@ -79,8 +58,7 @@ window.addEventListener('message', event => {
           );
         })
         .catch(() => {
-          // Boot without ROMs — VICE will show a missing-ROM error in its UI
-          // but the RetroArch shell will still appear.
+          // Boot without ROMs — VICE will show a missing-ROM error in its UI.
           _iframe.contentWindow.postMessage({ type: 'boot', roms: null }, '*');
         })
         .finally(() => {
