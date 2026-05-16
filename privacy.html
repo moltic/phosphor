@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Phosphor: CRT Terminal New Tab</title>
+  <style>
+    body { max-width: 720px; margin: 60px auto; padding: 0 24px; font-family: Georgia, serif; line-height: 1.7; color: #222; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    h3 { font-size: 1rem; margin-top: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+    th { background: #f5f5f5; }
+    code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+    p em { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy — Phosphor: CRT Terminal New Tab</h1>
+  <p><em>Last updated: March 2026</em></p>
+  <hr>
+
+  <h2>Overview</h2>
+  <p>Phosphor is a Chrome extension that replaces the new tab page with a retro CRT terminal interface. This policy explains what data the extension accesses, how it is stored, and what — if anything — leaves your device.</p>
+  <p><strong>Short version:</strong> your data stays on your device (and in your own Google account storage). Phosphor does not collect, transmit, or sell any personal information.</p>
+  <hr>
+
+  <h2>Data We Store</h2>
+  <p>All user data is stored exclusively in Chrome's built-in extension storage APIs under your own Google account. No data is sent to any server operated by this extension.</p>
+
+  <h3><code>chrome.storage.sync</code></h3>
+  <p>The following data is saved and synced across your signed-in Chrome devices, exactly as Chrome bookmarks and settings are:</p>
+  <table>
+    <tr><th>Data</th><th>Description</th></tr>
+    <tr><td>Speed dials</td><td>URLs, labels, categories, and layout you have saved</td></tr>
+    <tr><td>Notes &amp; tasks</td><td>Text, pin status, priority, and due dates you have entered</td></tr>
+    <tr><td>Preferences</td><td>Theme, font size, clock format, sound settings, and other UI options</td></tr>
+    <tr><td>Profile</td><td>Your BBS handle, cumulative XP, and achievement unlock timestamps</td></tr>
+  </table>
+  <p>This data never leaves the Chrome sync infrastructure (Google's servers). Phosphor has no backend and no access to your sync data outside of the extension itself.</p>
+
+  <h3><code>chrome.storage.local</code></h3>
+  <table>
+    <tr><th>Data</th><th>Description</th></tr>
+    <tr><td>Command history</td><td>Your terminal command history (can be disabled in Settings)</td></tr>
+    <tr><td>Pending tab dial</td><td>A temporary queue entry used when adding the current tab as a speed dial via keyboard shortcut — cleared immediately after use</td></tr>
+  </table>
+  <hr>
+
+  <h2>Permissions Used</h2>
+  <table>
+    <tr><th>Permission</th><th>Purpose</th></tr>
+    <tr><td><code>storage</code></td><td>Save and sync your dials, notes, preferences, and profile</td></tr>
+    <tr><td><code>bookmarks</code></td><td>Read your browser bookmarks for speed-dial integration</td></tr>
+    <tr><td><code>tabs</code></td><td>Read the URL and title of the active tab when you press the "add current tab" keyboard shortcut (Ctrl+Shift+S / ⌘⇧S)</td></tr>
+  </table>
+  <p>The <code>tabs</code> permission is used only at the moment you explicitly trigger the shortcut. Tab data is not logged, stored in history, or transmitted anywhere.</p>
+  <hr>
+
+  <h2>Third-Party Network Requests</h2>
+  <p>Phosphor makes anonymous network requests to three external services, all of which are free and privacy-respecting. No user identifier, IP address (beyond what is inherent to any HTTP request), or personal data is included in these requests.</p>
+
+  <h3>Open-Meteo (<code>api.open-meteo.com</code>)</h3>
+  <p>Used by weather speed-dial tiles to fetch current conditions and forecast data. Requests include only a latitude/longitude coordinate and your chosen temperature unit. No account or API key is required or used.</p>
+
+  <h3>OpenStreetMap Nominatim (<code>nominatim.openstreetmap.org</code>)</h3>
+  <p>Used to convert a place name to coordinates when you set up a weather tile by typing a location. The query string (e.g. "London") is sent as a standard search request. No personal data is attached.</p>
+
+  <h3>DuckDuckGo Icons (<code>icons.duckduckgo.com</code>)</h3>
+  <p>Used to fetch favicon images for speed-dial tiles. Requests include only the domain of the URL you have saved (e.g. <code>github.com</code>). This is the same service used by many popular new-tab extensions.</p>
+  <p><strong>All three services can be bypassed</strong> by not adding weather tiles and by disabling favicon loading (the extension functions fully without them).</p>
+  <hr>
+
+  <h2>Geolocation</h2>
+  <p>Geolocation is <strong>never requested automatically</strong>. It is only triggered when you add a weather dial and explicitly choose "use my current location." The resulting latitude/longitude is sent to Open-Meteo for a weather query and is not stored by Phosphor.</p>
+  <hr>
+
+  <h2>Data Sharing</h2>
+  <p>Phosphor does not:</p>
+  <ul>
+    <li>Collect analytics or telemetry</li>
+    <li>Share any data with advertisers or data brokers</li>
+    <li>Send any user data to servers controlled by this extension</li>
+    <li>Use cookies or tracking pixels</li>
+  </ul>
+  <hr>
+
+  <h2>Data Retention &amp; Deletion</h2>
+  <p>Your data persists until you remove it:</p>
+  <ul>
+    <li><strong>Individual items:</strong> use <code>n rm [N]</code> (notes) or <code>dial rm [alias]</code> (dials) at the terminal prompt</li>
+    <li><strong>All data:</strong> open Settings and use <strong>Reset All Data</strong>, or uninstall the extension and clear its storage via <code>chrome://settings/privacy</code> → Site data</li>
+    <li><strong>Command history only:</strong> disable History Persistence in Settings, or run <code>history clear</code></li>
+  </ul>
+  <p>Uninstalling the extension removes all locally stored data. Synced data in <code>chrome.storage.sync</code> is removed by Chrome when you clear extension data from your Google account.</p>
+  <hr>
+
+  <h2>Children's Privacy</h2>
+  <p>Phosphor does not knowingly collect any information from children under 13. The extension contains no user accounts, no sign-up flow, and no data collection mechanism.</p>
+  <hr>
+
+  <h2>Changes to This Policy</h2>
+  <p>If this policy changes in a material way, the "Last updated" date above will be updated and a note will appear in the extension's release notes.</p>
+  <hr>
+
+  <h2>Contact</h2>
+  <p>Questions or concerns? Open an issue at <a href="https://github.com/moltic/bbtab">github.com/moltic/bbtab</a>.</p>
+</body>
+</html>
