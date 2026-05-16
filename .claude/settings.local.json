@@ -17,7 +17,16 @@
       "Bash(bash build.sh)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\('/Users/db/bbtab/image.png'\\); print\\(img.size\\)\")",
+      "Bash(convert --version)",
+      "Bash(sips -z 927 1280 /Users/db/bbtab/screenshot-1280x800.png)",
+      "Bash(sips --cropToHeightWidth 800 1280 /Users/db/bbtab/screenshot-1280x800.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/db/bbtab/screenshot-1280x800.png)",
+      "Bash(python3 -c \"import tkinter; print\\('tkinter ok'\\)\")",
+      "Bash(python3 -c \"import struct, zlib; print\\('struct/zlib ok'\\)\")",
+      "Bash(python3)",
+      "Bash(sips --flip vertical /Users/db/bbtab/screenshot-1280x800.png)"
     ]
   }
 }
