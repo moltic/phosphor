@@ -53,7 +53,7 @@ Search for **Phosphor — CRT Terminal New Tab** and click **Add to Chrome**.
 ### Manual / Developer Install
 
 ```bash
-git clone https://github.com/moltic/bbtab.git
+git clone https://github.com/moltic/phosphor.git
 ```
 
 1. Open Chrome and navigate to `chrome://extensions`
@@ -401,7 +401,7 @@ phos.draw(phos.color.bgreen .. "HELLO" .. phos.color.reset .. "\n")
 ## Architecture
 
 ```
-bbtab/
+phosphor/
 ├── manifest.json       Chrome Extension Manifest V3
 ├── index.html          New tab page entry point
 ├── main.js             Terminal core, event loop, command dispatch

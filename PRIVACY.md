@@ -1,6 +1,6 @@
 # Privacy Policy — Phosphor: CRT Terminal New Tab
 
-_Last updated: March 2026_
+_Last updated: May 2026_
 
 ---
 
@@ -113,4 +113,4 @@ If this policy changes in a material way, the "Last updated" date above will be 
 
 ## Contact
 
-Questions or concerns? Open an issue at [github.com/moltic/bbtab](https://github.com/moltic/bbtab).
+Questions or concerns? Open an issue at [github.com/moltic/phosphor](https://github.com/moltic/phosphor).

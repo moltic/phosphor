@@ -23,7 +23,7 @@
   "commands": {
     "add-current-tab-dial": {
       "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
-      "description": "Add current tab as a speed-dial tile in bbtab"
+      "description": "Add current tab as a speed-dial tile in Phosphor"
     }
   },
   "host_permissions": [
