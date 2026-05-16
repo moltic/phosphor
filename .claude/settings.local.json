@@ -12,7 +12,9 @@
       "Bash(grep -r \"chrome\\\\.runtime\\\\|chrome\\\\.tabs\\\\|chrome\\\\.storage\" /Users/db/bbtab/*.js)",
       "Bash(grep -r \"version\\\\|VERSION\" /Users/db/bbtab/*.json /Users/db/bbtab/*.js)",
       "Bash(grep -n \"open-meteo\\\\|openstreetmap\\\\|duckduckgo\" /Users/db/bbtab/ui/*.js)",
-      "Bash(wc -l /Users/db/bbtab/commands/*.js)"
+      "Bash(wc -l /Users/db/bbtab/commands/*.js)",
+      "Bash(chmod +x /Users/db/bbtab/build.sh)",
+      "Bash(bash build.sh)"
     ]
   }
 }
