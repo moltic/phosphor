@@ -479,8 +479,7 @@ window.addEventListener('pageshow', scheduleStartupFocusRetries);
 // ── Sync change listener ──────────────────────────────────────────────────────
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
-  const keys = Object.keys(changes);
-  if (changes.dialStore || changes.dials) renderDials();
+  if (changes.dialStore || changes.dials || changes.dialGroupCollapsed) renderDials();
   if (changes.prefs) {
     const newPrefs = { ...DEFAULT_PREFS, ...(changes.prefs.newValue || {}) };
     applyPrefs(newPrefs);

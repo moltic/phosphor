@@ -207,6 +207,57 @@ export function saveDials(dials) {
   return chrome.storage.sync.set({ dialStore: store });
 }
 
+// ── Dial UI state (category collapse) ───────────────────────────────────────
+
+/**
+ * Load per-category collapse state for the dial overlay.
+ *
+ * Stored in sync so category open/closed state follows the user across
+ * desktops. For older installs, if the state still exists only in local
+ * storage it is migrated to sync on first read.
+ *
+ * @returns {Promise<Record<string, boolean>>}
+ */
+export async function loadDialGroupCollapsed() {
+  const synced = await chrome.storage.sync.get({ dialGroupCollapsed: null });
+  const syncState = synced.dialGroupCollapsed;
+
+  if (syncState && typeof syncState === 'object' && !Array.isArray(syncState)) {
+    return syncState;
+  }
+
+  const local = await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  const localState =
+    local.dialGroupCollapsed &&
+    typeof local.dialGroupCollapsed === 'object' &&
+    !Array.isArray(local.dialGroupCollapsed)
+      ? local.dialGroupCollapsed
+      : {};
+
+  if (Object.keys(localState).length > 0) {
+    try {
+      await chrome.storage.sync.set({ dialGroupCollapsed: localState });
+      await chrome.storage.local.remove('dialGroupCollapsed');
+    } catch (_) {
+      // Keep local fallback when sync is unavailable (e.g. disabled by policy).
+    }
+  }
+
+  return localState;
+}
+
+/**
+ * Persist per-category collapse state for the dial overlay.
+ * @param {Record<string, boolean>} state
+ */
+export async function saveDialGroupCollapsed(state) {
+  const next =
+    state && typeof state === 'object' && !Array.isArray(state)
+      ? state
+      : {};
+  await chrome.storage.sync.set({ dialGroupCollapsed: next });
+}
+
 // ── Notes CRUD ────────────────────────────────────────────────────────────────
 
 /**
@@ -386,10 +437,24 @@ export async function migrateLocalToSync() {
   const flag = await chrome.storage.local.get({ _syncMigrated: false });
   if (flag._syncMigrated) return;
 
-  const local  = await chrome.storage.local.get({ dials: [], notes: [], prefs: {} });
-  const synced = await chrome.storage.sync.get({ dials: [], notes: [] });
+  const local  = await chrome.storage.local.get({
+    dials: [],
+    notes: [],
+    prefs: {},
+    dialGroupCollapsed: {},
+  });
+  const synced = await chrome.storage.sync.get({
+    dials: [],
+    notes: [],
+    dialStore: null,
+    dialGroupCollapsed: null,
+  });
 
-  const syncIsEmpty = synced.dials.length === 0 && synced.notes.length === 0;
+  const syncHasDials =
+    (Array.isArray(synced.dials) && synced.dials.length > 0) ||
+    (synced.dialStore?.version === DIAL_STORE_VERSION);
+  const syncHasNotes = Array.isArray(synced.notes) && synced.notes.length > 0;
+  const syncIsEmpty = !syncHasDials && !syncHasNotes;
   if (syncIsEmpty) {
     const toSync = {};
     if (local.dials.length > 0)              toSync.dials = local.dials;
@@ -398,6 +463,21 @@ export async function migrateLocalToSync() {
     if (Object.keys(toSync).length > 0) {
       await chrome.storage.sync.set(toSync);
     }
+  }
+
+  const localCollapsed =
+    local.dialGroupCollapsed &&
+    typeof local.dialGroupCollapsed === 'object' &&
+    !Array.isArray(local.dialGroupCollapsed)
+      ? local.dialGroupCollapsed
+      : {};
+  const syncCollapsedValid =
+    synced.dialGroupCollapsed &&
+    typeof synced.dialGroupCollapsed === 'object' &&
+    !Array.isArray(synced.dialGroupCollapsed);
+
+  if (!syncCollapsedValid && Object.keys(localCollapsed).length > 0) {
+    await chrome.storage.sync.set({ dialGroupCollapsed: localCollapsed });
   }
 
   await chrome.storage.local.set({ _syncMigrated: true });

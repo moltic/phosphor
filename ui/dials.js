@@ -3,7 +3,14 @@
 
 import { CONFIG }                   from '../core/config.js';
 import { getCachedPrefs }           from './settings.js';
-import { loadDials, saveDials, loadDialStore, saveDialStore } from '../core/storage.js';
+import {
+  loadDials,
+  saveDials,
+  loadDialStore,
+  saveDialStore,
+  loadDialGroupCollapsed,
+  saveDialGroupCollapsed,
+} from '../core/storage.js';
 import { printLine, inputEl }       from '../core/render.js';
 import { recordDialOpen }           from '../core/usage-stats.js';
 import {
@@ -620,11 +627,11 @@ function _cancelHoverExpand() {
 
 /** Expand a collapsed category by removing it from the persisted collapse state. */
 async function _triggerHoverExpand(catId) {
-  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
-  if (!stored.dialGroupCollapsed[catId]) return; // already expanded
-  stored.dialGroupCollapsed[catId] = false;
-  await chrome.storage.local.set({ dialGroupCollapsed: stored.dialGroupCollapsed });
-  _applyGroupCollapse(stored.dialGroupCollapsed);
+  const state = await loadDialGroupCollapsed();
+  if (!state[catId]) return; // already expanded
+  state[catId] = false;
+  await saveDialGroupCollapsed(state);
+  _applyGroupCollapse(state);
 }
 
 // ── Move-to-category picker ───────────────────────────────────────────────────
@@ -1464,10 +1471,9 @@ function _patchSectionEl(sectionEl, cat) {
 // ── Group collapse ────────────────────────────────────────────────────────────
 
 async function _toggleGroupCollapse(catId) {
-  const stored  = await chrome.storage.local.get({ dialGroupCollapsed: {} });
-  const state   = stored.dialGroupCollapsed;
+  const state   = await loadDialGroupCollapsed();
   state[catId]  = !state[catId];
-  await chrome.storage.local.set({ dialGroupCollapsed: state });
+  await saveDialGroupCollapsed(state);
   _applyGroupCollapse(state);
 }
 
@@ -1478,8 +1484,7 @@ async function _toggleGroupCollapse(catId) {
  */
 async function _applyGroupCollapse(collapseState) {
   if (!collapseState) {
-    const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
-    collapseState = stored.dialGroupCollapsed;
+    collapseState = await loadDialGroupCollapsed();
   }
 
   for (const [catId, sectionEl] of _sectionNodeCache) {
@@ -1571,8 +1576,7 @@ function _patchDividerEl(el, dial) {
  */
 export async function renderDials() {
   const store = await loadDialStore();
-  const { dialGroupCollapsed: collapseState = {} } =
-    await chrome.storage.local.get({ dialGroupCollapsed: {} });
+  const collapseState = await loadDialGroupCollapsed();
 
   // ── Build / patch section elements in stable category order ───────────────
   const desiredAliases  = new Set();
@@ -2374,10 +2378,10 @@ export async function removeDial(alias) {
   const filtered = dials.filter(d => d.alias !== alias);
   await saveDials(filtered);
 
-  const stored = await chrome.storage.local.get({ dialGroupCollapsed: {} });
-  if (alias in stored.dialGroupCollapsed) {
-    delete stored.dialGroupCollapsed[alias];
-    await chrome.storage.local.set({ dialGroupCollapsed: stored.dialGroupCollapsed });
+  const collapseState = await loadDialGroupCollapsed();
+  if (alias in collapseState) {
+    delete collapseState[alias];
+    await saveDialGroupCollapsed(collapseState);
   }
   await renderDials();
 
