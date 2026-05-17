@@ -44,6 +44,46 @@ import { initLaunchPanel }            from './ui/launch-panel.js';
 import { initLuaVM, killLua }          from './core/lua-vm.js';
 import { initC64VM, killC64 }          from './core/c64-vm.js';
 
+function _resolveAssetUrl(path) {
+  try {
+    if (typeof chrome !== 'undefined' && chrome?.runtime?.getURL) {
+      return chrome.runtime.getURL(path);
+    }
+  } catch (_) {}
+  return path;
+}
+
+function setupBrandIconFallback() {
+  const logoEl = document.getElementById('logo');
+  if (!logoEl) return;
+
+  const candidates = Array.from(new Set([
+    _resolveAssetUrl('phos.png'),
+    _resolveAssetUrl('phos48.png'),
+    _resolveAssetUrl('phos128.png'),
+    'phos.png',
+    'phos48.png',
+    'phos128.png',
+  ]));
+
+  let idx = 0;
+  const tryNext = () => {
+    if (idx >= candidates.length) {
+      logoEl.style.display = 'none';
+      return;
+    }
+    logoEl.src = candidates[idx++];
+  };
+
+  logoEl.addEventListener('error', tryNext);
+  tryNext();
+
+  const faviconEl = document.querySelector('link[rel="icon"]');
+  if (faviconEl && candidates.length > 0) {
+    faviconEl.href = candidates[0];
+  }
+}
+
 function focusPrompt() {
   inputEl.focus({ preventScroll: true });
   const len = inputEl.value.length;
@@ -70,6 +110,7 @@ function scheduleStartupFocusRetries() {
 
 async function init() {
   setSessionStart(Date.now());
+  setupBrandIconFallback();
 
   // Claim keyboard focus as early as possible so first keystrokes land in the
   // prompt (not the browser omnibox) while startup output is still rendering.
