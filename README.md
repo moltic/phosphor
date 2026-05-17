@@ -2,6 +2,8 @@
 
 A retro phosphor terminal interface for your Chrome new tab page. Replaces the default new tab with an authentic CRT-style terminal — complete with speed dials, notes, games, Lua scripting, and a BBS-style progression system.
 
+[![Available in the Chrome Web Store](https://img.shields.io/chrome-web-store/v/akhjplnkdmhgnlfdaddmnmgdnndpbgnf?label=Chrome%20Web%20Store&logo=googlechrome)](https://chromewebstore.google.com/detail/phosphor-%E2%80%94-crt-terminal-n/akhjplnkdmhgnlfdaddmnmgdnndpbgnf)
+
 ---
 
 ## Table of Contents
@@ -25,6 +27,7 @@ A retro phosphor terminal interface for your Chrome new tab page. Replaces the d
 - [Architecture](#architecture)
 - [Permissions](#permissions)
 - [Privacy](#privacy)
+- [Contributing](#contributing)
 
 ---
 
@@ -48,7 +51,7 @@ A retro phosphor terminal interface for your Chrome new tab page. Replaces the d
 
 ### From the Chrome Web Store
 
-Search for **Phosphor — CRT Terminal New Tab** and click **Add to Chrome**.
+**[Install from the Chrome Web Store →](https://chromewebstore.google.com/detail/phosphor-%E2%80%94-crt-terminal-n/akhjplnkdmhgnlfdaddmnmgdnndpbgnf)**
 
 ### Manual / Developer Install
 
@@ -360,7 +363,7 @@ Five missions reset at midnight. Complete them to earn XP and unlock cosmetic re
 
 ## Lua Scripting
 
-Phosphor embeds **Lua 5.4** via [Wasmoon](https://github.com/nicholasgasior/wasmoon) in a fully sandboxed WebAssembly environment.
+Phosphor embeds **Lua 5.4** via [Wasmoon](https://github.com/ceifa/wasmoon) in a fully sandboxed WebAssembly environment.
 
 ```
 > lua print("hello from Lua!")
@@ -473,3 +476,11 @@ Phosphor stores all user data locally in `chrome.storage.sync` (synced via your 
 **Geolocation** is only requested when you add a weather dial and choose to use your current location. The coordinate is used for a one-time weather query and is not stored.
 
 To remove all extension data: open Settings → scroll to the bottom → **Reset All Data**, or uninstall the extension and clear extension storage from `chrome://settings/privacy`.
+
+---
+
+## Contributing
+
+Bug reports and feature requests are welcome — open an issue at [github.com/moltic/phosphor](https://github.com/moltic/phosphor/issues).
+
+Pull requests are also welcome. Before adding or changing commands, read [ARCHITECTURE.md](ARCHITECTURE.md) for a map of the module structure and conventions.
